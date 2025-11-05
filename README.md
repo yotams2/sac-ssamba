@@ -161,14 +161,15 @@ We acknowledge the wonderful work of [SSAST](https://arxiv.org/abs/2110.09784), 
 If you find this work helpful, please consider giving us a star 🌟 and citing:
 
 ```bibtex
-@article{shams2024ssamba,
-      title={SSAMBA: Self-Supervised Audio Representation Learning with Mamba State Space Model},
-      author={Siavash Shams and Sukru Samet Dindar and Xilin Jiang and Nima Mesgarani},
-      year={2024},
-      eprint={2405.11831},
-      archivePrefix={arXiv},
-      primaryClass={eess.AS},
-      journal={arXiv preprint arXiv:2405.11831}
+@inproceedings{Shams_2024,
+   title={SSAMBA: Self-Supervised Audio Representation Learning With Mamba State Space Model},
+   url={http://dx.doi.org/10.1109/SLT61566.2024.10832304},
+   DOI={10.1109/slt61566.2024.10832304},
+   booktitle={2024 IEEE Spoken Language Technology Workshop (SLT)},
+   publisher={IEEE},
+   author={Shams, Siavash and Dindar, Sukru Samet and Jiang, Xilin and Mesgarani, Nima},
+   year={2024},
+   month=dec, pages={1053–1059}
 }
 
 ```
