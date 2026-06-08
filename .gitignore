@@ -1,0 +1,23 @@
+
+#Python cache
+__pycache__/
+*.pyc
+
+# WandB logs
+**/wandb/
+
+# Experiment outputs, models, and logs
+**/exp/
+*.log
+
+# Data and dataset files
+*.json
+**/data/ESC-50-master/
+**/data/datafiles/
+**/data/speech_commands_v0.02/
+*.tar.gz
+
+# External dependencies (assuming Vim is cloned Vision Mamba code)
+Vim/
+
+

@@ -6,16 +6,13 @@
 #SBATCH --output=job_%j.out      # Standard output and error log
 
 set -x
-export TORCH_HOME=../../pretrained_models
-mkdir exp
-
-source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
-conda activate new_env_name
+# export TORCH_HOME=../../pretrained_models
+mkdir -p exp
 
 pretrain_exp="amba"
-pretrain_model=$1
-pretrain_path="/engram/naplab/shared/ssamba/models/${pretrain_model}.pth"
-
+# Get the absolute path to the pretrained model as the first argument
+pretrain_path=$1
+pretrain_model=$(basename $(dirname $(dirname $1)))
 
 dataset=esc50
 dataset_mean=-6.6268077
@@ -83,8 +80,8 @@ do
 
   exp_dir=${base_exp_dir}/fold${fold}
 
-  tr_data=/engram/naplab/shared/datafiles/esc_train_data_${fold}.json
-  te_data=/engram/naplab/shared/datafiles/esc_eval_data_${fold}.json
+  tr_data=./data/datafiles/esc_train_data_${fold}.json
+  te_data=./data/datafiles/esc_eval_data_${fold}.json
   
   CUDA_CACHE_DISABLE=1 python -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \
   --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \

@@ -114,11 +114,13 @@ parser.add_argument('--use_middle_cls_token', type=str, choices=['true', 'false'
 
 args = parser.parse_args()
 if args.use_wandb:
-    project_name = "amba_final"  # default project name
+    project_name = "SSAMBA"  # default project name
     if args.dataset == "esc50":
         project_name = "amba_esc"
     elif args.dataset == "audioset":
         project_name = "amba_as"
+    elif args.dataset == "speechcommands":
+        project_name = "amba_sc"
     wandb.init(project=project_name, config=args)
     
 

@@ -21,9 +21,9 @@ import random
 
 
 
-sys.path.append('/home/ss6928/ssast/Vim')
-sys.path.append('/home/ss6928/ssast/Vim/vim')
-sys.path.append('/home/ss6928/ssast/Vim/vim/mamba-1p1p1')
+sys.path.insert(0, '/storage/yotam/ssamba/Vim')
+sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
+sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
 
 
 try:
@@ -525,6 +525,22 @@ class AMBAModel(nn.Module):
             if load_pretrained_mdl_path == None:
                 raise ValueError('Please set load_pretrained_mdl_path to load a pretrained models.')
             sd = torch.load(load_pretrained_mdl_path, map_location=device)
+            
+            # Robust mapping for state_dicts:
+            # 1. Handle SAC models (where AMBAModel is wrapped in 'encoder')
+            # 2. Handle models saved without DataParallel (missing 'module.' prefix)
+            new_sd = {}
+            for k, v in sd.items():
+                if k.startswith('module.encoder.'):
+                    new_sd[k.replace('module.encoder.', 'module.')] = v
+                elif k.startswith('encoder.'):
+                    new_sd[k.replace('encoder.', 'module.')] = v
+                elif k.startswith('module.') and 'encoder.' not in k:
+                    new_sd[k] = v
+                elif not k.startswith('module.'):
+                    new_sd['module.' + k] = v
+            sd = new_sd
+
             # get the fshape and tshape, input_fdim and input_tdim in the pretraining stage
             try:
                 p_fshape, p_tshape = sd['module.v.patch_embed.proj.weight'].shape[2], sd['module.v.patch_embed.proj.weight'].shape[3]

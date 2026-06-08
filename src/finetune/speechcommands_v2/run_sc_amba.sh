@@ -17,14 +17,13 @@ else
     python prep_sc.py
 fi
 
-source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
-conda activate new_env_name
-
-
+# source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
+# conda activate new_env_name
 
 pretrain_exp="amba"
-pretrain_model=$1
-pretrain_path="/engram/naplab/shared/ssamba/models/${pretrain_model}.pth"
+pretrain_path=$1
+# Extract the unique experiment folder name (e.g. sac-base-f16... or amba-base-f16...)
+pretrain_model=$(basename $(dirname $(dirname $1)))
 
 dataset=speechcommands
 dataset_mean=-6.845978
@@ -47,6 +46,28 @@ tshape=16
 fstride=10
 tstride=10
 
+depth=24
+rms_norm='false'
+residual_in_fp32='false'
+fused_add_norm='false'
+if_rope='false'
+if_rope_residual='false'
+bimamba_type="v2"
+drop_path_rate=0.1
+stride=10
+channels=1
+num_classes=1000
+drop_rate=0.
+norm_epsilon=1e-5
+if_bidirectional='true'
+final_pool_type='none'
+if_abs_pos_embed='true'
+if_bimamba='false'
+if_cls_token='true'
+if_devide_out='true'
+use_double_cls_token='false'
+use_middle_cls_token='false'
+
 task=ft_avgtok
 model_size=base
 if [[ $pretrain_model == *"tiny"* ]]; then
@@ -65,7 +86,6 @@ head_lr=1
 base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${task}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}
 
 
-pretrain_path=./${pretrain_exp}/${pretrain_model}.pth
 exp_dir=./exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${task}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}
 
 CUDA_CACHE_DISABLE=1 python -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \

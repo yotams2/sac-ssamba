@@ -9,7 +9,6 @@ import numpy as np
 import json
 import os
 import wget
-from torchaudio.datasets import SPEECHCOMMANDS
 
 # prepare the data of the speechcommands dataset.
 print('Now download and process speechcommands dataset, it will take a few moments...')

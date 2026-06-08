@@ -7,8 +7,8 @@
 #SBATCH --output=job_%j.out      # Standard output and error log
 
 set -x
-source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
-conda activate superv
+# source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
+# conda activate superv
 export TORCH_HOME=../../pretrained_models
 
 # Default parameters
@@ -24,5 +24,5 @@ for test_fold in fold1;
 do
   echo "running cross-validation on $test_fold"
   mkdir -p $expdir/unfreeze_cross-valid-on-${test_fold}; mkdir -p ./log/emotion/unfreeze_cross-valid-on-${test_fold}
-  python3 ~/courses/adv_dl/final/s3prl/s3prl/run_downstream.py --expdir $expdir/unfreeze_cross-valid-on-${test_fold} -m train -u $mdl -d emotion -c ~/courses/adv_dl/final/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.downstream_expert.datarc.test_fold='$test_fold'" -f
+  PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir/unfreeze_cross-valid-on-${test_fold} -m train -u $model_function -d emotion -c /storage/yotam/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.downstream_expert.datarc.test_fold='$test_fold'" -f -a
 done

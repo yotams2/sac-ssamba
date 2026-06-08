@@ -11,9 +11,9 @@ task=pretrain_joint
 mask_patch=300
 
 # audioset and librispeech
-dataset=asli
-tr_data=/engram/naplab/shared/ssamba/datafiles/audioset_librispeech.json
-te_data=/engram/naplab/shared/ssamba/datafiles/eval_data.json
+dataset=librispeech
+tr_data=/storage/yotam/ssamba/librispeech_train.json
+te_data=/storage/yotam/ssamba/librispeech_eval.json
 dataset_mean=-4.2677393
 dataset_std=4.5689974
 target_length=1024
@@ -53,7 +53,7 @@ use_middle_cls_token='false'
 
 # no class balancing as it implicitly uses label information
 bal=none
-batch_size=64
+batch_size=16
 lr=1e-4
 # learning rate decreases if the pretext task performance does not improve on the validation set
 lr_patience=2
@@ -68,7 +68,7 @@ exp_dir=./exp/amba-${model_size}-f${fshape}-t${tshape}-b$batch_size-lr${lr}-m${m
 
 CUDA_CACHE_DISABLE=1 python -W ignore ../run_amba.py --use_wandb  --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
---label-csv /home/ss6928/ssamba/src/finetune/audioset/data/class_labels_indices.csv \
+--label-csv /storage/yotam/ssamba/src/finetune/audioset/data/class_labels_indices.csv \
 --lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
 --freqm $freqm --timem $timem --mixup ${mixup} --bal ${bal} \
 --tstride $tstride --fstride $fstride --fshape ${fshape} --tshape ${tshape} \

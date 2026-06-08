@@ -7,17 +7,13 @@
 
 
 set -x
-export TORCH_HOME=../../pretrained_models
-mkdir exp
-
-source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
-conda activate new_env_name
-
-
+# export TORCH_HOME=../../pretrained_models
+mkdir -p exp
 
 pretrain_exp="amba"
-pretrain_model=$1
-pretrain_path="/engram/naplab/shared/ssamba/models/${pretrain_model}.pth"
+# Get the absolute path to the pretrained model as the first argument
+pretrain_path=$1
+pretrain_model="custom"
 
 dataset=audioset
 set=balanced
@@ -36,13 +32,13 @@ then
   bal=none
   lr=1e-4
   epoch=50
-  tr_data=/engram/naplab/shared/ssamba/datafiles/bal_train_data.json
+  tr_data=./bal_train_data.json
 elif [ $set == full ]
 then
   bal=bal
   lr=1e-5
   epoch=5
-  tr_data=/engram/naplab/shared/ssamba/datafiles/bal_train_data.json
+  tr_data=./bal_train_data.json
 fi
 
 
@@ -84,7 +80,7 @@ else
 fi
 
 
-te_data=/engram/naplab/shared/ssamba/datafiles/eval_modified_labeled_with_data_key.json
+te_data=./eval_modified_labeled_with_data_key.json
 freqm=48
 timem=192
 mixup=0.5
