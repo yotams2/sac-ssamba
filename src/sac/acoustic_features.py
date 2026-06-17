@@ -252,7 +252,68 @@ def calculate_acoustic_feature_stats(
             all_features.append(feats.cpu())
 
     all_features = torch.cat(all_features, dim=0)
+    
+    mean = all_features.mean(dim=0)
+    std = all_features.std(dim=0)
+    
+    # Normalize features to match what the model will see during training
+    norm_features = (all_features - mean.unsqueeze(0)) / (3.0 * std.unsqueeze(0) + 1e-6)
+    norm_features = norm_features.clamp(-1.0, 1.0)
+    
+    # Helper to parse feature families (shared with sac_model.py)
+    active_families, _ = get_feature_families(features_list)
+    
+    # Subsample to avoid memory explosion with large num_batches
+    if norm_features.shape[0] > 2000:
+        rand_idx = torch.randperm(norm_features.shape[0])[:2000]
+        norm_features = norm_features[rand_idx]
+        
+    family_medians = {}
+    for fam_name, idxs in active_families.items():
+        fam_feats = norm_features[:, idxs]
+        dist_matrix = torch.cdist(fam_feats, fam_feats, p=2)
+        
+        N = dist_matrix.shape[0]
+        off_diag_mask = ~torch.eye(N, dtype=torch.bool, device=dist_matrix.device)
+        off_diag_dists = dist_matrix[off_diag_mask]
+        
+        median_dist = off_diag_dists.median().item()
+        # Prevent division by zero if a family is completely collapsed
+        family_medians[fam_name] = max(median_dist, 1e-4)
+
+    print("\n--- Offline Global Medians Computed ---")
+    for fam_name, m_val in family_medians.items():
+        print(f"  {fam_name}: {m_val:.6f}")
+    print("---------------------------------------\n")
+
     return {
-        'mean': all_features.mean(dim=0),
-        'std': all_features.std(dim=0)
+        'mean': mean,
+        'std': std,
+        'family_medians': family_medians
     }
+
+
+def get_feature_families(features_list: str):
+    """
+    Parses a comma-separated list of acoustic features and maps them to their
+    respective feature families. Used to ensure consistency across the codebase.
+    """
+    families = {
+        'Prosody': ['f0', 'f0_mean', 'f0_var'],
+        'Vocal_Tract': ['formants', 'f1', 'f2', 'f3'],
+        'Timbre': ['mfcc'],
+        'Voice_Quality': ['hnr'],
+        'Scene': ['centroid', 'flux', 'flux_var', 'zcr', 'zcr_mean', 'zcr_var', 'rhythm']
+    }
+    selected = [f.strip().lower() for f in features_list.split(',')]
+    family_indices = {k: [] for k in families}
+    current_idx = 0
+    for f in selected:
+        num_feats = 3 if f == 'formants' else 5 if f == 'mfcc' else 1
+        for fam_name, fam_members in families.items():
+            if f in fam_members:
+                family_indices[fam_name].extend(list(range(current_idx, current_idx + num_feats)))
+                break
+        current_idx += num_feats
+    active_families = {k: v for k, v in family_indices.items() if len(v) > 0}
+    return active_families, len(active_families)

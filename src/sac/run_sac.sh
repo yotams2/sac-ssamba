@@ -67,7 +67,7 @@ epoch_iter=4000
 # ---- SAC Loss Configuration ----
 sac_lambda=0.02       # Weight: L_total = L_recon + λ * L_SAC
 sac_temperature=0.3  # Temperature τ for cosine similarity
-sac_sigma=2.0        # Gaussian kernel bandwidth σ
+sac_sigma=1.0        # Gaussian kernel bandwidth σ
 
 # === PREDEFINED FEATURE LISTS ===
 # Uncomment the list that matches your downstream task.
@@ -89,13 +89,22 @@ sac_sigma=2.0        # Gaussian kernel bandwidth σ
 
 # 4. Speech Commands (Keyword Spotting)
 # Focuses on phonetic envelope, vowel formants, and fricative/consonant noise.
-sac_features="mfcc,formants,zcr_mean,centroid"
-feature_alias="sc"
+# sac_features="mfcc,formants,zcr_mean,centroid"
+# feature_alias="sc"
+
+# 5. Universal Representation (All Families)
+# Uses the factorized cross-attention to learn all acoustic properties simultaneously.
+sac_features="f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm"
+feature_alias="universal"
 
 proj_dim=128         # Projection head output dimension
+local_sigma_mode="offline_global_median" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim
+
+# To resume from a checkpoint, set this to the path of the .pth file (e.g., ./exp/.../models/audio_model.15.pth)
+resume_checkpoint="" 
 
 # ---- Experiment Directory ----
-exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-${dataset}
+exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}
 mkdir -p ${exp_dir}/models
 
 # ---- Launch ----
@@ -128,6 +137,7 @@ CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \
     --sac-temperature ${sac_temperature} \
     --sac-sigma ${sac_sigma} \
     --sac_features ${sac_features} \
+    --local_sigma_mode ${local_sigma_mode} \
     --proj-dim ${proj_dim} \
     --patch_size ${patch_size} \
     --embed_dim ${embed_dim} \
@@ -151,4 +161,5 @@ CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \
     --if_cls_token ${if_cls_token} \
     --if_devide_out ${if_devide_out} \
     --use_double_cls_token ${use_double_cls_token} \
-    --use_middle_cls_token ${use_middle_cls_token}
+    --use_middle_cls_token ${use_middle_cls_token} \
+    --resume "${resume_checkpoint}"

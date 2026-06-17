@@ -165,10 +165,8 @@ def train_sac(model, train_loader, test_loader, args, device):
         )
         if feature_stats:
             # Convert to tensors
-            feature_stats = {
-                'mean': feature_stats['mean'].to(device),
-                'std': feature_stats['std'].to(device),
-            }
+            feature_stats['mean'] = feature_stats['mean'].to(device)
+            feature_stats['std'] = feature_stats['std'].to(device)
             # Set on model
             model_core = model.module if hasattr(model, 'module') else model
             model_core.feature_stats = feature_stats
@@ -200,7 +198,7 @@ def train_sac(model, train_loader, test_loader, args, device):
     else:
         debugger = None
 
-    # Training loop
+    # Training loop state initialization
     global_step = 0
     best_val_loss = float('inf')
     start_time = time.time()
@@ -212,6 +210,38 @@ def train_sac(model, train_loader, test_loader, args, device):
     acc_meter = AverageMeter()
 
     epoch = 1
+
+    # Resume logic
+    if hasattr(args, 'resume') and args.resume and os.path.isfile(args.resume):
+        print(f"=> Loading checkpoint '{args.resume}'")
+        checkpoint = torch.load(args.resume, map_location='cpu')
+        
+        # Handle state_dict unpacking
+        model_state = checkpoint.get('state_dict', checkpoint)
+        
+        # Strip 'module.' prefix if necessary
+        if list(model_state.keys())[0].startswith('module.'):
+            model_state = {k.replace('module.', ''): v for k, v in model_state.items()}
+            
+        model_core = model.module if isinstance(model, nn.DataParallel) else model
+        model_core.load_state_dict(model_state, strict=False)
+        print("=> Checkpoint weights loaded.")
+        
+        # Try to recover progress to resume step/epoch cleanly
+        progress_path = os.path.join(args.exp_dir, 'progress.pkl')
+        if os.path.exists(progress_path):
+            try:
+                with open(progress_path, 'rb') as f:
+                    progress = pickle.load(f)
+                if len(progress) > 0:
+                    last_progress = progress[-1]
+                    epoch = last_progress[0] + 1
+                    global_step = last_progress[1]
+                    best_val_loss = min([p[4] for p in progress])
+                    print(f"=> Resuming from epoch {epoch}, step {global_step}, best_val_loss {best_val_loss:.4f}")
+            except Exception as e:
+                print(f"Warning: could not load progress.pkl: {e}")
+
     while epoch < args.n_epochs + 1:
         model.train()
         begin_time = time.time()
@@ -344,19 +374,34 @@ def train_sac(model, train_loader, test_loader, args, device):
                 sim = diag_dict['sim']
                 w = diag_dict['w']
                 
+                # Handle factorized multi-family tensors by averaging over families
+                if sim.dim() == 3:
+                    sim_mean = sim.mean(dim=0)
+                    w_mean = w.mean(dim=0)
+                else:
+                    sim_mean = sim
+                    w_mean = w
+                    
+                if z_norm.dim() == 3:
+                    import torch.nn.functional as F
+                    z_norm_mean = F.normalize(z_norm.mean(dim=1), p=2, dim=-1)
+                else:
+                    z_norm_mean = z_norm
+                
                 chunk_size = z.shape[0]
                 c = acoustic_feats[:chunk_size]
                 
                 fig_feat_hist, fig_feat_corr = debugger.plot_feature_distributions(c)
-                fig_kernel = debugger.plot_kernel_and_similarity(sim, w)
-                uniformity, alignment = debugger.compute_alignment_uniformity(z_norm, w)
+                fig_kernel = debugger.plot_kernel_and_similarity(sim_mean, w_mean)
+                uniformity, alignment = debugger.compute_alignment_uniformity(z_norm_mean, w_mean)
                 fig_manifold = debugger.plot_latent_manifold(z, c)
                 
                 print(f"  [Diagnostics] Uniformity: {uniformity:.4f}, Alignment_Top10: {alignment:.4f}")
                 
                 if args.use_wandb:
                     import wandb
-                    wandb.log({
+                    import matplotlib.pyplot as plt
+                    log_dict = {
                         "diagnostics/features_hist": wandb.Image(fig_feat_hist),
                         "diagnostics/features_corr": wandb.Image(fig_feat_corr),
                         "diagnostics/kernel_sim": wandb.Image(fig_kernel),
@@ -364,7 +409,23 @@ def train_sac(model, train_loader, test_loader, args, device):
                         "metrics/uniformity": uniformity,
                         "metrics/alignment_top10": alignment,
                         "step": global_step,
-                    })
+                    }
+                    
+                    # --- Per-Family Logging ---
+                    if sim.dim() == 3:
+                        model_core = model.module if hasattr(model, 'module') else model
+                        family_names = list(model_core.family_indices.keys())
+                        for k, fam_name in enumerate(family_names):
+                            fig_kernel_fam = debugger.plot_kernel_and_similarity(sim[k], w[k])
+                            uni_fam, ali_fam = debugger.compute_alignment_uniformity(z_norm[:, k, :], w[k])
+                            
+                            log_dict[f"family_diagnostics/{fam_name}_kernel_sim"] = wandb.Image(fig_kernel_fam)
+                            log_dict[f"family_metrics/{fam_name}_uniformity"] = uni_fam
+                            log_dict[f"family_metrics/{fam_name}_alignment"] = ali_fam
+                            
+                            plt.close(fig_kernel_fam)
+                            
+                    wandb.log(log_dict)
                     
                 import matplotlib.pyplot as plt
                 plt.close(fig_feat_hist)
@@ -542,6 +603,11 @@ def get_args():
                         help='Comma separated list of acoustic features to extract (e.g. formants,mfcc,f0_var,rhythm)')
     parser.add_argument('--proj-dim', type=int, default=128,
                         help='Output dimension of the projection head g(·)')
+    parser.add_argument('--local_sigma_mode', type=str, default='chi2_median',
+                        choices=['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim'],
+                        help='How to calculate the local sigma for the Gaussian kernel')
+    parser.add_argument('--resume', type=str, default='',
+                        help='Path to a checkpoint (.pth) to resume training from.')
 
     return parser.parse_args()
 
@@ -651,8 +717,10 @@ def main():
         sac_temperature=args.sac_temperature,
         sac_sigma=args.sac_sigma,
         sac_lambda=args.sac_lambda,
+        sac_features=args.sac_features,
         mask_patch=args.mask_patch,
         vision_mamba_config=vision_mamba_config,
+        local_sigma_mode=args.local_sigma_mode,
     )
 
     print(f'\nModel built: SSAMBASACModel')

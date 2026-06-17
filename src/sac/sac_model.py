@@ -66,8 +66,10 @@ class SSAMBASACModel(nn.Module):
         sac_temperature=0.3,
         sac_sigma=1.0,
         sac_lambda=1.0,
+        sac_features="f0_mean,hnr,centroid,flux,zcr_mean",
         mask_patch=300,
         vision_mamba_config=None,
+        local_sigma_mode='chi2_median',
     ):
         super(SSAMBASACModel, self).__init__()
 
@@ -76,6 +78,7 @@ class SSAMBASACModel(nn.Module):
         self.sac_lambda = sac_lambda
         self.embed_dim = embed_dim
         self.mask_patch = mask_patch
+        self.local_sigma_mode = local_sigma_mode
 
         # Default vision mamba config
         if vision_mamba_config is None:
@@ -95,12 +98,26 @@ class SSAMBASACModel(nn.Module):
         # The encoder's original_embedding_dim is set during __init__
         actual_embed_dim = self.encoder.original_embedding_dim
 
+        # ---- Feature Families & Cross-Attention ----
+        from sac.acoustic_features import get_feature_families
+        self.family_indices, self.num_active_families = get_feature_families(sac_features)
+        
+        # [num_active_families, actual_embed_dim]
+        self.family_queries = nn.Parameter(torch.empty(self.num_active_families, actual_embed_dim))
+        nn.init.normal_(self.family_queries, std=0.02)
+        
+        self.cross_attention = nn.MultiheadAttention(
+            embed_dim=actual_embed_dim, 
+            num_heads=8, 
+            batch_first=True
+        )
+
         # ---- Projection Head g(·) for SAC loss ----
         # Maps pooled encoder output to latent space for similarity comparison
         # Architecture: Linear → BatchNorm → ReLU → Linear
         self.projection_head = nn.Sequential(
             nn.Linear(actual_embed_dim, actual_embed_dim),
-            nn.BatchNorm1d(actual_embed_dim),
+            nn.LayerNorm(actual_embed_dim),
             nn.ReLU(inplace=True),
             nn.Linear(actual_embed_dim, proj_dim),
         )
@@ -180,86 +197,101 @@ class SSAMBASACModel(nn.Module):
 
         return hidden_states
 
-    def _pool_tokens(self, hidden_states):
+    def sac_loss(self, z_families, c, eps=1e-8, return_diagnostics=False):
         """
-        Mean-pool over patch tokens (excluding CLS) to get global representation.
-        
-        Args:
-            hidden_states: [B, num_patches + cls_token_num, embed_dim]
-            
-        Returns:
-            pooled: [B, embed_dim]
+        Compute the Soft Acoustic Contrastive (SAC) loss using CWCL,
+        factorized by Acoustic Feature Families.
         """
-        cls_token_num = self.encoder.cls_token_num
-        # Exclude CLS token(s), mean pool over remaining patch tokens
-        patch_tokens = hidden_states[:, cls_token_num:, :]  # [B, num_patches, embed_dim]
-        pooled = patch_tokens.mean(dim=1)  # [B, embed_dim]
-        return pooled
-
-    def sac_loss(self, z, c, eps=1e-8, return_diagnostics=False):
-        """
-        Compute the Soft Acoustic Contrastive (SAC) loss using CWCL.
-        
-        The SAC loss uses continuous similarity weights instead of binary positive/negative
-        pairs. Weights w_ij are computed via a Gaussian kernel over the distance between
-        acoustic feature vectors c_i and c_j.
-        
-        L_SAC = -(1/B) Σ_i Σ_{j≠i} w̃_ij * log( exp(s_ij) / Σ_{k≠i} exp(s_ik) )
-        
-        where:
-            s_ij = cos(z_i, z_j) / τ          (temperature-scaled cosine similarity)
-            w_ij = exp(- ||c_i - c_j||² / σ²) (Gaussian kernel weight)
-            w̃_ij = w_ij / Σ_{k≠i} w_ik       (row-normalized weights)
-        
-        Args:
-            z: [B, proj_dim] projected latent vectors
-            c: [B, num_features] acoustic feature vectors (already normalized & clipped)
-            eps: numerical stability constant
-            
-        Returns:
-            loss: scalar SAC loss
-        """
-        device = z.device
-        B = z.shape[0]
+        device = z_families.device
+        B = z_families.shape[0]
 
         if B < 2:
             loss = torch.tensor(0.0, device=device, requires_grad=True)
             if return_diagnostics:
-                return loss, z, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device)
+                return loss, z_families, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device)
             return loss
 
-        # 1. Compute pairwise cosine similarity / τ
-        z_norm = F.normalize(z, dim=-1)  # [B, proj_dim]
-        sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature  # [B, B]
-
-        # 2. Compute Gaussian kernel weights from acoustic features
-        # ||c_i - c_j||² via cdist
-        cue_dist = torch.cdist(c, c, p=2)  # [B, B]
-        w = torch.exp(-(cue_dist / self.sac_sigma) ** 2)  # [B, B]
-
-        # 3. Mask out self-pairs
-        diag_mask = torch.eye(B, device=device, dtype=torch.bool)
-        off_diag = ~diag_mask
-
-        # 4. Softmax denominator (sum over k ≠ i)
-        exp_sim = torch.exp(sim) * off_diag.float()
-        den = exp_sim.sum(dim=1, keepdim=True) + eps  # [B, 1]
-
-        # 5. Log probability
-        log_prob = sim - torch.log(den)  # [B, B]
-
-        # 6. Normalize weights (row-wise, excluding self)
-        w_masked = w * off_diag.float()
-        w_sum = w_masked.sum(dim=1, keepdim=True) + eps  # [B, 1]
-        w_norm = w_masked / w_sum  # [B, B]
-
-        # 7. Weighted sum of log-probabilities
-        loss_per_sample = -(w_norm * log_prob).sum(dim=1)  # [B]
-        loss = loss_per_sample.mean()
-
+        total_loss = 0.0
+        family_names = list(self.family_indices.keys())
+        
+        z_norms = []
+        sims = []
+        ws = []
+        
+        for k in range(self.num_active_families):
+            fam_name = family_names[k]
+            indices = self.family_indices[fam_name]
+            
+            c_family = c[:, indices]
+            z_family = z_families[:, k, :]
+            
+            cue_dist = torch.cdist(c_family, c_family, p=2)
+            
+            import math
+            if self.local_sigma_mode == 'dynamic_batch_median':
+                # Calculate median off-diagonal distance
+                diag_mask_med = torch.eye(B, device=device, dtype=torch.bool)
+                off_diag_dist = cue_dist[~diag_mask_med]
+                median_dist = off_diag_dist.median()
+                # Overlook sac_sigma and use raw median scaled by ln(2)
+                local_sigma = median_dist / math.sqrt(math.log(2.0))
+                if local_sigma < 1e-4:
+                    local_sigma = math.sqrt(len(indices))
+            
+            elif self.local_sigma_mode == 'offline_global_median':
+                # Use global median computed over the entire dataset
+                if self.feature_stats is not None and 'family_medians' in self.feature_stats:
+                    median_dist = self.feature_stats['family_medians'].get(fam_name, None)
+                    if median_dist is not None:
+                        # Overlook sac_sigma and use raw median scaled by ln(2)
+                        local_sigma = median_dist / math.sqrt(math.log(2.0))
+                    else:
+                        local_sigma = self.sac_sigma * math.sqrt(len(indices))
+                else:
+                    local_sigma = self.sac_sigma * math.sqrt(len(indices))
+            
+            elif self.local_sigma_mode == 'chi2_median':
+                # Theoretical Chi-squared median scaling
+                chi2_medians = {1: 0.455, 2: 1.386, 3: 2.366, 4: 3.357, 5: 4.351, 6: 5.348, 7: 6.346}
+                D = len(indices)
+                median_D = chi2_medians.get(D, D - 2/3)
+                local_sigma = self.sac_sigma * math.sqrt(median_D)
+            
+            else: # 'sqrt_dim'
+                local_sigma = self.sac_sigma * math.sqrt(len(indices))
+            
+            w = torch.exp(-(cue_dist / local_sigma) ** 2)
+            z_norm = F.normalize(z_family, dim=-1)
+            sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature
+            
+            diag_mask = torch.eye(B, device=device, dtype=torch.bool)
+            off_diag = ~diag_mask
+            
+            exp_sim = torch.exp(sim) * off_diag.float()
+            den = exp_sim.sum(dim=1, keepdim=True) + eps
+            log_prob = sim - torch.log(den)
+            
+            w_masked = w * off_diag.float()
+            w_sum = w_masked.sum(dim=1, keepdim=True) + eps
+            w_norm = w_masked / w_sum
+            
+            loss_per_sample = -(w_norm * log_prob).sum(dim=1)
+            loss_family = loss_per_sample.mean()
+            
+            total_loss += loss_family
+            
+            if return_diagnostics:
+                z_norms.append(z_norm)
+                sims.append(sim)
+                ws.append(w)
+                
+        if self.num_active_families > 0:
+            total_loss = total_loss / self.num_active_families
+                
         if return_diagnostics:
-            return loss, z_norm, sim, w
-        return loss
+            return total_loss, torch.stack(z_norms, dim=1), torch.stack(sims, dim=0), torch.stack(ws, dim=0)
+            
+        return total_loss
 
     def forward(self, fbank, task='pretrain_joint', mask_patch=None,
                 cluster=True, acoustic_features=None, return_diagnostics=False):
@@ -300,17 +332,31 @@ class SSAMBASACModel(nn.Module):
         with torch.no_grad() if not self.training else torch.enable_grad():
             hidden_states = self._encode_with_mamba(x)
 
-        # 3. Mean pool to get global representation e(X)
-        e = self._pool_tokens(hidden_states)  # [B, embed_dim]
+        # 3. Cross-attention to extract family embeddings
+        # Query: [B, num_families, actual_embed_dim]
+        Q = self.family_queries.unsqueeze(0).expand(B, -1, -1)
+        
+        # Attention output: [B, num_families, actual_embed_dim]
+        # Ignore CLS token for attention over sequence
+        cls_token_num = self.encoder.cls_token_num
+        attn_output, _ = self.cross_attention(query=Q, key=hidden_states[:, cls_token_num:, :], value=hidden_states[:, cls_token_num:, :])
+        
+        # 4. Project through g(·) to get latent Z_families
+        # Flatten for projection head: [B * num_families, actual_embed_dim]
+        attn_output_flat = attn_output.reshape(B * self.num_active_families, -1)
+        z_flat = self.projection_head(attn_output_flat)
+        
+        # Reshape to [B, num_families, proj_dim]
+        Z_families = z_flat.reshape(B, self.num_active_families, -1)
 
-        # 4. Project through g(·) to get latent z
-        z = self.projection_head(e)  # [B, proj_dim]
-
-        # 5. Compute SAC loss
+        # 5. Compute Factorized SAC loss
         if return_diagnostics:
-            loss_sac, z_norm, sim, w = self.sac_loss(z, acoustic_features, return_diagnostics=True)
+            loss_sac, z_norm, sim, w = self.sac_loss(Z_families, acoustic_features, return_diagnostics=True)
+            # z is required for some diagnostics plots, use the flat/mean version or family 0
+            z = Z_families.mean(dim=1)
         else:
-            loss_sac = self.sac_loss(z, acoustic_features)
+            loss_sac = self.sac_loss(Z_families, acoustic_features)
+            z = None
 
         # 6. Total loss
         loss_total = loss_recon + self.sac_lambda * loss_sac

@@ -12,6 +12,7 @@ set -x
 export TORCH_HOME=../../pretrained_models
 
 # Default parameters
+# Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
 model_function=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
 lr=${2:-1e-4}
 
