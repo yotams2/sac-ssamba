@@ -99,6 +99,7 @@ feature_alias="universal"
 
 proj_dim=128         # Projection head output dimension
 local_sigma_mode="offline_global_median" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim
+use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cross-attention)
 
 # To resume from a checkpoint, set this to the path of the .pth file (e.g., ./exp/.../models/audio_model.15.pth)
 resume_checkpoint="" 
@@ -138,6 +139,7 @@ CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \
     --sac-sigma ${sac_sigma} \
     --sac_features ${sac_features} \
     --local_sigma_mode ${local_sigma_mode} \
+    --use_cross_attention ${use_cross_attention} \
     --proj-dim ${proj_dim} \
     --patch_size ${patch_size} \
     --embed_dim ${embed_dim} \

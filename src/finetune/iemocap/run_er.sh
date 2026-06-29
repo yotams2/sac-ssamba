@@ -12,12 +12,19 @@ set -x
 export TORCH_HOME=../../pretrained_models
 
 # Default parameters
+# Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
 model_function=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
 lr=${2:-1e-5}
 
 expname=emotion_${model_function}_${lr}
 expdir=./exp/$expname
 mkdir -p $expdir
+
+# Prevent PyTorch/NumPy threading crashes in DataLoader forks
+export OMP_NUM_THREADS=1
+
+# Use 6.0 second window for IEMOCAP
+export SSAMBA_WINDOW_SECS=6.0
 
 #for test_fold in fold1 fold2 fold3 fold4 fold5;
 for test_fold in fold1;

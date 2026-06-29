@@ -70,6 +70,7 @@ class SSAMBASACModel(nn.Module):
         mask_patch=300,
         vision_mamba_config=None,
         local_sigma_mode='chi2_median',
+        use_cross_attention=True,
     ):
         super(SSAMBASACModel, self).__init__()
 
@@ -79,6 +80,7 @@ class SSAMBASACModel(nn.Module):
         self.embed_dim = embed_dim
         self.mask_patch = mask_patch
         self.local_sigma_mode = local_sigma_mode
+        self.use_cross_attention = use_cross_attention
 
         # Default vision mamba config
         if vision_mamba_config is None:
@@ -99,28 +101,39 @@ class SSAMBASACModel(nn.Module):
         actual_embed_dim = self.encoder.original_embedding_dim
 
         # ---- Feature Families & Cross-Attention ----
-        from sac.acoustic_features import get_feature_families
-        self.family_indices, self.num_active_families = get_feature_families(sac_features)
-        
-        # [num_active_families, actual_embed_dim]
-        self.family_queries = nn.Parameter(torch.empty(self.num_active_families, actual_embed_dim))
-        nn.init.normal_(self.family_queries, std=0.02)
-        
-        self.cross_attention = nn.MultiheadAttention(
-            embed_dim=actual_embed_dim, 
-            num_heads=8, 
-            batch_first=True
-        )
+        if self.use_cross_attention:
+            from sac.acoustic_features import get_feature_families
+            self.family_indices, self.num_active_families = get_feature_families(sac_features)
+            
+            # [num_active_families, actual_embed_dim]
+            self.family_queries = nn.Parameter(torch.empty(self.num_active_families, actual_embed_dim))
+            nn.init.normal_(self.family_queries, std=0.02)
+            
+            self.cross_attention = nn.MultiheadAttention(
+                embed_dim=actual_embed_dim, 
+                num_heads=8, 
+                batch_first=True
+            )
 
-        # ---- Projection Head g(·) for SAC loss ----
-        # Maps pooled encoder output to latent space for similarity comparison
-        # Architecture: Linear → BatchNorm → ReLU → Linear
-        self.projection_head = nn.Sequential(
-            nn.Linear(actual_embed_dim, actual_embed_dim),
-            nn.LayerNorm(actual_embed_dim),
-            nn.ReLU(inplace=True),
-            nn.Linear(actual_embed_dim, proj_dim),
-        )
+            # ---- Projection Head g(·) for SAC loss ----
+            # Maps pooled encoder output to latent space for similarity comparison
+            # Architecture: Linear → LayerNorm → ReLU → Linear
+            self.projection_head = nn.Sequential(
+                nn.Linear(actual_embed_dim, actual_embed_dim),
+                nn.LayerNorm(actual_embed_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(actual_embed_dim, proj_dim),
+            )
+        else:
+            # ---- Projection Head g(·) for SAC loss ----
+            # Maps pooled encoder output to latent space for similarity comparison
+            # Architecture: Linear → BatchNorm1d → ReLU → Linear
+            self.projection_head = nn.Sequential(
+                nn.Linear(actual_embed_dim, actual_embed_dim),
+                nn.BatchNorm1d(actual_embed_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(actual_embed_dim, proj_dim),
+            )
 
         # Feature normalization stats (set externally before training)
         self.feature_stats = None
@@ -196,6 +209,68 @@ class SSAMBASACModel(nn.Module):
                 hidden_states = self.encoder.v.norm_f(residual)
 
         return hidden_states
+
+    def _pool_tokens(self, hidden_states):
+        """
+        Mean-pool over patch tokens (excluding CLS) to get global representation.
+        
+        Args:
+            hidden_states: [B, num_patches + cls_token_num, embed_dim]
+            
+        Returns:
+            pooled: [B, embed_dim]
+        """
+        cls_token_num = self.encoder.cls_token_num
+        # Exclude CLS token(s), mean pool over remaining patch tokens
+        patch_tokens = hidden_states[:, cls_token_num:, :]  # [B, num_patches, embed_dim]
+        pooled = patch_tokens.mean(dim=1)  # [B, embed_dim]
+        return pooled
+
+    def sac_loss_legacy(self, z, c, eps=1e-8, return_diagnostics=False):
+        """
+        Compute the Soft Acoustic Contrastive (SAC) loss using CWCL (Legacy without cross-attention).
+        """
+        device = z.device
+        B = z.shape[0]
+
+        if B < 2:
+            loss = torch.tensor(0.0, device=device, requires_grad=True)
+            if return_diagnostics:
+                return loss, z, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device)
+            return loss
+
+        # 1. Compute pairwise cosine similarity / τ
+        z_norm = F.normalize(z, dim=-1)  # [B, proj_dim]
+        sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature  # [B, B]
+
+        # 2. Compute Gaussian kernel weights from acoustic features
+        # ||c_i - c_j||² via cdist
+        cue_dist = torch.cdist(c, c, p=2)  # [B, B]
+        w = torch.exp(-(cue_dist / self.sac_sigma) ** 2)  # [B, B]
+
+        # 3. Mask out self-pairs
+        diag_mask = torch.eye(B, device=device, dtype=torch.bool)
+        off_diag = ~diag_mask
+
+        # 4. Softmax denominator (sum over k ≠ i)
+        exp_sim = torch.exp(sim) * off_diag.float()
+        den = exp_sim.sum(dim=1, keepdim=True) + eps  # [B, 1]
+
+        # 5. Log probability
+        log_prob = sim - torch.log(den)  # [B, B]
+
+        # 6. Normalize weights (row-wise, excluding self)
+        w_masked = w * off_diag.float()
+        w_sum = w_masked.sum(dim=1, keepdim=True) + eps  # [B, 1]
+        w_norm = w_masked / w_sum  # [B, B]
+
+        # 7. Weighted sum of log-probabilities
+        loss_per_sample = -(w_norm * log_prob).sum(dim=1)  # [B]
+        loss = loss_per_sample.mean()
+
+        if return_diagnostics:
+            return loss, z_norm, sim, w
+        return loss
 
     def sac_loss(self, z_families, c, eps=1e-8, return_diagnostics=False):
         """
@@ -332,31 +407,44 @@ class SSAMBASACModel(nn.Module):
         with torch.no_grad() if not self.training else torch.enable_grad():
             hidden_states = self._encode_with_mamba(x)
 
-        # 3. Cross-attention to extract family embeddings
-        # Query: [B, num_families, actual_embed_dim]
-        Q = self.family_queries.unsqueeze(0).expand(B, -1, -1)
-        
-        # Attention output: [B, num_families, actual_embed_dim]
-        # Ignore CLS token for attention over sequence
-        cls_token_num = self.encoder.cls_token_num
-        attn_output, _ = self.cross_attention(query=Q, key=hidden_states[:, cls_token_num:, :], value=hidden_states[:, cls_token_num:, :])
-        
-        # 4. Project through g(·) to get latent Z_families
-        # Flatten for projection head: [B * num_families, actual_embed_dim]
-        attn_output_flat = attn_output.reshape(B * self.num_active_families, -1)
-        z_flat = self.projection_head(attn_output_flat)
-        
-        # Reshape to [B, num_families, proj_dim]
-        Z_families = z_flat.reshape(B, self.num_active_families, -1)
+        if self.use_cross_attention:
+            # 3. Cross-attention to extract family embeddings
+            # Query: [B, num_families, actual_embed_dim]
+            Q = self.family_queries.unsqueeze(0).expand(B, -1, -1)
+            
+            # Attention output: [B, num_families, actual_embed_dim]
+            # Ignore CLS token for attention over sequence
+            cls_token_num = self.encoder.cls_token_num
+            attn_output, _ = self.cross_attention(query=Q, key=hidden_states[:, cls_token_num:, :], value=hidden_states[:, cls_token_num:, :])
+            
+            # 4. Project through g(·) to get latent Z_families
+            # Flatten for projection head: [B * num_families, actual_embed_dim]
+            attn_output_flat = attn_output.reshape(B * self.num_active_families, -1)
+            z_flat = self.projection_head(attn_output_flat)
+            
+            # Reshape to [B, num_families, proj_dim]
+            Z_families = z_flat.reshape(B, self.num_active_families, -1)
 
-        # 5. Compute Factorized SAC loss
-        if return_diagnostics:
-            loss_sac, z_norm, sim, w = self.sac_loss(Z_families, acoustic_features, return_diagnostics=True)
-            # z is required for some diagnostics plots, use the flat/mean version or family 0
-            z = Z_families.mean(dim=1)
+            # 5. Compute Factorized SAC loss
+            if return_diagnostics:
+                loss_sac, z_norm, sim, w = self.sac_loss(Z_families, acoustic_features, return_diagnostics=True)
+                # z is required for some diagnostics plots, use the flat/mean version or family 0
+                z = Z_families.mean(dim=1)
+            else:
+                loss_sac = self.sac_loss(Z_families, acoustic_features)
+                z = None
         else:
-            loss_sac = self.sac_loss(Z_families, acoustic_features)
-            z = None
+            # 3. Mean pool to get global representation e(X)
+            e = self._pool_tokens(hidden_states)  # [B, embed_dim]
+
+            # 4. Project through g(·) to get latent z
+            z = self.projection_head(e)  # [B, proj_dim]
+
+            # 5. Compute SAC loss
+            if return_diagnostics:
+                loss_sac, z_norm, sim, w = self.sac_loss_legacy(z, acoustic_features, return_diagnostics=True)
+            else:
+                loss_sac = self.sac_loss_legacy(z, acoustic_features)
 
         # 6. Total loss
         loss_total = loss_recon + self.sac_lambda * loss_sac

@@ -439,6 +439,7 @@ def train_sac(model, train_loader, test_loader, args, device):
             # Periodic evaluation & model saving
             if global_step % args.epoch_iter == 0:
                 print(f'---- Step {global_step} evaluation ----')
+
                 equ_epoch = int(global_step / args.epoch_iter) + 1
                 val_loss = validate_sac(model, test_loader, args, device, feature_stats)
 
@@ -587,6 +588,8 @@ def get_args():
     parser.add_argument('--if_devide_out', type=str, choices=['true', 'false'], default='true')
     parser.add_argument('--use_double_cls_token', type=str, choices=['true', 'false'], default='false')
     parser.add_argument('--use_middle_cls_token', type=str, choices=['true', 'false'], default='false')
+    parser.add_argument('--use_cross_attention', type=str, choices=['true', 'false'], default='true',
+                        help='Whether to use the cross-attention mechanism for SAC loss')
 
     # ==== SAC Loss Arguments ====
     parser.add_argument('--diagnostic_steps', type=int, default=500,
@@ -622,7 +625,7 @@ def main():
     for attr in ['rms_norm', 'residual_in_fp32', 'fused_add_norm', 'if_rope',
                  'if_rope_residual', 'if_bidirectional', 'if_abs_pos_embed',
                  'if_bimamba', 'if_cls_token', 'if_devide_out',
-                 'use_double_cls_token', 'use_middle_cls_token']:
+                 'use_double_cls_token', 'use_middle_cls_token', 'use_cross_attention']:
         setattr(args, attr, getattr(args, attr) == 'true')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -721,6 +724,7 @@ def main():
         mask_patch=args.mask_patch,
         vision_mamba_config=vision_mamba_config,
         local_sigma_mode=args.local_sigma_mode,
+        use_cross_attention=args.use_cross_attention,
     )
 
     print(f'\nModel built: SSAMBASACModel')

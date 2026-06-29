@@ -115,8 +115,8 @@ def main():
         for exp_name, data in experiments.items():
             test_df = data['test'].copy()
             if not test_df.empty:
-                # alpha=0.6 puts 60% weight on the current sample, reducing lag
-                test_df['smoothed'] = test_df['value'].ewm(alpha=0.6).mean()
+                # Use a centered rolling window to smooth without phase shift (lag) distortion
+                test_df['smoothed'] = test_df['value'].rolling(window=5, min_periods=1, center=True).mean()
                 p = sns.lineplot(data=test_df, x='step', y='smoothed', label=exp_name, linewidth=2)
                 # raw data lightly in background
                 sns.lineplot(data=test_df, x='step', y='value', color=p.lines[-1].get_color(), alpha=0.2, legend=False)
@@ -134,8 +134,8 @@ def main():
         for exp_name, data in experiments.items():
             dev_df = data['dev'].copy()
             if not dev_df.empty:
-                # alpha=0.6 for dev to match test responsiveness
-                dev_df['smoothed'] = dev_df['value'].ewm(alpha=0.6).mean()
+                # Use a centered rolling window to smooth without phase shift (lag) distortion
+                dev_df['smoothed'] = dev_df['value'].rolling(window=5, min_periods=1, center=True).mean()
                 p = sns.lineplot(data=dev_df, x='step', y='smoothed', label=exp_name, linewidth=2)
                 sns.lineplot(data=dev_df, x='step', y='value', color=p.lines[-1].get_color(), alpha=0.2, legend=False)
                 
@@ -152,8 +152,8 @@ def main():
         for exp_name, data in experiments.items():
             train_df = data['train'].copy()
             if not train_df.empty:
-                # alpha=0.3 for train (train usually has more points, so slightly more smoothing is okay)
-                train_df['smoothed'] = train_df['value'].ewm(alpha=0.3).mean()
+                # Train typically has more points, so we can use a slightly larger window
+                train_df['smoothed'] = train_df['value'].rolling(window=11, min_periods=1, center=True).mean()
                 p = sns.lineplot(data=train_df, x='step', y='smoothed', label=exp_name, linewidth=2)
                 sns.lineplot(data=train_df, x='step', y='value', color=p.lines[-1].get_color(), alpha=0.2, legend=False)
                 
