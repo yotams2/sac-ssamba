@@ -17,10 +17,10 @@ This document tracks a sequence of four planned experiments designed to improve 
 ## Experiment 2: Better Formant Extraction (LPC)
 **Rationale:** The current formant proxy (`_compute_formants_proxy`) uses simple spectral centroids within fixed frequency bands. This is highly inaccurate across diverse speaker profiles (e.g., male vs. female pitch shifts). Upgrading to Linear Predictive Coding (LPC) roots provides a mathematically grounded representation of the vocal tract.
 **Implementation:** Update `acoustic_features.py` to calculate `f1, f2, f3` using LPC coefficients rather than banded centroids.
-**Status:** Planned
+**Status:** Implemented
 
 ### Insights & Conclusions
-* *(To be updated after execution)*
+* **LPC Implementation:** Implemented a pure PyTorch native Levinson-Durbin recursion and eigenvalue solver to replace the bounded spectral centroid proxy, since `torchaudio.functional.lpc` was unavailable. This method extracts 10 high-energy frames per clip (vowels), computes LPC roots, and averages the formants (F1, F2, F3). It provides a mathematically grounded model of the vocal tract resonances, which should provide a much more accurate target for the Vocal Tract feature family.
 
 ---
 

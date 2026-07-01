@@ -104,9 +104,17 @@ use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cros
 # To resume from a checkpoint, set this to the path of the .pth file (e.g., ./exp/.../models/audio_model.15.pth)
 resume_checkpoint="" 
 
+# ---- Experiment Description ----
+# Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
+exp_description="Experiment 1.2: Universal SAC with PyTorch-native LPC formant extraction"
+exp_name_suffix="-new_LPC"
+
 # ---- Experiment Directory ----
-exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}
+exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}
 mkdir -p ${exp_dir}/models
+
+# Save description
+echo "${exp_description}" > "${exp_dir}/description.log"
 
 # ---- Launch ----
 CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \

@@ -124,29 +124,98 @@ def _compute_zcr_stats(waveform: torch.Tensor) -> tuple:
     var_zcr = chunk_means.var(dim=-1)
     return mean_zcr, var_zcr
 
-def _compute_formants_proxy(waveform: torch.Tensor, sample_rate: int, n_fft=1024, hop_length=512) -> tuple:
+def _autocorr(x, order):
+    n_fft = 2 ** math.ceil(math.log2(2 * x.shape[-1] - 1))
+    X = torch.fft.rfft(x, n=n_fft, dim=-1)
+    S = X.abs().pow(2)
+    R = torch.fft.irfft(S, n=n_fft, dim=-1)
+    return R[..., :order + 1]
+
+def _levinson_durbin(R, order):
+    a = torch.zeros_like(R)
+    a[..., 0] = 1.0
+    E = R[..., 0].clone()
+    
+    for i in range(1, order + 1):
+        a_prev = a[..., :i]
+        R_rev = R[..., 1:i+1].flip(dims=[-1])
+        acc = (a_prev * R_rev).sum(dim=-1)
+        
+        k = -acc / (E + 1e-8)
+        
+        if i > 1:
+            a_prev_no_0 = a[..., 1:i]
+            a_prev_no_0_rev = a_prev_no_0.flip(dims=[-1])
+            a[..., 1:i] = a_prev_no_0 + k.unsqueeze(-1) * a_prev_no_0_rev
+        
+        a[..., i] = k
+        E = E * (1.0 - k**2)
+        
+    return a
+
+def _compute_formants_lpc(waveform: torch.Tensor, sample_rate: int) -> tuple:
     B, T = waveform.shape
     device = waveform.device
-    window = torch.hann_window(n_fft, device=device)
-    if T < n_fft: waveform = F.pad(waveform, (0, n_fft - T))
     
-    X = torch.stft(waveform, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window=window, return_complex=True, center=True)
-    mag = X.abs().mean(dim=-1) # Mean over time to get global spectral envelope
-    freqs = torch.linspace(0, sample_rate / 2, mag.shape[1], device=device)
+    # 30ms window, 20ms hop
+    win_length = int(sample_rate * 0.03)
+    hop_length = int(sample_rate * 0.02)
+    window = torch.hann_window(win_length, device=device)
     
-    # F1 proxy: centroid in 300-1000 Hz
-    mask1 = (freqs >= 300) & (freqs <= 1000)
-    f1 = (freqs[mask1].unsqueeze(0) * mag[:, mask1]).sum(dim=1) / mag[:, mask1].sum(dim=1).clamp(min=1e-10)
+    if T < win_length:
+        waveform = F.pad(waveform, (0, win_length - T))
+        
+    frames = waveform.unfold(-1, win_length, hop_length) # [B, num_frames, win_length]
+    frames = frames * window
     
-    # F2 proxy: centroid in 1000-2500 Hz
-    mask2 = (freqs > 1000) & (freqs <= 2500)
-    f2 = (freqs[mask2].unsqueeze(0) * mag[:, mask2]).sum(dim=1) / mag[:, mask2].sum(dim=1).clamp(min=1e-10)
+    # Select top 10 highest energy frames to represent the vowel sounds
+    energy = frames.pow(2).sum(dim=-1)
+    num_f = min(10, frames.shape[1])
+    _, top_indices = energy.topk(num_f, dim=-1)
     
-    # F3 proxy: centroid in 2500-3500 Hz
-    mask3 = (freqs > 2500) & (freqs <= 3500)
-    f3 = (freqs[mask3].unsqueeze(0) * mag[:, mask3]).sum(dim=1) / mag[:, mask3].sum(dim=1).clamp(min=1e-10)
+    top_frames = torch.gather(frames, 1, top_indices.unsqueeze(-1).expand(-1, -1, win_length)) # [B, num_f, win_length]
     
-    return f1, f2, f3
+    # LPC order: typically 2 + sample_rate / 1000
+    order = int(2 + sample_rate / 1000) # For 16k -> 18
+    
+    R = _autocorr(top_frames, order)
+    a_coeffs = _levinson_durbin(R, order) # [B, num_f, order+1]
+    
+    B_size = B
+    a_coeffs_flat = a_coeffs.reshape(-1, order + 1)
+    
+    # Companion matrix
+    companion = torch.zeros((B_size * num_f, order, order), device=device)
+    idx = torch.arange(order - 1, device=device)
+    companion[:, idx + 1, idx] = 1.0
+    companion[:, :, -1] = -a_coeffs_flat[:, 1:].flip(dims=[1])
+    
+    # Eigenvalues (roots of LPC polynomial)
+    roots = torch.linalg.eigvals(companion) # [B*num_f, order]
+    
+    # Frequencies from roots
+    angles = torch.angle(roots)
+    freqs = angles * (sample_rate / (2 * math.pi))
+    
+    # Filter valid formants (positive frequencies, upper half of complex plane)
+    mask = (freqs > 50) & (roots.imag > 0)
+    valid_f = torch.where(mask, freqs, torch.full_like(freqs, 1e5))
+    valid_f, _ = valid_f.sort(dim=-1)
+    
+    f1s = valid_f[:, 0]
+    f2s = valid_f[:, 1]
+    f3s = valid_f[:, 2]
+    
+    # Fallbacks for failed frames
+    f1s = torch.where(f1s < 1e5, f1s, torch.tensor(500.0, device=device))
+    f2s = torch.where(f2s < 1e5, f2s, f1s + 1000.0)
+    f3s = torch.where(f3s < 1e5, f3s, f2s + 1000.0)
+    
+    f1_mean = f1s.view(B_size, num_f).mean(dim=1)
+    f2_mean = f2s.view(B_size, num_f).mean(dim=1)
+    f3_mean = f3s.view(B_size, num_f).mean(dim=1)
+    
+    return f1_mean, f2_mean, f3_mean
 
 def _compute_mfccs(waveform: torch.Tensor, sample_rate: int) -> torch.Tensor:
     import torchaudio.transforms as T
@@ -181,7 +250,7 @@ def extract_acoustic_features(
         if any(f in selected for f in ['zcr', 'zcr_mean', 'zcr_var', 'rhythm']):
             m_zcr, v_zcr = _compute_zcr_stats(audio_tensor)
         if any(f in selected for f in ['formants', 'f1', 'f2', 'f3']):
-            f1, f2, f3 = _compute_formants_proxy(audio_tensor, sample_rate)
+            f1, f2, f3 = _compute_formants_lpc(audio_tensor, sample_rate)
             
         for f in selected:
             if f == 'f0' or f == 'f0_mean': computed_feats.append(m_f0)
