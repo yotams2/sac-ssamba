@@ -329,45 +329,45 @@ def calculate_acoustic_feature_stats(
     norm_features = (all_features - mean.unsqueeze(0)) / (3.0 * std.unsqueeze(0) + 1e-6)
     norm_features = norm_features.clamp(-1.0, 1.0)
     
-    # Helper to parse feature families (shared with sac_model.py)
-    active_families, _ = get_feature_families(features_list)
+    # Helper to parse feature groups (shared with sac_model.py)
+    active_groups, _ = get_feature_groups(features_list)
     
     # Subsample to avoid memory explosion with large num_batches
     if norm_features.shape[0] > 2000:
         rand_idx = torch.randperm(norm_features.shape[0])[:2000]
         norm_features = norm_features[rand_idx]
         
-    family_medians = {}
-    for fam_name, idxs in active_families.items():
-        fam_feats = norm_features[:, idxs]
-        dist_matrix = torch.cdist(fam_feats, fam_feats, p=2)
+    group_medians = {}
+    for group_name, idxs in active_groups.items():
+        group_feats = norm_features[:, idxs]
+        dist_matrix = torch.cdist(group_feats, group_feats, p=2)
         
         N = dist_matrix.shape[0]
         off_diag_mask = ~torch.eye(N, dtype=torch.bool, device=dist_matrix.device)
         off_diag_dists = dist_matrix[off_diag_mask]
         
         median_dist = off_diag_dists.median().item()
-        # Prevent division by zero if a family is completely collapsed
-        family_medians[fam_name] = max(median_dist, 1e-4)
+        # Prevent division by zero if a group is completely collapsed
+        group_medians[group_name] = max(median_dist, 1e-4)
 
     print("\n--- Offline Global Medians Computed ---")
-    for fam_name, m_val in family_medians.items():
-        print(f"  {fam_name}: {m_val:.6f}")
+    for group_name, m_val in group_medians.items():
+        print(f"  {group_name}: {m_val:.6f}")
     print("---------------------------------------\n")
 
     return {
         'mean': mean,
         'std': std,
-        'family_medians': family_medians
+        'group_medians': group_medians
     }
 
 
-def get_feature_families(features_list: str):
+def get_feature_groups(features_list: str):
     """
     Parses a comma-separated list of acoustic features and maps them to their
-    respective feature families. Used to ensure consistency across the codebase.
+    respective feature groups. Used to ensure consistency across the codebase.
     """
-    families = {
+    groups = {
         'Prosody': ['f0', 'f0_mean', 'f0_var'],
         'Vocal_Tract': ['formants', 'f1', 'f2', 'f3'],
         'Timbre': ['mfcc'],
@@ -375,14 +375,14 @@ def get_feature_families(features_list: str):
         'Scene': ['centroid', 'flux', 'flux_var', 'zcr', 'zcr_mean', 'zcr_var', 'rhythm']
     }
     selected = [f.strip().lower() for f in features_list.split(',')]
-    family_indices = {k: [] for k in families}
+    group_indices = {k: [] for k in groups}
     current_idx = 0
     for f in selected:
         num_feats = 3 if f == 'formants' else 5 if f == 'mfcc' else 1
-        for fam_name, fam_members in families.items():
-            if f in fam_members:
-                family_indices[fam_name].extend(list(range(current_idx, current_idx + num_feats)))
+        for group_name, group_members in groups.items():
+            if f in group_members:
+                group_indices[group_name].extend(list(range(current_idx, current_idx + num_feats)))
                 break
         current_idx += num_feats
-    active_families = {k: v for k, v in family_indices.items() if len(v) > 0}
-    return active_families, len(active_families)
+    active_groups = {k: v for k, v in group_indices.items() if len(v) > 0}
+    return active_groups, len(active_groups)

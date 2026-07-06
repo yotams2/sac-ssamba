@@ -92,7 +92,7 @@ sac_sigma=1.0        # Gaussian kernel bandwidth σ
 # sac_features="mfcc,formants,zcr_mean,centroid"
 # feature_alias="sc"
 
-# 5. Universal Representation (All Families)
+# 5. Universal Representation (All Groups)
 # Uses the factorized cross-attention to learn all acoustic properties simultaneously.
 sac_features="f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm"
 feature_alias="universal"
@@ -100,14 +100,15 @@ feature_alias="universal"
 proj_dim=128         # Projection head output dimension
 local_sigma_mode="offline_global_median" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim
 use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cross-attention)
+num_queries_per_group=4   # Number of queries per acoustic feature group
 
 # To resume from a checkpoint, set this to the path of the .pth file (e.g., ./exp/.../models/audio_model.15.pth)
 resume_checkpoint="" 
 
 # ---- Experiment Description ----
 # Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
-exp_description="Experiment 1.2: Universal SAC with PyTorch-native LPC formant extraction"
-exp_name_suffix="-new_LPC"
+exp_description="Experiment 1.3: Multi-Query Subspaces"
+exp_name_suffix="-exp3_multi_query"
 
 # ---- Experiment Directory ----
 exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}
@@ -148,6 +149,7 @@ CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \
     --sac_features ${sac_features} \
     --local_sigma_mode ${local_sigma_mode} \
     --use_cross_attention ${use_cross_attention} \
+    --num_queries_per_group ${num_queries_per_group} \
     --proj-dim ${proj_dim} \
     --patch_size ${patch_size} \
     --embed_dim ${embed_dim} \

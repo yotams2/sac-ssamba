@@ -57,6 +57,7 @@ def main():
     parser.add_argument("--exp_dir", type=str, default="/storage/yotam/ssamba/src/sac/exp/sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-new_LPC", help="Path to experiment directory")
     parser.add_argument("--out_dir", type=str, default="/storage/yotam/ssamba/src/metrics/vocal_tract", help="Output directory for plots")
     parser.add_argument("--num_rsa_samples", type=int, default=200, help="Number of audio samples for RSA")
+    parser.add_argument("--num_queries_per_group", type=int, default=4, help="Number of queries per group for the loaded model checkpoint")
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -88,6 +89,7 @@ def main():
         sac_temperature=0.3, sac_sigma=1.0, sac_lambda=1.0, mask_patch=300,
         sac_features="f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm",
         vision_mamba_config=vision_mamba_config,
+        num_queries_per_group=args.num_queries_per_group,
     )
     
     state_dict = torch.load(ckpt_path, map_location='cpu')
@@ -99,10 +101,10 @@ def main():
     model = model.to(device)
     model.eval()
 
-    family_names = list(model.family_indices.keys())
-    if 'Vocal_Tract' not in family_names:
-        raise ValueError("Vocal_Tract family not found in model!")
-    vt_idx = family_names.index('Vocal_Tract')
+    group_names = list(model.group_indices.keys())
+    if 'Vocal_Tract' not in group_names:
+        raise ValueError("Vocal_Tract group not found in model!")
+    vt_idx = group_names.index('Vocal_Tract')
 
     libri_files = glob.glob("/storage/data/LibriSpeech/test-clean/**/*.flac", recursive=True)
     if not libri_files:
@@ -118,14 +120,16 @@ def main():
     with torch.no_grad():
         x = fbank.unsqueeze(0).unsqueeze(1).transpose(2, 3)
         hidden_states = model._encode_with_mamba(x)
-        Q = model.family_queries.unsqueeze(0)
+        Q = model.group_queries.unsqueeze(0)
         cls_token_num = model.encoder.cls_token_num
         attn_output, attn_weights = model.cross_attention(
             query=Q, 
             key=hidden_states[:, cls_token_num:, :], 
             value=hidden_states[:, cls_token_num:, :]
         )
-        vt_attn = attn_weights[0, vt_idx, :].cpu().numpy()
+        # Average attention weights across the N queries for the Vocal Tract group
+        vt_attn_all = attn_weights[0, vt_idx * model.num_queries_per_group : (vt_idx + 1) * model.num_queries_per_group, :]
+        vt_attn = vt_attn_all.mean(dim=0).cpu().numpy()
     
     vt_attn_map = vt_attn.reshape(8, 64)
     vt_attn_time = vt_attn_map.sum(axis=0)
@@ -184,14 +188,16 @@ def main():
         with torch.no_grad():
             x = fbank.unsqueeze(0).unsqueeze(1).transpose(2, 3)
             hidden_states = model._encode_with_mamba(x)
-            Q = model.family_queries.unsqueeze(0)
+            Q = model.group_queries.unsqueeze(0)
             attn_output, _ = model.cross_attention(
                 query=Q, 
                 key=hidden_states[:, cls_token_num:, :], 
                 value=hidden_states[:, cls_token_num:, :]
             )
-            # attn_output: [1, num_families, embed_dim]
-            vt_latent = attn_output[0, vt_idx, :]
+            # attn_output: [1, num_groups * num_queries_per_group, embed_dim]
+            attn_output = attn_output.view(1, model.num_active_groups, model.num_queries_per_group, -1)
+            attn_pooled = attn_output.mean(dim=2)
+            vt_latent = attn_pooled[0, vt_idx, :]
             all_latents.append(vt_latent.cpu())
 
             # 2. Get Formants (ground truth)

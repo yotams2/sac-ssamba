@@ -127,16 +127,16 @@ def main():
     fbank_batch = get_fbank_batch(audio_batch, device=device)
     features = extract_acoustic_features(audio_batch, sample_rate=16000, features_list=args.sac_features)
 
-    # Extract single scalar per family
+    # Extract single scalar per group
     c_scalars = []
-    family_names = list(model.family_indices.keys())
-    K = model.num_active_families
+    group_names = list(model.group_indices.keys())
+    K = model.num_active_groups
     
     for k in range(K):
-        fam_name = family_names[k]
-        indices = model.family_indices[fam_name]
-        c_family = features[:, indices]
-        c_scalars.append(c_family.mean(dim=1).cpu().numpy())
+        group_name = group_names[k]
+        indices = model.group_indices[group_name]
+        c_group = features[:, indices]
+        c_scalars.append(c_group.mean(dim=1).cpu().numpy())
     c_scalars = np.stack(c_scalars, axis=1)
 
     print("Running forward pass...")
@@ -145,7 +145,7 @@ def main():
         B = x.shape[0]
         hidden_states = model._encode_with_mamba(x)
         
-        Q = model.family_queries.unsqueeze(0).expand(B, -1, -1)
+        Q = model.group_queries.unsqueeze(0).expand(B, -1, -1)
         cls_token_num = model.encoder.cls_token_num
         
         attn_output, attn_weights = model.cross_attention(
@@ -156,7 +156,7 @@ def main():
         
         attn_output_flat = attn_output.reshape(B * K, -1)
         z_flat = model.projection_head(attn_output_flat)
-        Z_families = z_flat.reshape(B, K, -1)
+        Z_groups = z_flat.reshape(B, K, -1)
 
     # --- Analysis 1: Attention Map Visualization ---
     print("Running Analysis 1: Attention Maps...")
@@ -167,23 +167,23 @@ def main():
     if K == 1: axes = [axes]
     for k in range(K):
         sns.heatmap(mean_attn_map[k], ax=axes[k], cmap='viridis')
-        axes[k].set_title(family_names[k])
+        axes[k].set_title(group_names[k])
         axes[k].set_ylabel('Freq (0-7)')
         axes[k].set_xlabel('Time (0-63)')
     plt.tight_layout()
-    plt.savefig(os.path.join(args.out_dir, 'attention_maps_per_family.pdf'))
+    plt.savefig(os.path.join(args.out_dir, 'attention_maps_per_group.pdf'))
     plt.close()
 
     # --- Analysis 2: Query Orthogonality ---
     print("Running Analysis 2: Query Orthogonality...")
-    Q_params = model.family_queries.detach().cpu()
+    Q_params = model.group_queries.detach().cpu()
     Q_norm = F.normalize(Q_params, dim=-1)
     S = torch.matmul(Q_norm, Q_norm.T).numpy()
     
     plt.figure(figsize=(8, 6))
     mask = np.eye(K, dtype=bool)
     sns.heatmap(S, annot=True, fmt=".2f", mask=mask, cmap='coolwarm', center=0, 
-                xticklabels=family_names, yticklabels=family_names)
+                xticklabels=group_names, yticklabels=group_names)
     plt.title("Query Cosine Similarity")
     plt.tight_layout()
     plt.savefig(os.path.join(args.out_dir, 'query_cosine_similarity.pdf'))
@@ -200,7 +200,7 @@ def main():
     plt.figure(figsize=(8, 6))
     mask_corr = np.eye(K, dtype=bool)
     sns.heatmap(c_corr, annot=True, fmt=".2f", mask=mask_corr, cmap='coolwarm', center=0, 
-                xticklabels=family_names, yticklabels=family_names)
+                xticklabels=group_names, yticklabels=group_names)
     plt.title("Acoustic Feature Inter-Correlation")
     plt.tight_layout()
     plt.savefig(os.path.join(args.out_dir, 'acoustic_feature_correlation.pdf'))
@@ -211,7 +211,7 @@ def main():
 
     # --- Analysis 3: Mutual Information ---
     print("Running Analysis 3: Mutual Information...")
-    Z_np = Z_families.cpu().numpy()
+    Z_np = Z_groups.cpu().numpy()
     mi_matrix = np.zeros((K, K))
     for k in range(K):
         pca = PCA(n_components=3)
@@ -229,7 +229,7 @@ def main():
     
     plt.figure(figsize=(8, 6))
     sns.heatmap(mi_norm, annot=True, fmt=".2f", cmap='Blues', 
-                xticklabels=family_names, yticklabels=family_names)
+                xticklabels=group_names, yticklabels=group_names)
     plt.xlabel("Acoustic Features")
     plt.ylabel("Latent Z_k (PC1)")
     plt.title("Normalized Mutual Information")
@@ -251,10 +251,10 @@ def main():
         tsne = TSNE(n_components=2, perplexity=min(30, B-1), n_iter=1000, random_state=42)
         z_tsne = tsne.fit_transform(Z_np[:, k, :])
         sc = axes[k].scatter(z_tsne[:, 0], z_tsne[:, 1], c=c_scalars[:, k], cmap='coolwarm', s=20)
-        axes[k].set_title(family_names[k])
+        axes[k].set_title(group_names[k])
         plt.colorbar(sc, ax=axes[k])
     plt.tight_layout()
-    plt.savefig(os.path.join(args.out_dir, 'tsne_per_family.pdf'))
+    plt.savefig(os.path.join(args.out_dir, 'tsne_per_group.pdf'))
     plt.close()
 
     # --- Analysis 5: Attention Entropy ---
@@ -265,12 +265,12 @@ def main():
     std_entropy = entropy.std(axis=0)
     
     plt.figure(figsize=(8, 6))
-    plt.bar(family_names, mean_entropy, yerr=std_entropy, capsize=5)
+    plt.bar(group_names, mean_entropy, yerr=std_entropy, capsize=5)
     plt.ylabel("Entropy")
-    plt.title("Mean Attention Entropy per Family")
+    plt.title("Mean Attention Entropy per Group")
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig(os.path.join(args.out_dir, 'attention_entropy_per_family.pdf'))
+    plt.savefig(os.path.join(args.out_dir, 'attention_entropy_per_group.pdf'))
     plt.close()
 
     # --- Final Summary ---
@@ -285,9 +285,9 @@ def main():
     print(f"Mean Off-Diag Mutual Information:    {mean_off_diag_mi:.4f}")
     print(f"Diagonality Score (Signal/Leakage):  {diagonality_score:.4f}")
     print("-" * 50)
-    if 'Vocal_Tract' in family_names and 'Timbre' in family_names:
-        vt_idx = family_names.index('Vocal_Tract')
-        timbre_idx = family_names.index('Timbre')
+    if 'Vocal_Tract' in group_names and 'Timbre' in group_names:
+        vt_idx = group_names.index('Vocal_Tract')
+        timbre_idx = group_names.index('Timbre')
         print(f"Vocal_Tract/Timbre Correlation:      {c_corr[vt_idx, timbre_idx]:.4f}")
     print(f"Mean Abs Off-Diag Feature Corr:      {mean_abs_off_diag_corr:.4f}")
     print("="*50)

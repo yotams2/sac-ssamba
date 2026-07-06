@@ -71,6 +71,7 @@ class SSAMBASACModel(nn.Module):
         vision_mamba_config=None,
         local_sigma_mode='chi2_median',
         use_cross_attention=True,
+        num_queries_per_group=4,
     ):
         super(SSAMBASACModel, self).__init__()
 
@@ -81,6 +82,7 @@ class SSAMBASACModel(nn.Module):
         self.mask_patch = mask_patch
         self.local_sigma_mode = local_sigma_mode
         self.use_cross_attention = use_cross_attention
+        self.num_queries_per_group = num_queries_per_group
 
         # Default vision mamba config
         if vision_mamba_config is None:
@@ -100,14 +102,14 @@ class SSAMBASACModel(nn.Module):
         # The encoder's original_embedding_dim is set during __init__
         actual_embed_dim = self.encoder.original_embedding_dim
 
-        # ---- Feature Families & Cross-Attention ----
+        # ---- Feature Groups & Cross-Attention ----
         if self.use_cross_attention:
-            from sac.acoustic_features import get_feature_families
-            self.family_indices, self.num_active_families = get_feature_families(sac_features)
+            from sac.acoustic_features import get_feature_groups
+            self.group_indices, self.num_active_groups = get_feature_groups(sac_features)
             
-            # [num_active_families, actual_embed_dim]
-            self.family_queries = nn.Parameter(torch.empty(self.num_active_families, actual_embed_dim))
-            nn.init.normal_(self.family_queries, std=0.02)
+            # [num_active_groups * num_queries_per_group, actual_embed_dim]
+            self.group_queries = nn.Parameter(torch.empty(self.num_active_groups * self.num_queries_per_group, actual_embed_dim))
+            nn.init.normal_(self.group_queries, std=0.02)
             
             self.cross_attention = nn.MultiheadAttention(
                 embed_dim=actual_embed_dim, 
@@ -272,35 +274,35 @@ class SSAMBASACModel(nn.Module):
             return loss, z_norm, sim, w
         return loss
 
-    def sac_loss(self, z_families, c, eps=1e-8, return_diagnostics=False):
+    def sac_loss(self, z_groups, c, eps=1e-8, return_diagnostics=False):
         """
         Compute the Soft Acoustic Contrastive (SAC) loss using CWCL,
-        factorized by Acoustic Feature Families.
+        factorized by Acoustic Feature Groups.
         """
-        device = z_families.device
-        B = z_families.shape[0]
+        device = z_groups.device
+        B = z_groups.shape[0]
 
         if B < 2:
             loss = torch.tensor(0.0, device=device, requires_grad=True)
             if return_diagnostics:
-                return loss, z_families, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device)
+                return loss, z_groups, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device)
             return loss
 
         total_loss = 0.0
-        family_names = list(self.family_indices.keys())
+        group_names = list(self.group_indices.keys())
         
         z_norms = []
         sims = []
         ws = []
         
-        for k in range(self.num_active_families):
-            fam_name = family_names[k]
-            indices = self.family_indices[fam_name]
+        for k in range(self.num_active_groups):
+            group_name = group_names[k]
+            indices = self.group_indices[group_name]
             
-            c_family = c[:, indices]
-            z_family = z_families[:, k, :]
+            c_group = c[:, indices]
+            z_group = z_groups[:, k, :]
             
-            cue_dist = torch.cdist(c_family, c_family, p=2)
+            cue_dist = torch.cdist(c_group, c_group, p=2)
             
             import math
             if self.local_sigma_mode == 'dynamic_batch_median':
@@ -315,8 +317,8 @@ class SSAMBASACModel(nn.Module):
             
             elif self.local_sigma_mode == 'offline_global_median':
                 # Use global median computed over the entire dataset
-                if self.feature_stats is not None and 'family_medians' in self.feature_stats:
-                    median_dist = self.feature_stats['family_medians'].get(fam_name, None)
+                if self.feature_stats is not None and 'group_medians' in self.feature_stats:
+                    median_dist = self.feature_stats['group_medians'].get(group_name, None)
                     if median_dist is not None:
                         # Overlook sac_sigma and use raw median scaled by ln(2)
                         local_sigma = median_dist / math.sqrt(math.log(2.0))
@@ -336,7 +338,7 @@ class SSAMBASACModel(nn.Module):
                 local_sigma = self.sac_sigma * math.sqrt(len(indices))
             
             w = torch.exp(-(cue_dist / local_sigma) ** 2)
-            z_norm = F.normalize(z_family, dim=-1)
+            z_norm = F.normalize(z_group, dim=-1)
             sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature
             
             diag_mask = torch.eye(B, device=device, dtype=torch.bool)
@@ -351,17 +353,17 @@ class SSAMBASACModel(nn.Module):
             w_norm = w_masked / w_sum
             
             loss_per_sample = -(w_norm * log_prob).sum(dim=1)
-            loss_family = loss_per_sample.mean()
+            loss_group = loss_per_sample.mean()
             
-            total_loss += loss_family
+            total_loss += loss_group
             
             if return_diagnostics:
                 z_norms.append(z_norm)
                 sims.append(sim)
                 ws.append(w)
                 
-        if self.num_active_families > 0:
-            total_loss = total_loss / self.num_active_families
+        if self.num_active_groups > 0:
+            total_loss = total_loss / self.num_active_groups
                 
         if return_diagnostics:
             return total_loss, torch.stack(z_norms, dim=1), torch.stack(sims, dim=0), torch.stack(ws, dim=0)
@@ -408,30 +410,35 @@ class SSAMBASACModel(nn.Module):
             hidden_states = self._encode_with_mamba(x)
 
         if self.use_cross_attention:
-            # 3. Cross-attention to extract family embeddings
-            # Query: [B, num_families, actual_embed_dim]
-            Q = self.family_queries.unsqueeze(0).expand(B, -1, -1)
+            # 3. Cross-attention to extract group embeddings
+            # Query: [B, num_groups * num_queries_per_group, actual_embed_dim]
+            Q = self.group_queries.unsqueeze(0).expand(B, -1, -1)
             
-            # Attention output: [B, num_families, actual_embed_dim]
+            # Attention output: [B, num_groups * num_queries_per_group, actual_embed_dim]
             # Ignore CLS token for attention over sequence
             cls_token_num = self.encoder.cls_token_num
             attn_output, _ = self.cross_attention(query=Q, key=hidden_states[:, cls_token_num:, :], value=hidden_states[:, cls_token_num:, :])
             
-            # 4. Project through g(·) to get latent Z_families
-            # Flatten for projection head: [B * num_families, actual_embed_dim]
-            attn_output_flat = attn_output.reshape(B * self.num_active_families, -1)
-            z_flat = self.projection_head(attn_output_flat)
+            # Pool the N queries per group
+            # attn_output: [B, num_groups, num_queries_per_group, actual_embed_dim]
+            attn_output = attn_output.view(B, self.num_active_groups, self.num_queries_per_group, -1)
+            attn_pooled = attn_output.mean(dim=2)
             
-            # Reshape to [B, num_families, proj_dim]
-            Z_families = z_flat.reshape(B, self.num_active_families, -1)
+            # 4. Project through g(·) to get latent Z_groups
+            # Flatten for projection head: [B * num_groups, actual_embed_dim]
+            attn_pooled_flat = attn_pooled.reshape(B * self.num_active_groups, -1)
+            z_flat = self.projection_head(attn_pooled_flat)
+            
+            # Reshape to [B, num_groups, proj_dim]
+            Z_groups = z_flat.reshape(B, self.num_active_groups, -1)
 
             # 5. Compute Factorized SAC loss
             if return_diagnostics:
-                loss_sac, z_norm, sim, w = self.sac_loss(Z_families, acoustic_features, return_diagnostics=True)
-                # z is required for some diagnostics plots, use the flat/mean version or family 0
-                z = Z_families.mean(dim=1)
+                loss_sac, z_norm, sim, w = self.sac_loss(Z_groups, acoustic_features, return_diagnostics=True)
+                # z is required for some diagnostics plots, use the flat/mean version or group 0
+                z = Z_groups.mean(dim=1)
             else:
-                loss_sac = self.sac_loss(Z_families, acoustic_features)
+                loss_sac = self.sac_loss(Z_groups, acoustic_features)
                 z = None
         else:
             # 3. Mean pool to get global representation e(X)

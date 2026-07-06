@@ -374,7 +374,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                 sim = diag_dict['sim']
                 w = diag_dict['w']
                 
-                # Handle factorized multi-family tensors by averaging over families
+                # Handle factorized multi-group tensors by averaging over groups
                 if sim.dim() == 3:
                     sim_mean = sim.mean(dim=0)
                     w_mean = w.mean(dim=0)
@@ -411,19 +411,19 @@ def train_sac(model, train_loader, test_loader, args, device):
                         "step": global_step,
                     }
                     
-                    # --- Per-Family Logging ---
+                    # --- Per-Group Logging ---
                     if sim.dim() == 3:
                         model_core = model.module if hasattr(model, 'module') else model
-                        family_names = list(model_core.family_indices.keys())
-                        for k, fam_name in enumerate(family_names):
-                            fig_kernel_fam = debugger.plot_kernel_and_similarity(sim[k], w[k])
-                            uni_fam, ali_fam = debugger.compute_alignment_uniformity(z_norm[:, k, :], w[k])
+                        group_names = list(model_core.group_indices.keys())
+                        for k, group_name in enumerate(group_names):
+                            fig_kernel_group = debugger.plot_kernel_and_similarity(sim[k], w[k])
+                            uni_group, ali_group = debugger.compute_alignment_uniformity(z_norm[:, k, :], w[k])
                             
-                            log_dict[f"family_diagnostics/{fam_name}_kernel_sim"] = wandb.Image(fig_kernel_fam)
-                            log_dict[f"family_metrics/{fam_name}_uniformity"] = uni_fam
-                            log_dict[f"family_metrics/{fam_name}_alignment"] = ali_fam
+                            log_dict[f"group_diagnostics/{group_name}_kernel_sim"] = wandb.Image(fig_kernel_group)
+                            log_dict[f"group_metrics/{group_name}_uniformity"] = uni_group
+                            log_dict[f"group_metrics/{group_name}_alignment"] = ali_group
                             
-                            plt.close(fig_kernel_fam)
+                            plt.close(fig_kernel_group)
                             
                     wandb.log(log_dict)
                     
@@ -590,6 +590,8 @@ def get_args():
     parser.add_argument('--use_middle_cls_token', type=str, choices=['true', 'false'], default='false')
     parser.add_argument('--use_cross_attention', type=str, choices=['true', 'false'], default='true',
                         help='Whether to use the cross-attention mechanism for SAC loss')
+    parser.add_argument('--num_queries_per_group', type=int, default=4,
+                        help='Number of queries per feature group in cross-attention')
 
     # ==== SAC Loss Arguments ====
     parser.add_argument('--diagnostic_steps', type=int, default=500,
@@ -725,6 +727,7 @@ def main():
         vision_mamba_config=vision_mamba_config,
         local_sigma_mode=args.local_sigma_mode,
         use_cross_attention=args.use_cross_attention,
+        num_queries_per_group=args.num_queries_per_group,
     )
 
     print(f'\nModel built: SSAMBASACModel')

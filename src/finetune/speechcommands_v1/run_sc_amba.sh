@@ -22,9 +22,24 @@ conda activate new_env_name
 
 
 
+input_arg=$1
+
+if [ -d "$input_arg" ]; then
+    pretrain_path="${input_arg}/models/best_audio_model.pth"
+    pretrain_model=$(basename "$input_arg")
+elif [ -f "$input_arg" ]; then
+    pretrain_path="$input_arg"
+    if [[ "$input_arg" == *"/models/"* ]]; then
+        pretrain_model=$(basename $(dirname $(dirname "$input_arg")))
+    else
+        pretrain_model=$(basename $(dirname "$input_arg"))
+    fi
+else
+    pretrain_model="$input_arg"
+    pretrain_path="./amba/${pretrain_model}.pth"
+fi
+
 pretrain_exp="amba"
-pretrain_model=$1
-pretrain_path="/engram/naplab/shared/ssamba/models/${pretrain_model}.pth"
 
 dataset=speechcommands
 dataset_mean=-6.845978
@@ -65,7 +80,7 @@ head_lr=1
 base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${task}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}
 
 
-pretrain_path=./${pretrain_exp}/${pretrain_model}.pth
+
 exp_dir=./exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${task}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}
 
 CUDA_CACHE_DISABLE=1 python -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \

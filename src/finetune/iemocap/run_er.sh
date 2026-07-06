@@ -13,10 +13,22 @@ export TORCH_HOME=../../pretrained_models
 
 # Default parameters
 # Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
-model_function=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
+model_input=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
 lr=${2:-1e-5}
 
-expname=emotion_${model_function}_${lr}
+# Check if model_input is a directory path
+if [ -d "$model_input" ]; then
+    upstream_args="-u ssamba_local -k ${model_input}/models/best_audio_model.pth"
+    expname_prefix=$(basename "$model_input")
+elif [ -f "$model_input" ]; then
+    upstream_args="-u ssamba_local -k ${model_input}"
+    expname_prefix=$(basename $(dirname "$model_input"))
+else
+    upstream_args="-u $model_input"
+    expname_prefix=$model_input
+fi
+
+expname=emotion_${expname_prefix}_${lr}
 expdir=./exp/$expname
 mkdir -p $expdir
 
@@ -31,5 +43,5 @@ for test_fold in fold1;
 do
   echo "running cross-validation on $test_fold"
   mkdir -p $expdir/unfreeze_cross-valid-on-${test_fold}; mkdir -p ./log/emotion/unfreeze_cross-valid-on-${test_fold}
-  PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir/unfreeze_cross-valid-on-${test_fold} -m train -u $model_function -d emotion -c /storage/yotam/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.downstream_expert.datarc.test_fold='$test_fold'" -f -a
+  PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir/unfreeze_cross-valid-on-${test_fold} -m train $upstream_args -d emotion -c /storage/yotam/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.downstream_expert.datarc.test_fold='$test_fold'" -f -a
 done

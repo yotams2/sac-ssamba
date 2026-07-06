@@ -9,7 +9,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from acoustic_features import extract_acoustic_features, get_feature_families, calculate_acoustic_feature_stats
+from acoustic_features import extract_acoustic_features, get_feature_groups, calculate_acoustic_feature_stats
 from run_pretrain_sac import AudioDatasetWithWaveform
 
 def evaluate_sigma_modes():
@@ -50,7 +50,7 @@ def evaluate_sigma_modes():
         print("Failed to compute stats.")
         return
 
-    offline_medians = feature_stats['family_medians']
+    offline_medians = feature_stats['group_medians']
 
     # 2. Get one large batch to evaluate
     print(f"\nLoading a single batch of {batch_size} samples...")
@@ -65,22 +65,22 @@ def evaluate_sigma_modes():
             feature_stats=feature_stats, features_list=sac_features
         )
     
-    families, _ = get_feature_families(sac_features)
+    groups, _ = get_feature_groups(sac_features)
     
     modes = ['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim']
     chi2_medians = {1: 0.455, 2: 1.386, 3: 2.366, 4: 3.357, 5: 4.351, 6: 5.348, 7: 6.346}
 
     # Prepare table
     print("\n--- Sigma (Bandwidth) Table ---")
-    header = f"{'Family':<15} | {'D':<3} | " + " | ".join([f"{m:<22}" for m in modes])
+    header = f"{'Group':<15} | {'D':<3} | " + " | ".join([f"{m:<22}" for m in modes])
     print(header)
     print("-" * len(header))
 
     # Prepare plots
-    fig, axes = plt.subplots(len(families), len(modes), figsize=(5 * len(modes), 4 * len(families)))
+    fig, axes = plt.subplots(len(groups), len(modes), figsize=(5 * len(modes), 4 * len(groups)))
     fig.subplots_adjust(hspace=0.4, wspace=0.3)
 
-    for i, (fam_name, indices) in enumerate(families.items()):
+    for i, (group_name, indices) in enumerate(groups.items()):
         D = len(indices)
         c_fam = c[:, indices]
         
@@ -90,7 +90,7 @@ def evaluate_sigma_modes():
         off_diag_dist = dist[~diag_mask]
         
         batch_median = off_diag_dist.median().item()
-        global_median = offline_medians.get(fam_name, batch_median)
+        global_median = offline_medians.get(group_name, batch_median)
 
         sigma_vals = []
 
@@ -118,7 +118,7 @@ def evaluate_sigma_modes():
             if i == 0:
                 ax.set_title(f"{mode}")
             if j == 0:
-                ax.set_ylabel(f"{fam_name} (D={D})\nCounts", fontsize=12, fontweight='bold')
+                ax.set_ylabel(f"{group_name} (D={D})\nCounts", fontsize=12, fontweight='bold')
             
             # Add text with stats
             mean_w = w_np.mean()
@@ -129,7 +129,7 @@ def evaluate_sigma_modes():
                     bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
 
         # Print table row
-        row = f"{fam_name:<15} | {D:<3} | " + " | ".join([f"{val:<22.4f}" for val in sigma_vals])
+        row = f"{group_name:<15} | {D:<3} | " + " | ".join([f"{val:<22.4f}" for val in sigma_vals])
         print(row)
 
     plt.suptitle("Histogram of Target Weights ($w_{ij}$) Across Different Modes", fontsize=16, fontweight='bold')

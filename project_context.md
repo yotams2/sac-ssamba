@@ -14,10 +14,10 @@ The backbone of the project is **Self-Supervised Audio Mamba (SSAMBA)**.
 * **Base Pretraining:** The standard SSAMBA framework masks a portion of the input patches and uses a reconstruction head to minimize Mean Squared Error (MSE) between the predicted and actual masked patches.
 
 ## 4. The Novel Contribution: Factorized SAC Loss
-The primary research novelty is the replacement of SSAMBA's discrete patch-classification loss with the **Soft Acoustic Contrastive (SAC) Loss**, enhanced by an **Acoustic Family Cross-Attention** bottleneck.
+The primary research novelty is the replacement of SSAMBA's discrete patch-classification loss with the **Soft Acoustic Contrastive (SAC) Loss**, enhanced by an **Acoustic Group Cross-Attention** bottleneck.
 * **Continuous Weights:** SAC uses continuous similarity weights ($w_{ij}$) computed via a Gaussian kernel over the $L_2$ distance of specific analytical acoustic features (e.g., $F_0$, Formants, MFCCs).
-* **The Cross-Attention Router:** To solve gradient interference, the model uses learnable "Acoustic Queries" in a PyTorch `MultiheadAttention` layer. These queries attend to the Mamba sequence to extract distinct latent sub-spaces (Feature Families).
-* **Factorized Loss Computation:** The SAC loss is computed independently for each semantic family and then averaged.
+* **The Cross-Attention Router:** To solve gradient interference, the model uses learnable "Acoustic Queries" in a PyTorch `MultiheadAttention` layer. These queries attend to the Mamba sequence to extract distinct latent sub-spaces (Feature Groups).
+* **Factorized Loss Computation:** The SAC loss is computed independently for each semantic group and then averaged.
   * *Prosody Query:* Regulated by $F_0$ mean/variance.
   * *Vocal Tract Query:* Regulated by Formant frequencies ($F_1, F_2, F_3$).
   * *Timbre Query:* Regulated by early MFCCs.
@@ -39,7 +39,7 @@ The downstream tasks utilize the raw patch-level hidden states from the Mamba en
 
 ## 7. Codebase Structure & Current State
 * **Pretraining Logic:** Centered in `src/run_amba.py` which calls into the training loops, and `src/sac/sac_model.py` which contains the `SSAMBASACModel` class.
-* **SSAMBASACModel:** Implements the dual-objective pretraining (reconstruction + SAC). It features a `Cross-Attention` module to extract feature family latents, and computes the `sac_loss` using sophisticated local sigma calculation modes like `chi2_median`, `offline_global_median`, and `dynamic_batch_median`.
+* **SSAMBASACModel:** Implements the dual-objective pretraining (reconstruction + SAC). It features a `Cross-Attention` module to extract feature group latents, and computes the `sac_loss` using sophisticated local sigma calculation modes like `chi2_median`, `offline_global_median`, and `dynamic_batch_median`.
 * **Results / Metrics (`src/metrics/downstream_perf`):** 
   * Early metrics show promising results on VoxCeleb1 and IEMOCAP downstream tasks.
   * For instance, `ssamba_sac_feat_sid_lam0_02_sig2_0_1e-4` outperformed the baseline test performance on VoxCeleb1 (`0.614` vs `0.592`). 
