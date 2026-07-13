@@ -28,6 +28,7 @@ sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
 
 from models.both_models import AMBAModel
+from sac.sigma_configs import OPTIMAL_SIGMAS
 
 
 class SSAMBASACModel(nn.Module):
@@ -72,6 +73,7 @@ class SSAMBASACModel(nn.Module):
         local_sigma_mode='chi2_median',
         use_cross_attention=True,
         num_queries_per_group=4,
+        use_checkpointing=False,
     ):
         super(SSAMBASACModel, self).__init__()
 
@@ -83,6 +85,7 @@ class SSAMBASACModel(nn.Module):
         self.local_sigma_mode = local_sigma_mode
         self.use_cross_attention = use_cross_attention
         self.num_queries_per_group = num_queries_per_group
+        self.use_checkpointing = use_checkpointing
 
         # Default vision mamba config
         if vision_mamba_config is None:
@@ -128,11 +131,10 @@ class SSAMBASACModel(nn.Module):
             )
         else:
             # ---- Projection Head g(·) for SAC loss ----
-            # Maps pooled encoder output to latent space for similarity comparison
-            # Architecture: Linear → BatchNorm1d → ReLU → Linear
+            # Architecture perfectly matched to the Universal model for clean ablation
             self.projection_head = nn.Sequential(
                 nn.Linear(actual_embed_dim, actual_embed_dim),
-                nn.BatchNorm1d(actual_embed_dim),
+                nn.LayerNorm(actual_embed_dim),
                 nn.ReLU(inplace=True),
                 nn.Linear(actual_embed_dim, proj_dim),
             )
@@ -163,23 +165,47 @@ class SSAMBASACModel(nn.Module):
         x_embed = self.encoder.v.pos_drop(x_embed)
 
         # Bidirectional Mamba layers
+        import torch.utils.checkpoint as checkpoint
         residual = None
         hidden_states = x_embed
 
-        if not self.encoder.v.if_bidirectional:
-            for layer in self.encoder.v.layers:
-                hidden_states, residual = layer(hidden_states, residual)
+        if getattr(self, 'use_checkpointing', False) and self.training:
+            def create_custom_forward(module):
+                def custom_forward(hidden_states, residual):
+                    return module(hidden_states, residual)
+                return custom_forward
+                
+            if not self.encoder.v.if_bidirectional:
+                for layer in self.encoder.v.layers:
+                    hidden_states, residual = checkpoint.checkpoint(
+                        create_custom_forward(layer), hidden_states, residual, use_reentrant=False
+                    )
+            else:
+                for i in range(len(self.encoder.v.layers) // 2):
+                    hidden_states_f, residual_f = checkpoint.checkpoint(
+                        create_custom_forward(self.encoder.v.layers[i * 2]), hidden_states, residual, use_reentrant=False
+                    )
+                    res_in_b = None if residual is None else residual.flip([1])
+                    hidden_states_b, residual_b = checkpoint.checkpoint(
+                        create_custom_forward(self.encoder.v.layers[i * 2 + 1]), hidden_states.flip([1]), res_in_b, use_reentrant=False
+                    )
+                    hidden_states = hidden_states_f + hidden_states_b.flip([1])
+                    residual = residual_f + residual_b.flip([1])
         else:
-            for i in range(len(self.encoder.v.layers) // 2):
-                hidden_states_f, residual_f = self.encoder.v.layers[i * 2](
-                    hidden_states, residual
-                )
-                hidden_states_b, residual_b = self.encoder.v.layers[i * 2 + 1](
-                    hidden_states.flip([1]),
-                    None if residual is None else residual.flip([1])
-                )
-                hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                residual = residual_f + residual_b.flip([1])
+            if not self.encoder.v.if_bidirectional:
+                for layer in self.encoder.v.layers:
+                    hidden_states, residual = layer(hidden_states, residual)
+            else:
+                for i in range(len(self.encoder.v.layers) // 2):
+                    hidden_states_f, residual_f = self.encoder.v.layers[i * 2](
+                        hidden_states, residual
+                    )
+                    hidden_states_b, residual_b = self.encoder.v.layers[i * 2 + 1](
+                        hidden_states.flip([1]),
+                        None if residual is None else residual.flip([1])
+                    )
+                    hidden_states = hidden_states_f + hidden_states_b.flip([1])
+                    residual = residual_f + residual_b.flip([1])
 
         # Final normalization
         if not self.encoder.v.fused_add_norm:
@@ -285,7 +311,7 @@ class SSAMBASACModel(nn.Module):
         if B < 2:
             loss = torch.tensor(0.0, device=device, requires_grad=True)
             if return_diagnostics:
-                return loss, z_groups, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device)
+                return loss, z_groups, torch.zeros((B, B), device=device), torch.zeros((B, B), device=device), {}
             return loss
 
         total_loss = 0.0
@@ -294,6 +320,7 @@ class SSAMBASACModel(nn.Module):
         z_norms = []
         sims = []
         ws = []
+        entropies = {}
         
         for k in range(self.num_active_groups):
             group_name = group_names[k]
@@ -305,7 +332,11 @@ class SSAMBASACModel(nn.Module):
             cue_dist = torch.cdist(c_group, c_group, p=2)
             
             import math
-            if self.local_sigma_mode == 'dynamic_batch_median':
+            if self.local_sigma_mode == 'static_entropy_optimal':
+                assert B in [16, 32, 64], f"static_entropy_optimal requires batch size in [16, 32, 64], got {B}"
+                local_sigma = OPTIMAL_SIGMAS[B].get(group_name, self.sac_sigma * math.sqrt(len(indices)))
+                
+            elif self.local_sigma_mode == 'dynamic_batch_median':
                 # Calculate median off-diagonal distance
                 diag_mask_med = torch.eye(B, device=device, dtype=torch.bool)
                 off_diag_dist = cue_dist[~diag_mask_med]
@@ -352,6 +383,9 @@ class SSAMBASACModel(nn.Module):
             w_sum = w_masked.sum(dim=1, keepdim=True) + eps
             w_norm = w_masked / w_sum
             
+            entropy = - (w_norm * torch.log(w_norm + eps)).sum(dim=1).mean()
+            entropies[group_name] = entropy
+            
             loss_per_sample = -(w_norm * log_prob).sum(dim=1)
             loss_group = loss_per_sample.mean()
             
@@ -366,7 +400,7 @@ class SSAMBASACModel(nn.Module):
             total_loss = total_loss / self.num_active_groups
                 
         if return_diagnostics:
-            return total_loss, torch.stack(z_norms, dim=1), torch.stack(sims, dim=0), torch.stack(ws, dim=0)
+            return total_loss, torch.stack(z_norms, dim=1), torch.stack(sims, dim=0), torch.stack(ws, dim=0), entropies
             
         return total_loss
 
@@ -425,16 +459,12 @@ class SSAMBASACModel(nn.Module):
             attn_pooled = attn_output.mean(dim=2)
             
             # 4. Project through g(·) to get latent Z_groups
-            # Flatten for projection head: [B * num_groups, actual_embed_dim]
-            attn_pooled_flat = attn_pooled.reshape(B * self.num_active_groups, -1)
-            z_flat = self.projection_head(attn_pooled_flat)
-            
-            # Reshape to [B, num_groups, proj_dim]
-            Z_groups = z_flat.reshape(B, self.num_active_groups, -1)
+            # The projection head natively supports broadcasting over the groups dimension
+            Z_groups = self.projection_head(attn_pooled)
 
             # 5. Compute Factorized SAC loss
             if return_diagnostics:
-                loss_sac, z_norm, sim, w = self.sac_loss(Z_groups, acoustic_features, return_diagnostics=True)
+                loss_sac, z_norm, sim, w, entropies = self.sac_loss(Z_groups, acoustic_features, return_diagnostics=True)
                 # z is required for some diagnostics plots, use the flat/mean version or group 0
                 z = Z_groups.mean(dim=1)
             else:
@@ -450,6 +480,7 @@ class SSAMBASACModel(nn.Module):
             # 5. Compute SAC loss
             if return_diagnostics:
                 loss_sac, z_norm, sim, w = self.sac_loss_legacy(z, acoustic_features, return_diagnostics=True)
+                entropies = {}
             else:
                 loss_sac = self.sac_loss_legacy(z, acoustic_features)
 
@@ -476,6 +507,7 @@ class SSAMBASACModel(nn.Module):
             output['z_norm'] = z_norm
             output['sim'] = sim
             output['w'] = w
+            output['entropies'] = entropies
 
         return output
 

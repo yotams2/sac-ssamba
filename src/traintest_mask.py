@@ -104,9 +104,17 @@ def trainmask(audio_model, train_loader, test_loader, args):
                 loss2 = loss2.mean()
                 loss = loss1 + 10 * loss2
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            if hasattr(args, 'accum_grad') and args.accum_grad > 1:
+                if i == 0:
+                    optimizer.zero_grad()
+                (loss / args.accum_grad).backward()
+                if (i + 1) % args.accum_grad == 0 or (i + 1) == len(train_loader):
+                    optimizer.step()
+                    optimizer.zero_grad()
+            else:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
             # record loss
             train_acc_meter.update(acc.detach().cpu().item())

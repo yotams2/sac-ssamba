@@ -11,13 +11,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from acoustic_features import extract_acoustic_features, get_feature_groups, calculate_acoustic_feature_stats
 from run_pretrain_sac import AudioDatasetWithWaveform
+from sigma_configs import OPTIMAL_SIGMAS
 
 def evaluate_sigma_modes():
     print("Initializing...")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Configuration
-    batch_size = 256 # Large batch to get meaningful histograms
+    batch_size = 16 # Must be in [16, 32, 64] for static_entropy_optimal
     dataset_json = "/storage/yotam/ssamba/librispeech_train.json"
     sample_rate = 16000
     sac_features = "f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm"
@@ -67,7 +68,7 @@ def evaluate_sigma_modes():
     
     groups, _ = get_feature_groups(sac_features)
     
-    modes = ['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim']
+    modes = ['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim', 'static_entropy_optimal']
     chi2_medians = {1: 0.455, 2: 1.386, 3: 2.366, 4: 3.357, 5: 4.351, 6: 5.348, 7: 6.346}
 
     # Prepare table
@@ -104,17 +105,24 @@ def evaluate_sigma_modes():
                 local_sigma = sac_sigma * math.sqrt(chi2_medians.get(D, D - 2/3))
             elif mode == 'sqrt_dim':
                 local_sigma = sac_sigma * math.sqrt(D)
+            elif mode == 'static_entropy_optimal':
+                assert batch_size in [16, 32, 64], f"static_entropy_optimal requires batch size in [16, 32, 64], got {batch_size}"
+                local_sigma = OPTIMAL_SIGMAS[batch_size].get(group_name, sac_sigma * math.sqrt(D))
 
             sigma_vals.append(local_sigma)
 
-            # Calculate weights
-            w = torch.exp(-(off_diag_dist / local_sigma) ** 2)
-            w_np = w.cpu().numpy()
+            # Calculate weights (mimicking the exact row-normalization in the loss function)
+            w_raw = torch.exp(-(dist / local_sigma) ** 2)
+            w_masked = w_raw * (~diag_mask).float()
+            w_sum = w_masked.sum(dim=1, keepdim=True) + 1e-8
+            w_norm = w_masked / w_sum
+            
+            w_np = w_norm[~diag_mask].cpu().numpy()
 
             # Plot histogram
             ax = axes[i, j]
             ax.hist(w_np, bins=50, color='royalblue', alpha=0.7, edgecolor='black', linewidth=0.5)
-            ax.set_xlim(0, 1)
+            ax.set_xlim(0, max(0.2, w_np.max() * 1.1))
             if i == 0:
                 ax.set_title(f"{mode}")
             if j == 0:

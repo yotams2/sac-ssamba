@@ -54,6 +54,9 @@ use_middle_cls_token='false'
 # no class balancing as it implicitly uses label information
 bal=none
 batch_size=16
+accum_grad=4
+eff_batch_size=$((batch_size * accum_grad))
+epoch_iter=$((4000 * accum_grad))
 lr=1e-4
 # learning rate decreases if the pretext task performance does not improve on the validation set
 lr_patience=2
@@ -64,17 +67,17 @@ timem=0
 # no mixup training
 mixup=0
 
-exp_dir=./exp/amba-${model_size}-f${fshape}-t${tshape}-b$batch_size-lr${lr}-m${mask_patch}-${task}-${dataset}
+exp_dir=./exp/amba-${model_size}-f${fshape}-t${tshape}-b$eff_batch_size-lr${lr}-m${mask_patch}-${task}-${dataset}
 
 CUDA_CACHE_DISABLE=1 python -W ignore ../run_amba.py --use_wandb  --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
 --label-csv /storage/yotam/ssamba/src/finetune/audioset/data/class_labels_indices.csv \
---lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
+--lr $lr --n-epochs ${epoch} --batch-size $batch_size --accum_grad $accum_grad --save_model False \
 --freqm $freqm --timem $timem --mixup ${mixup} --bal ${bal} \
 --tstride $tstride --fstride $fstride --fshape ${fshape} --tshape ${tshape} \
 --dataset_mean ${dataset_mean} --dataset_std ${dataset_std} --target_length ${target_length} --num_mel_bins ${num_mel_bins} \
 --model_size ${model_size} --mask_patch ${mask_patch} --n-print-steps 100 \
---task ${task} --lr_patience ${lr_patience} --epoch_iter 4000 --patch_size ${patch_size} --embed_dim ${embed_dim} --depth ${depth} \
+--task ${task} --lr_patience ${lr_patience} --epoch_iter ${epoch_iter} --patch_size ${patch_size} --embed_dim ${embed_dim} --depth ${depth} \
 --rms_norm ${rms_norm} --residual_in_fp32 ${residual_in_fp32} \
 --fused_add_norm ${fused_add_norm} --if_rope ${if_rope} --if_rope_residual ${if_rope_residual} \
 --bimamba_type ${bimamba_type} --use_middle_cls_token ${use_middle_cls_token} --drop_path_rate ${drop_path_rate} --stride ${stride} --channels ${channels} --num_classes ${num_classes} --drop_rate ${drop_rate} --norm_epsilon ${norm_epsilon} --if_bidirectional ${if_bidirectional} --final_pool_type ${final_pool_type} --if_abs_pos_embed ${if_abs_pos_embed} --if_bimamba ${if_bimamba} --if_cls_token ${if_cls_token} --if_devide_out ${if_devide_out} --use_double_cls_token ${use_double_cls_token} --use_middle_cls_token ${use_middle_cls_token}

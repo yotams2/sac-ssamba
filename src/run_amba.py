@@ -40,6 +40,7 @@ parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, metava
 parser.add_argument('--warmup', help='if use warmup learning rate scheduler', type=ast.literal_eval, default='True')
 parser.add_argument("--optim", type=str, default="adam", help="training optimizer", choices=["sgd", "adam"])
 parser.add_argument('-b', '--batch-size', default=12, type=int, metavar='N', help='mini-batch size')
+parser.add_argument('--accum_grad', default=1, type=int, help='gradient accumulation steps')
 parser.add_argument('-w', '--num-workers', default=16, type=int, metavar='NW', help='# of workers for dataloading (default: 32)')
 parser.add_argument("--n-epochs", type=int, default=1, help="number of maximum training epochs")
 # only used in pretraining stage or from-scratch fine-tuning experiments

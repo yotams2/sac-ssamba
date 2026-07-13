@@ -373,6 +373,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                 z_norm = diag_dict['z_norm']
                 sim = diag_dict['sim']
                 w = diag_dict['w']
+                entropies = diag_dict.get('entropies', {})
                 
                 # Handle factorized multi-group tensors by averaging over groups
                 if sim.dim() == 3:
@@ -398,6 +399,16 @@ def train_sac(model, train_loader, test_loader, args, device):
                 
                 print(f"  [Diagnostics] Uniformity: {uniformity:.4f}, Alignment_Top10: {alignment:.4f}")
                 
+                # --- Per-Group Metrics (Always Compute) ---
+                group_metrics = {}
+                if sim.dim() == 3:
+                    model_core = model.module if hasattr(model, 'module') else model
+                    group_names = list(model_core.group_indices.keys())
+                    for k, group_name in enumerate(group_names):
+                        uni_group, ali_group = debugger.compute_alignment_uniformity(z_norm[:, k, :], w[k])
+                        group_metrics[group_name] = {'uniformity': uni_group, 'alignment': ali_group}
+                        print(f"  [{group_name}] Uniformity: {uni_group:.4f}, Alignment: {ali_group:.4f}")
+                        
                 if args.use_wandb:
                     import wandb
                     import matplotlib.pyplot as plt
@@ -413,15 +424,21 @@ def train_sac(model, train_loader, test_loader, args, device):
                     
                     # --- Per-Group Logging ---
                     if sim.dim() == 3:
-                        model_core = model.module if hasattr(model, 'module') else model
-                        group_names = list(model_core.group_indices.keys())
                         for k, group_name in enumerate(group_names):
                             fig_kernel_group = debugger.plot_kernel_and_similarity(sim[k], w[k])
-                            uni_group, ali_group = debugger.compute_alignment_uniformity(z_norm[:, k, :], w[k])
+                            uni_group = group_metrics[group_name]['uniformity']
+                            ali_group = group_metrics[group_name]['alignment']
                             
                             log_dict[f"group_diagnostics/{group_name}_kernel_sim"] = wandb.Image(fig_kernel_group)
                             log_dict[f"group_metrics/{group_name}_uniformity"] = uni_group
                             log_dict[f"group_metrics/{group_name}_alignment"] = ali_group
+                            
+                            if group_name in entropies:
+                                entropy_val = entropies[group_name]
+                                # Average across DP replicas if necessary
+                                if isinstance(entropy_val, torch.Tensor) and entropy_val.dim() > 0:
+                                    entropy_val = entropy_val.mean()
+                                log_dict[f"group_metrics/{group_name}_weight_entropy"] = entropy_val.item() if isinstance(entropy_val, torch.Tensor) else entropy_val
                             
                             plt.close(fig_kernel_group)
                             
@@ -590,6 +607,8 @@ def get_args():
     parser.add_argument('--use_middle_cls_token', type=str, choices=['true', 'false'], default='false')
     parser.add_argument('--use_cross_attention', type=str, choices=['true', 'false'], default='true',
                         help='Whether to use the cross-attention mechanism for SAC loss')
+    parser.add_argument('--use_checkpointing', type=str, choices=['true', 'false'], default='false',
+                        help='Whether to use gradient checkpointing for Mamba layers')
     parser.add_argument('--num_queries_per_group', type=int, default=4,
                         help='Number of queries per feature group in cross-attention')
 
@@ -609,7 +628,7 @@ def get_args():
     parser.add_argument('--proj-dim', type=int, default=128,
                         help='Output dimension of the projection head g(·)')
     parser.add_argument('--local_sigma_mode', type=str, default='chi2_median',
-                        choices=['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim'],
+                        choices=['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim', 'static_entropy_optimal'],
                         help='How to calculate the local sigma for the Gaussian kernel')
     parser.add_argument('--resume', type=str, default='',
                         help='Path to a checkpoint (.pth) to resume training from.')
@@ -627,7 +646,7 @@ def main():
     for attr in ['rms_norm', 'residual_in_fp32', 'fused_add_norm', 'if_rope',
                  'if_rope_residual', 'if_bidirectional', 'if_abs_pos_embed',
                  'if_bimamba', 'if_cls_token', 'if_devide_out',
-                 'use_double_cls_token', 'use_middle_cls_token', 'use_cross_attention']:
+                 'use_double_cls_token', 'use_middle_cls_token', 'use_cross_attention', 'use_checkpointing']:
         setattr(args, attr, getattr(args, attr) == 'true')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -678,7 +697,7 @@ def main():
     )
     val_loader = torch.utils.data.DataLoader(
         val_dataset, batch_size=args.batch_size * 2, shuffle=False,
-        num_workers=args.num_workers, pin_memory=True
+        num_workers=args.num_workers, pin_memory=True, drop_last=True
     )
 
     print(f'Training samples: {len(train_dataset)}, Validation samples: {len(val_dataset)}')
@@ -728,6 +747,7 @@ def main():
         local_sigma_mode=args.local_sigma_mode,
         use_cross_attention=args.use_cross_attention,
         num_queries_per_group=args.num_queries_per_group,
+        use_checkpointing=args.use_checkpointing,
     )
 
     print(f'\nModel built: SSAMBASACModel')

@@ -58,7 +58,7 @@ use_double_cls_token='false'
 use_middle_cls_token='false'
 
 # ---- Training Configuration ----
-batch_size=16
+batch_size=64
 lr=1e-4
 lr_patience=2
 n_epochs=10
@@ -66,8 +66,8 @@ epoch_iter=4000
 
 # ---- SAC Loss Configuration ----
 sac_lambda=0.02       # Weight: L_total = L_recon + λ * L_SAC
-sac_temperature=0.3  # Temperature τ for cosine similarity
-sac_sigma=1.0        # Gaussian kernel bandwidth σ
+sac_temperature=0.12  # Temperature τ for cosine similarity (optimal from sweep)
+sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by static_entropy_optimal)
 
 # === PREDEFINED FEATURE LISTS ===
 # Uncomment the list that matches your downstream task.
@@ -98,17 +98,17 @@ sac_features="f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm"
 feature_alias="universal"
 
 proj_dim=128         # Projection head output dimension
-local_sigma_mode="offline_global_median" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim
+local_sigma_mode="offline_global_median" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal
 use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cross-attention)
-num_queries_per_group=4   # Number of queries per acoustic feature group
+num_queries_per_group=1   # Number of queries per acoustic feature group
 
 # To resume from a checkpoint, set this to the path of the .pth file (e.g., ./exp/.../models/audio_model.15.pth)
 resume_checkpoint="" 
 
 # ---- Experiment Description ----
 # Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
-exp_description="Experiment 1.3: Multi-Query Subspaces"
-exp_name_suffix="-exp3_multi_query"
+exp_description="Experiment 6: True Batch Size 64 with Gradient Checkpointing"
+exp_name_suffix="-exp6_true_bs64_ckpt"
 
 # ---- Experiment Directory ----
 exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}
@@ -149,6 +149,7 @@ CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \
     --sac_features ${sac_features} \
     --local_sigma_mode ${local_sigma_mode} \
     --use_cross_attention ${use_cross_attention} \
+    --use_checkpointing true \
     --num_queries_per_group ${num_queries_per_group} \
     --proj-dim ${proj_dim} \
     --patch_size ${patch_size} \
