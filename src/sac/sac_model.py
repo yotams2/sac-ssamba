@@ -101,6 +101,9 @@ class SSAMBASACModel(nn.Module):
             load_pretrained_mdl_path=None,
             vision_mamba_config=vision_mamba_config,
         )
+        self.encoder.use_checkpointing = use_checkpointing
+        if hasattr(self.encoder, 'v'):
+            self.encoder.v.use_checkpointing = use_checkpointing
 
         # The encoder's original_embedding_dim is set during __init__
         actual_embed_dim = self.encoder.original_embedding_dim
@@ -165,47 +168,8 @@ class SSAMBASACModel(nn.Module):
         x_embed = self.encoder.v.pos_drop(x_embed)
 
         # Bidirectional Mamba layers
-        import torch.utils.checkpoint as checkpoint
         residual = None
-        hidden_states = x_embed
-
-        if getattr(self, 'use_checkpointing', False) and self.training:
-            def create_custom_forward(module):
-                def custom_forward(hidden_states, residual):
-                    return module(hidden_states, residual)
-                return custom_forward
-                
-            if not self.encoder.v.if_bidirectional:
-                for layer in self.encoder.v.layers:
-                    hidden_states, residual = checkpoint.checkpoint(
-                        create_custom_forward(layer), hidden_states, residual, use_reentrant=False
-                    )
-            else:
-                for i in range(len(self.encoder.v.layers) // 2):
-                    hidden_states_f, residual_f = checkpoint.checkpoint(
-                        create_custom_forward(self.encoder.v.layers[i * 2]), hidden_states, residual, use_reentrant=False
-                    )
-                    res_in_b = None if residual is None else residual.flip([1])
-                    hidden_states_b, residual_b = checkpoint.checkpoint(
-                        create_custom_forward(self.encoder.v.layers[i * 2 + 1]), hidden_states.flip([1]), res_in_b, use_reentrant=False
-                    )
-                    hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                    residual = residual_f + residual_b.flip([1])
-        else:
-            if not self.encoder.v.if_bidirectional:
-                for layer in self.encoder.v.layers:
-                    hidden_states, residual = layer(hidden_states, residual)
-            else:
-                for i in range(len(self.encoder.v.layers) // 2):
-                    hidden_states_f, residual_f = self.encoder.v.layers[i * 2](
-                        hidden_states, residual
-                    )
-                    hidden_states_b, residual_b = self.encoder.v.layers[i * 2 + 1](
-                        hidden_states.flip([1]),
-                        None if residual is None else residual.flip([1])
-                    )
-                    hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                    residual = residual_f + residual_b.flip([1])
+        hidden_states, residual = self.encoder._forward_mamba_layers(x_embed, residual)
 
         # Final normalization
         if not self.encoder.v.fused_add_norm:
@@ -219,7 +183,7 @@ class SSAMBASACModel(nn.Module):
         else:
             try:
                 from mamba_ssm.ops.triton.layernorm import rms_norm_fn, layer_norm_fn, RMSNorm
-                fused_add_norm_fn = rms_norm_fn if isinstance(self.encoder.v.norm_f, RMSNorm) else layer_norm_fn
+                fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.encoder.v.norm_f, RMSNorm)) else layer_norm_fn
                 hidden_states = fused_add_norm_fn(
                     self.encoder.v.drop_path(hidden_states),
                     self.encoder.v.norm_f.weight,
@@ -229,7 +193,7 @@ class SSAMBASACModel(nn.Module):
                     prenorm=False,
                     residual_in_fp32=self.encoder.v.residual_in_fp32,
                 )
-            except ImportError:
+            except (ImportError, TypeError):
                 if residual is None:
                     residual = hidden_states
                 else:

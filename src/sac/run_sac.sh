@@ -14,6 +14,7 @@
 
 set -x
 export TORCH_HOME=../../pretrained_models
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # ---- Dataset Configuration ----
 dataset=librispeech
@@ -59,7 +60,7 @@ use_middle_cls_token='false'
 
 # ---- Training Configuration ----
 batch_size=64
-lr=1e-4
+lr=4e-4
 lr_patience=2
 n_epochs=10
 epoch_iter=4000
@@ -107,7 +108,7 @@ resume_checkpoint=""
 
 # ---- Experiment Description ----
 # Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
-exp_description="Experiment 6: True Batch Size 64 with Gradient Checkpointing"
+exp_description="Experiment 6: True Batch Size 64 with Gradient Checkpointing (Scaled LR 4e-4)"
 exp_name_suffix="-exp6_true_bs64_ckpt"
 
 # ---- Experiment Directory ----
@@ -118,7 +119,7 @@ mkdir -p ${exp_dir}/models
 echo "${exp_description}" > "${exp_dir}/description.log"
 
 # ---- Launch ----
-CUDA_CACHE_DISABLE=1 python -W ignore run_pretrain_sac.py \
+CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 python -u -W ignore run_pretrain_sac.py \
     --sac-loss \
     --use_wandb \
     --dataset ${dataset} \

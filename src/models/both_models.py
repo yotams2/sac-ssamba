@@ -295,6 +295,45 @@ class AMBAModel(nn.Module):
         mask_id = random.sample(range(0, sequence_len), mask_size)
         return torch.tensor(mask_id)
     
+    def _forward_mamba_layers(self, hidden_states, residual=None):
+        use_ckpt = (getattr(self, 'use_checkpointing', False) or getattr(self.v, 'use_checkpointing', False)) and self.training
+        
+        if use_ckpt:
+            import torch.utils.checkpoint as checkpoint
+            def create_custom_forward(module):
+                def custom_forward(h, r):
+                    return module(h, r)
+                return custom_forward
+
+            if not self.v.if_bidirectional:
+                for layer in self.v.layers:
+                    hidden_states, residual = checkpoint.checkpoint(
+                        create_custom_forward(layer), hidden_states, residual, use_reentrant=False
+                    )
+            else:
+                for i in range(len(self.v.layers) // 2):
+                    hidden_states_f, residual_f = checkpoint.checkpoint(
+                        create_custom_forward(self.v.layers[i * 2]), hidden_states, residual, use_reentrant=False
+                    )
+                    res_in_b = None if residual is None else residual.flip([1])
+                    hidden_states_b, residual_b = checkpoint.checkpoint(
+                        create_custom_forward(self.v.layers[i * 2 + 1]), hidden_states.flip([1]), res_in_b, use_reentrant=False
+                    )
+                    hidden_states = hidden_states_f + hidden_states_b.flip([1])
+                    residual = residual_f + residual_b.flip([1])
+        else:
+            if not self.v.if_bidirectional:
+                for layer in self.v.layers:
+                    hidden_states, residual = layer(hidden_states, residual)
+            else:
+                for i in range(len(self.v.layers) // 2):
+                    hidden_states_f, residual_f = self.v.layers[i * 2](hidden_states, residual)
+                    hidden_states_b, residual_b = self.v.layers[i * 2 + 1](hidden_states.flip([1]), None if residual is None else residual.flip([1]))
+                    hidden_states = hidden_states_f + hidden_states_b.flip([1])
+                    residual = residual_f + residual_b.flip([1])
+                    
+        return hidden_states, residual
+
     def finetuningavgtok_1sec(self, x):
         B = x.shape[0]
         x = self.v.patch_embed(x)
@@ -312,15 +351,7 @@ class AMBAModel(nn.Module):
         residual = None
         hidden_states = x
         token_position = 0
-        if not self.v.if_bidirectional:
-            for layer in self.v.layers:
-                hidden_states, residual = layer(hidden_states, residual)
-        else:
-            for i in range(len(self.v.layers) // 2):
-                hidden_states_f, residual_f = self.v.layers[i * 2](hidden_states, residual)
-                hidden_states_b, residual_b = self.v.layers[i * 2 + 1](hidden_states.flip([1]), None if residual is None else residual.flip([1]))
-                hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                residual = residual_f + residual_b.flip([1])
+        hidden_states, residual = self._forward_mamba_layers(hidden_states, residual)
 
         if not self.v.fused_add_norm:
             if residual is None:
@@ -329,7 +360,7 @@ class AMBAModel(nn.Module):
                 residual = residual + self.v.drop_path(hidden_states)
             hidden_states = self.v.norm_f(residual.to(dtype=self.v.norm_f.weight.dtype))
         else:
-            fused_add_norm_fn = rms_norm_fn if isinstance(self.v.norm_f, RMSNorm) else layer_norm_fn
+            fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.v.norm_f, RMSNorm)) else layer_norm_fn
             hidden_states = fused_add_norm_fn(
                 self.v.drop_path(hidden_states),
                 self.v.norm_f.weight,
@@ -366,24 +397,7 @@ class AMBAModel(nn.Module):
         residual = None
         hidden_states = x
         token_position = 0
-        if not self.v.if_bidirectional:
-            for layer in self.v.layers:
-                
-                hidden_states, residual = layer(
-                    hidden_states, residual
-                )
-        else:
-            # get two layers in a single for-loop
-            for i in range(len(self.v.layers) // 2):
-
-                hidden_states_f, residual_f = self.v.layers[i * 2](
-                    hidden_states, residual
-                )
-                hidden_states_b, residual_b = self.v.layers[i * 2 + 1](
-                    hidden_states.flip([1]), None if residual == None else residual.flip([1])
-                )
-                hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                residual = residual_f + residual_b.flip([1])
+        hidden_states, residual = self._forward_mamba_layers(hidden_states, residual)
 
         if not self.v.fused_add_norm:
             if residual is None:
@@ -393,7 +407,7 @@ class AMBAModel(nn.Module):
             hidden_states = self.v.norm_f(residual.to(dtype=self.v.norm_f.weight.dtype))
         else:
             # Set prenorm=False here since we don't need the residual
-            fused_add_norm_fn = rms_norm_fn if isinstance(self.v.norm_f, RMSNorm) else layer_norm_fn
+            fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.v.norm_f, RMSNorm)) else layer_norm_fn
             hidden_states = fused_add_norm_fn(
                 self.v.drop_path(hidden_states),
                 self.v.norm_f.weight,
@@ -429,24 +443,7 @@ class AMBAModel(nn.Module):
         residual = None
         hidden_states = x
         token_position = 0
-        if not self.v.if_bidirectional:
-            for layer in self.v.layers:
-                
-                hidden_states, residual = layer(
-                    hidden_states, residual
-                )
-        else:
-            # get two layers in a single for-loop
-            for i in range(len(self.v.layers) // 2):
-
-                hidden_states_f, residual_f = self.v.layers[i * 2](
-                    hidden_states, residual
-                )
-                hidden_states_b, residual_b = self.v.layers[i * 2 + 1](
-                    hidden_states.flip([1]), None if residual == None else residual.flip([1])
-                )
-                hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                residual = residual_f + residual_b.flip([1])
+        hidden_states, residual = self._forward_mamba_layers(hidden_states, residual)
 
         if not self.v.fused_add_norm:
             if residual is None:
@@ -456,7 +453,7 @@ class AMBAModel(nn.Module):
             hidden_states = self.v.norm_f(residual.to(dtype=self.v.norm_f.weight.dtype))
         else:
             # Set prenorm=False here since we don't need the residual
-            fused_add_norm_fn = rms_norm_fn if isinstance(self.v.norm_f, RMSNorm) else layer_norm_fn
+            fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.v.norm_f, RMSNorm)) else layer_norm_fn
             hidden_states = fused_add_norm_fn(
                 self.v.drop_path(hidden_states),
                 self.v.norm_f.weight,
@@ -526,24 +523,7 @@ class AMBAModel(nn.Module):
         residual = None
         hidden_states = x
         token_position = 0
-        if not self.v.if_bidirectional:
-            for layer in self.v.layers:
-                
-                hidden_states, residual = layer(
-                    hidden_states, residual
-                )
-        else:
-            # get two layers in a single for-loop
-            for i in range(len(self.v.layers) // 2):
-
-                hidden_states_f, residual_f = self.v.layers[i * 2](
-                    hidden_states, residual
-                )
-                hidden_states_b, residual_b = self.v.layers[i * 2 + 1](
-                    hidden_states.flip([1]), None if residual == None else residual.flip([1])
-                )
-                hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                residual = residual_f + residual_b.flip([1])
+        hidden_states, residual = self._forward_mamba_layers(hidden_states, residual)
 
         if not self.v.fused_add_norm:
             if residual is None:
@@ -553,7 +533,7 @@ class AMBAModel(nn.Module):
             hidden_states = self.v.norm_f(residual.to(dtype=self.v.norm_f.weight.dtype))
         else:
             # Set prenorm=False here since we don't need the residual
-            fused_add_norm_fn = rms_norm_fn if isinstance(self.v.norm_f, RMSNorm) else layer_norm_fn
+            fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.v.norm_f, RMSNorm)) else layer_norm_fn
             hidden_states = fused_add_norm_fn(
                 self.v.drop_path(hidden_states),
                 self.v.norm_f.weight,
@@ -657,24 +637,7 @@ class AMBAModel(nn.Module):
         residual = None
         hidden_states = x
         token_position = 0
-        if not self.v.if_bidirectional:
-            for layer in self.v.layers:
-                
-                hidden_states, residual = layer(
-                    hidden_states, residual
-                )
-        else:
-            # get two layers in a single for-loop
-            for i in range(len(self.v.layers) // 2):
-
-                hidden_states_f, residual_f = self.v.layers[i * 2](
-                    hidden_states, residual
-                )
-                hidden_states_b, residual_b = self.v.layers[i * 2 + 1](
-                    hidden_states.flip([1]), None if residual == None else residual.flip([1])
-                )
-                hidden_states = hidden_states_f + hidden_states_b.flip([1])
-                residual = residual_f + residual_b.flip([1])
+        hidden_states, residual = self._forward_mamba_layers(hidden_states, residual)
 
         if not self.v.fused_add_norm:
             if residual is None:
@@ -684,7 +647,7 @@ class AMBAModel(nn.Module):
             hidden_states = self.v.norm_f(residual.to(dtype=self.v.norm_f.weight.dtype))
         else:
             # Set prenorm=False here since we don't need the residual
-            fused_add_norm_fn = rms_norm_fn if isinstance(self.v.norm_f, RMSNorm) else layer_norm_fn
+            fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.v.norm_f, RMSNorm)) else layer_norm_fn
             hidden_states = fused_add_norm_fn(
                 self.v.drop_path(hidden_states),
                 self.v.norm_f.weight,

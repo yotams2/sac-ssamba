@@ -63,7 +63,12 @@ This document tracks a sequence of four planned experiments designed to improve 
 ## Experiment 6: True Batch Size 64 with Gradient Checkpointing
 **Rationale:** Previous runs with gradient accumulation suffered from weakened contrastive signals because the SAC loss was computed over micro-batches (e.g., batch size 16), significantly reducing the number of negative samples in the denominator. To evaluate the true impact of the SAC loss, we need a large effective batch size of negative samples.
 **Implementation:** Reverted gradient accumulation and enabled PyTorch activation checkpointing (`--use_checkpointing true`) on the Mamba layers. This allows training with a true batch size of 64 within GPU memory limits. We also set `local_sigma_mode="offline_global_median"`.
-**Status:** Implemented
+**Status:** In Progress (Baseline complete @ 4e-4, SAC run prepared @ 4e-4)
 
 ### Insights & Conclusions
-* *(To be updated after full downstream evaluation)*
+* **Initial Evaluation (The Batch Size Paradox):** The initial run of EXP6 at `lr=1e-4` showed an absolute performance regression across both the Universal SAC model and the pure SSAMBA baseline compared to micro-batch accumulation runs. For instance, the VoxCeleb1 baseline dropped from `0.592` to `0.561`. However, within the True BS64 regime at `lr=1e-4`, the SAC loss *did* provide a clear improvement over the baseline (`0.576` vs `0.561` on VoxCeleb1, and `0.5696` vs `0.5613` on IEMOCAP).
+* **Root Cause - Learning Rate Scaling & Warmup Bug:** 
+  1. Micro-batch accumulation (`b16` x 4) injected stochastic gradient noise per micro-batch that acted as implicit regularization. Under True BS64, maintaining `1e-4` under-regularized and undertrained the model.
+  2. The learning rate warmup was tied to `global_step` (micro-batches), causing micro-batch runs to reach peak LR in 250 effective optimizer steps vs 1,000 steps for True BS64. The codebase was patched to use `eff_step`.
+* **Validation via Baseline LR Scaling:** Scaling the pretraining LR to `4e-4` for True BS64 successfully restored baseline performance to peak levels: VoxCeleb1 baseline reached **`0.6050`** Test Perf @ Best Dev (surpassing the old `0.5924` micro-batch baseline) and IEMOCAP baseline reached **`0.5724`**.
+* **Next Steps:** Prepared `src/sac/run_sac.sh` with `batch_size=64`, `--use_checkpointing true`, and `lr=4e-4` (`sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp6_true_bs64_ckpt`). Executing `run_pipeline.sh` will pretrain the SAC model under scaled True BS64 dynamics and automatically run downstream evaluations across VoxCeleb1, IEMOCAP, and Speech Commands v2.

@@ -352,7 +352,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                       f'Recon: {loss_recon_meter.avg:.4f} '
                       f'SAC: {loss_sac_meter.avg:.4f} '
                       f'Acc: {acc_meter.avg:.4f} '
-                      f'LR: {optimizer.param_groups[0]["lr"]:.2e}')
+                      f'LR: {optimizer.param_groups[0]["lr"]:.2e}', flush=True)
 
                 if args.use_wandb:
                     import wandb

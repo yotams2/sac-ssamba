@@ -30,6 +30,19 @@ def trainmask(audio_model, train_loader, test_loader, args):
     start_time = time.time()
     exp_dir = args.exp_dir
 
+    if hasattr(args, 'resume_model') and args.resume_model:
+        print('Loading model from', args.resume_model)
+        
+        # Load progress to get correct step and epoch
+        progress_file = "%s/progress.pkl" % exp_dir
+        if os.path.exists(progress_file):
+            with open(progress_file, "rb") as f:
+                progress = pickle.load(f)
+            if len(progress) > 0:
+                epoch, global_step, best_epoch, _ = progress[-1]
+                print(f"Resumed progress: epoch {epoch}, step {global_step}")
+    exp_dir = args.exp_dir
+
     def _save_progress():
         progress.append([epoch, global_step, best_epoch, time.time() - start_time])
         with open("%s/progress.pkl" % exp_dir, "wb") as f:
@@ -39,12 +52,21 @@ def trainmask(audio_model, train_loader, test_loader, args):
         audio_model = nn.DataParallel(audio_model)
 
     audio_model = audio_model.to(device)
+    
+    if hasattr(args, 'resume_model') and args.resume_model:
+        # We load the weights here after model is moved to device and wrapped in DataParallel
+        audio_model.load_state_dict(torch.load(args.resume_model, map_location=device))
+
     # Set up the optimizer
     audio_trainables = [p for p in audio_model.parameters() if p.requires_grad]
     print('Total parameter number is : {:.9f} million'.format(sum(p.numel() for p in audio_model.parameters()) / 1e6))
     print('Total trainable parameter number is : {:.9f} million'.format(sum(p.numel() for p in audio_trainables) / 1e6))
     trainables = audio_trainables
     optimizer = torch.optim.AdamW(trainables, args.lr, weight_decay=5e-8, betas=(0.95, 0.999))
+
+    if hasattr(args, 'resume_optimizer') and args.resume_optimizer and os.path.exists(args.resume_optimizer):
+        print('Loading optimizer from', args.resume_optimizer)
+        optimizer.load_state_dict(torch.load(args.resume_optimizer, map_location=device))
 
     # LR scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=args.lr_patience, verbose=True)
@@ -75,9 +97,11 @@ def trainmask(audio_model, train_loader, test_loader, args):
             per_sample_data_time.update((time.time() - end_time) / audio_input.shape[0])
             dnn_start_time = time.time()
 
-            # first several steps for warm-up
-            if global_step <= 1000 and global_step % 50 == 0:
-                warm_lr = (global_step / 1000) * args.lr
+            # first several steps for warm-up (based on effective optimizer steps)
+            accum_grad = args.accum_grad if hasattr(args, 'accum_grad') and args.accum_grad > 1 else 1
+            eff_step = global_step // accum_grad
+            if eff_step <= 1000 and global_step % (50 * accum_grad) == 0:
+                warm_lr = (eff_step / 1000) * args.lr
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = warm_lr
                 print('warm-up learning rate is {:f}'.format(optimizer.param_groups[0]['lr']))
@@ -175,8 +199,7 @@ def trainmask(audio_model, train_loader, test_loader, args):
                     torch.save(audio_model.state_dict(), "%s/models/best_audio_model.pth" % (exp_dir))
 
                 torch.save(audio_model.state_dict(), "%s/models/audio_model.%d.pth" % (exp_dir, equ_epoch))
-                if len(train_loader.dataset) > 2e5:
-                    torch.save(optimizer.state_dict(), "%s/models/optim_state.pth" % (exp_dir))
+                torch.save(optimizer.state_dict(), "%s/models/optim_state.pth" % (exp_dir))
 
                 # if the task is generation, stop after eval mse loss stop improve
                 if args.task == 'pretrain_mpg':

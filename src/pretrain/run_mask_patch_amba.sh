@@ -57,7 +57,7 @@ batch_size=16
 accum_grad=4
 eff_batch_size=$((batch_size * accum_grad))
 epoch_iter=$((4000 * accum_grad))
-lr=1e-4
+lr=4e-4
 # learning rate decreases if the pretext task performance does not improve on the validation set
 lr_patience=2
 epoch=10

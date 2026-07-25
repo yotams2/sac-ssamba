@@ -50,6 +50,10 @@ parser.add_argument('--adaptschedule', help='if use adaptive scheduler ', type=a
 parser.add_argument("--n-print-steps", type=int, default=100, help="number of steps to print statistics")
 parser.add_argument('--save_model', help='save the models or not', type=ast.literal_eval)
 
+parser.add_argument("--resume_model", type=str, default=None, help="path to model to resume")
+parser.add_argument("--resume_optimizer", type=str, default=None, help="path to optimizer to resume")
+parser.add_argument("--wandb_id", type=str, default=None, help="wandb run id to resume")
+
 parser.add_argument('--freqm', help='frequency mask max length', type=int, default=0)
 parser.add_argument('--timem', help='time mask max length', type=int, default=0)
 parser.add_argument("--mixup", type=float, default=0, help="how many (0-1) samples need to be mixup during training")
@@ -122,7 +126,11 @@ if args.use_wandb:
         project_name = "amba_as"
     elif args.dataset == "speechcommands":
         project_name = "amba_sc"
-    wandb.init(project=project_name, config=args)
+    
+    if args.wandb_id:
+        wandb.init(project=project_name, config=args, id=args.wandb_id, resume="must")
+    else:
+        wandb.init(project=project_name, config=args)
     
 
 args.rms_norm = args.rms_norm == 'true'
