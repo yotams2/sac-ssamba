@@ -65,8 +65,10 @@ lr_patience=2
 n_epochs=10
 epoch_iter=4000
 
-# ---- SAC Loss Configuration ----
-sac_lambda=0.02       # Weight: L_total = L_recon + λ * L_SAC
+# ---- Multi-Loss Configuration ----
+recon_lambda=0.0 # 1.0      # Weight for reconstruction loss (MPG): set to 0.0 for EXP 7 (SAC alone)
+classif_lambda=0.0    # Weight for classification loss (MPC): set to 0.0 if not used
+sac_lambda=1.0 # 0.02       # Weight for SAC contrastive loss: set to 0.0 to disable
 sac_temperature=0.12  # Temperature τ for cosine similarity (optimal from sweep)
 sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by static_entropy_optimal)
 
@@ -108,8 +110,8 @@ resume_checkpoint=""
 
 # ---- Experiment Description ----
 # Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
-exp_description="Experiment 6: True Batch Size 64 with Gradient Checkpointing (Scaled LR 4e-4)"
-exp_name_suffix="-exp6_true_bs64_ckpt"
+exp_description="Experiment 7: Pure SAC Loss Alone (recon_lambda=0, sac_lambda=1.0, BS64 LR 4e-4)"
+exp_name_suffix="-exp7_sac_alone"
 
 # ---- Experiment Directory ----
 exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}
@@ -144,6 +146,8 @@ CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 python -u -W ignore run_pretrain_sac.py 
     --model_size ${model_size} \
     --fshape ${fshape} \
     --tshape ${tshape} \
+    --recon-lambda ${recon_lambda} \
+    --classif-lambda ${classif_lambda} \
     --sac-lambda ${sac_lambda} \
     --sac-temperature ${sac_temperature} \
     --sac-sigma ${sac_sigma} \

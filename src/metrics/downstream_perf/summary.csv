@@ -1,6 +1,7 @@
 Task,Experiment,Best Dev Step,Best Dev Perf,Test Perf @ Best Dev,Max Test Perf
 voxceleb1,ssamba_baseline_1e-4,45000,0.6229721903800964,0.592413067817688,0.5944734215736389
 voxceleb1,amba-base-f16-t16-b64-lr1e-4-m300-pretrain_joint-librispeech_1e-4,45000,0.5731459856033325,0.5611441135406494,0.5611441135406494
+voxceleb1,sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp6_true_bs64_ckpt_1e-4,50000,0.6174681186676025,0.6128954291343689,0.6144709587097168
 voxceleb1,sac-base-f16-t16-b64-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp6_true_bs64_ckpt_1e-4,45000,0.5837196111679077,0.5764150023460388,0.5764150023460388
 voxceleb1,ssamba_sac_feat_universal_mode_offline_global_median_1e-4,50000,0.616309404373169,0.5983517169952393,0.6031996011734009
 voxceleb1,sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_static_entropy_optimal-librispeech-exp5_optimal_sigma_tau_1e-4,40000,0.5999420881271362,0.5802932977676392,0.5858683586120605
@@ -21,6 +22,7 @@ iemocap,ssamba_baseline_1e-5,19000,0.6348314881324768,0.5465437769889832,0.57788
 iemocap,ssamba_sac_feat_universal_fixed_1e-5,5000,0.6719101071357727,0.5317972302436829,0.5778802037239075
 iemocap,amba-base-f16-t16-b64-lr1e-4-m300-pretrain_joint-librispeech_1e-5,7000,0.6213483214378357,0.5612903237342834,0.5686635971069336
 iemocap,sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp3_multi_query_1e-5,14000,0.6617977619171143,0.5400921702384949,0.5963133573532104
+iemocap,sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp6_true_bs64_ckpt_1e-5,10000,0.6561797857284546,0.5612903237342834,0.5898617506027222
 iemocap,sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-new_LPC_1e-5,2000,0.6786516904830933,0.5778802037239075,0.5953916907310486
 iemocap,amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech_1e-5,5000,0.6449438333511353,0.5723502039909363,0.5723502039909363
 iemocap,sac-base-f16-t16-b64-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp6_true_bs64_ckpt_1e-5,4000,0.6516854166984558,0.5695852637290955,0.5695852637290955

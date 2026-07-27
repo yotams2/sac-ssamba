@@ -1,0 +1,15 @@
+Study Name: factorized_sac_per_group_sigma_v4
+Date: 2026-07-27
+
+Description & Context:
+- Evaluates factorized SAC loss hyperparameter tuning with per-group sigma scaling and GROUP-SPECIFIC PHYSICAL UNIFORMITY THRESHOLDS.
+- Grounded in multi-run WandB meta-analysis:
+  * Vocal_Tract (LPC formants F1, F2, F3) is physically constrained by human vocal tract anatomy (the 3D acoustic vowel triangle manifold) and naturally plateaus around -0.28 to -0.32 in pretraining.
+  * Prosody, Timbre, Voice_Quality, and Scene can achieve deeper negative uniformity (-0.35 to -0.50).
+- Custom Per-Group Feasibility Thresholds (updated in optuna_sac_search.py):
+  * Prosody: <= -0.35
+  * Vocal_Tract: <= -0.25 (realistic anatomical ceiling)
+  * Voice_Quality: <= -0.30
+  * Timbre: <= -0.40
+  * Scene: <= -0.40
+- Parameters: --mode per_group_sigma --sigma-scale-min 0.01 --sigma-scale-max 0.80 --probe-steps 150 --eval-last-steps 25 --n-trials 80.

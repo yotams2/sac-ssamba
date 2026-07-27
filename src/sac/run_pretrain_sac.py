@@ -206,6 +206,7 @@ def train_sac(model, train_loader, test_loader, args, device):
 
     loss_meter = AverageMeter()
     loss_recon_meter = AverageMeter()
+    loss_classif_meter = AverageMeter()
     loss_sac_meter = AverageMeter()
     acc_meter = AverageMeter()
 
@@ -290,6 +291,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                 if isinstance(result, dict):
                     loss = result['loss_total'].mean()
                     loss_recon = result['loss_recon'].mean()
+                    loss_classif = result['loss_classif'].mean() if isinstance(result['loss_classif'], torch.Tensor) else result['loss_classif']
                     loss_sac = result['loss_sac'].mean()
                     acc = result['acc'].mean() if isinstance(result['acc'], torch.Tensor) else result['acc']
                     diag_dict = result if do_diagnostics else None
@@ -297,6 +299,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                     # DataParallel returns list of outputs from each GPU
                     loss = torch.stack([r['loss_total'] for r in result]).mean()
                     loss_recon = torch.stack([r['loss_recon'] for r in result]).mean()
+                    loss_classif = torch.stack([r['loss_classif'] if isinstance(r['loss_classif'], torch.Tensor) else torch.tensor(r['loss_classif']) for r in result]).mean()
                     loss_sac = torch.stack([r['loss_sac'] for r in result]).mean()
                     acc = torch.stack([r['acc'] for r in result]).mean()
                     diag_dict = result[0] if do_diagnostics else None
@@ -304,6 +307,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                     # Fallback: treat as tuple
                     loss = result[0].mean() if hasattr(result[0], 'mean') else result[0]
                     loss_recon = loss
+                    loss_classif = torch.tensor(0.0)
                     loss_sac = torch.tensor(0.0)
                     acc = torch.tensor(0.0)
                     diag_dict = None
@@ -318,17 +322,20 @@ def train_sac(model, train_loader, test_loader, args, device):
                     loss_mpg = loss_mpg.mean()
                     loss = loss_mpc + 10 * loss_mpg
                     loss_recon = loss_mpg
+                    loss_classif = loss_mpc
                     loss_sac = torch.tensor(0.0)
                 elif args.task == 'pretrain_mpg':
                     loss = model(fbank, 'pretrain_mpg', mask_patch=args.mask_patch, cluster=cluster)
                     loss = loss.mean()
                     acc = loss
                     loss_recon = loss
+                    loss_classif = torch.tensor(0.0)
                     loss_sac = torch.tensor(0.0)
                 elif args.task == 'pretrain_mpc':
                     acc, loss = model(fbank, 'pretrain_mpc', mask_patch=args.mask_patch, cluster=cluster)
                     acc, loss = acc.mean(), loss.mean()
-                    loss_recon = loss
+                    loss_recon = torch.tensor(0.0)
+                    loss_classif = loss
                     loss_sac = torch.tensor(0.0)
                 else:
                     raise ValueError(f"Unknown task: {args.task}")
@@ -341,6 +348,7 @@ def train_sac(model, train_loader, test_loader, args, device):
             # Update meters
             loss_meter.update(loss.item(), B)
             loss_recon_meter.update(loss_recon.item() if isinstance(loss_recon, torch.Tensor) else loss_recon, B)
+            loss_classif_meter.update(loss_classif.item() if isinstance(loss_classif, torch.Tensor) else loss_classif, B)
             loss_sac_meter.update(loss_sac.item() if isinstance(loss_sac, torch.Tensor) else loss_sac, B)
             if isinstance(acc, torch.Tensor):
                 acc_meter.update(acc.item(), B)
@@ -350,6 +358,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                 print(f'Epoch [{epoch}][{i}/{len(train_loader)}] '
                       f'Loss: {loss_meter.avg:.4f} '
                       f'Recon: {loss_recon_meter.avg:.4f} '
+                      f'Classif: {loss_classif_meter.avg:.4f} '
                       f'SAC: {loss_sac_meter.avg:.4f} '
                       f'Acc: {acc_meter.avg:.4f} '
                       f'LR: {optimizer.param_groups[0]["lr"]:.2e}', flush=True)
@@ -359,6 +368,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                     wandb.log({
                         'train/loss_total': loss_meter.avg,
                         'train/loss_recon': loss_recon_meter.avg,
+                        'train/loss_classif': loss_classif_meter.avg,
                         'train/loss_sac': loss_sac_meter.avg,
                         'train/acc': acc_meter.avg,
                         'train/lr': optimizer.param_groups[0]['lr'],
@@ -482,6 +492,7 @@ def train_sac(model, train_loader, test_loader, args, device):
                 # Reset meters
                 loss_meter.reset()
                 loss_recon_meter.reset()
+                loss_classif_meter.reset()
                 loss_sac_meter.reset()
                 acc_meter.reset()
 
@@ -617,6 +628,10 @@ def get_args():
                         help='Steps between generating SAC diagnostics (0 to disable)')
     parser.add_argument('--sac-loss', action='store_true',
                         help='Enable SAC (Soft Acoustic Contrastive) loss')
+    parser.add_argument('--recon-lambda', type=float, default=1.0,
+                        help='Weight for reconstruction loss (MPG): 0.0 to disable')
+    parser.add_argument('--classif-lambda', type=float, default=0.0,
+                        help='Weight for classification loss (MPC): 0.0 to disable')
     parser.add_argument('--sac-lambda', type=float, default=1.0,
                         help='Weight λ for SAC loss: L_total = L_recon + λ*L_SAC')
     parser.add_argument('--sac-temperature', type=float, default=0.3,
@@ -741,6 +756,8 @@ def main():
         sac_temperature=args.sac_temperature,
         sac_sigma=args.sac_sigma,
         sac_lambda=args.sac_lambda,
+        recon_lambda=args.recon_lambda,
+        classif_lambda=args.classif_lambda,
         sac_features=args.sac_features,
         mask_patch=args.mask_patch,
         vision_mamba_config=vision_mamba_config,

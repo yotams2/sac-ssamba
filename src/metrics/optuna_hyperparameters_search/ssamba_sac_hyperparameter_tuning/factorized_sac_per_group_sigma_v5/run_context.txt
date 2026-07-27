@@ -1,0 +1,14 @@
+Study Name: factorized_sac_per_group_sigma_v5
+Date: 2026-07-27
+
+Description & Context:
+- RE-ENGINEERED SEARCH SPACE: Switched from unconstrained raw-median scaling (which forced 95% of trials into dead collapse zones for low-dim features) to ANCHOR-RELATIVE MULTIPLIER SEARCH (--mode anchor_relative_sigma).
+- Anchors each of the 5 feature groups at its pre-calibrated 62.5% Shannon entropy baseline (OPTIMAL_SIGMAS[64] from EXP5):
+  * Voice_Quality (1D): base = 0.0954  --> search range [0.047, 0.171]
+  * Prosody (2D):       base = 0.1931  --> search range [0.096, 0.347]
+  * Vocal_Tract (3D):   base = 0.2223  --> search range [0.111, 0.400]
+  * Timbre (5D):        base = 0.3907  --> search range [0.195, 0.703]
+  * Scene (6D):         base = 0.2947  --> search range [0.147, 0.530]
+- Optuna samples alpha_mult_g in [0.50, 1.80] for each group, guaranteeing 100% of sampled points land inside the active non-collapsing geometric window.
+- Evaluated against group-specific physical feasibility limits (Prosody <= -0.35, Vocal_Tract <= -0.25, Voice_Quality <= -0.30, Timbre <= -0.40, Scene <= -0.40).
+- Parameters: --mode anchor_relative_sigma --alpha-min 0.50 --alpha-max 1.80 --probe-steps 150 --eval-last-steps 25 --n-trials 80.

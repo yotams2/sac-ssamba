@@ -1,0 +1,8 @@
+Study Name: factorized_sac_per_group_sigma_v3
+Date: 2026-07-27
+
+Description & Context:
+- Evaluates factorized SAC loss hyperparameter tuning with per-group sigma scaling.
+- Lowered --sigma-scale-min from 0.10 down to 0.01 to allow low-dimensional groups (Voice_Quality 1D, Prosody 2D, Vocal_Tract 3D) to explore small bandwidths (<0.08) necessary to prevent target weight saturation.
+- Evaluates feasibility against a single global uniformity constraint ceiling (--max-uniformity -0.45) across all 5 feature groups.
+- Parameters: --mode per_group_sigma --sigma-scale-min 0.01 --sigma-scale-max 0.80 --probe-steps 100 --eval-last-steps 20 --n-trials 60.

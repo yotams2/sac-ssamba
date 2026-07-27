@@ -67,6 +67,8 @@ class SSAMBASACModel(nn.Module):
         sac_temperature=0.3,
         sac_sigma=1.0,
         sac_lambda=1.0,
+        recon_lambda=1.0,
+        classif_lambda=0.0,
         sac_features="f0_mean,hnr,centroid,flux,zcr_mean",
         mask_patch=300,
         vision_mamba_config=None,
@@ -80,6 +82,8 @@ class SSAMBASACModel(nn.Module):
         self.sac_temperature = sac_temperature
         self.sac_sigma = sac_sigma
         self.sac_lambda = sac_lambda
+        self.recon_lambda = recon_lambda
+        self.classif_lambda = classif_lambda
         self.embed_dim = embed_dim
         self.mask_patch = mask_patch
         self.local_sigma_mode = local_sigma_mode
@@ -393,75 +397,72 @@ class SSAMBASACModel(nn.Module):
         if acoustic_features is None:
             return self.encoder(fbank, task=task, mask_patch=mask_patch, cluster=cluster)
 
-        # ---- SAC-augmented pretraining ----
+        # ---- Flexible multi-loss pretraining ----
         # Reshape input: [B, T, F] → [B, 1, F, T]
         x = fbank.unsqueeze(1).transpose(2, 3)
         B = x.shape[0]
 
-        # 1. Compute reconstruction loss (generative objective)
-        # Use the encoder's native mpg method
-        loss_recon = self.encoder.mpg(x, mask_patch=mask_patch, cluster=cluster)
-
-        # 2. Encode the FULL (unmasked) spectrogram for the SAC branch
-        # This gives us the clean global representation for contrastive learning
-        with torch.no_grad() if not self.training else torch.enable_grad():
-            hidden_states = self._encode_with_mamba(x)
-
-        if self.use_cross_attention:
-            # 3. Cross-attention to extract group embeddings
-            # Query: [B, num_groups * num_queries_per_group, actual_embed_dim]
-            Q = self.group_queries.unsqueeze(0).expand(B, -1, -1)
-            
-            # Attention output: [B, num_groups * num_queries_per_group, actual_embed_dim]
-            # Ignore CLS token for attention over sequence
-            cls_token_num = self.encoder.cls_token_num
-            attn_output, _ = self.cross_attention(query=Q, key=hidden_states[:, cls_token_num:, :], value=hidden_states[:, cls_token_num:, :])
-            
-            # Pool the N queries per group
-            # attn_output: [B, num_groups, num_queries_per_group, actual_embed_dim]
-            attn_output = attn_output.view(B, self.num_active_groups, self.num_queries_per_group, -1)
-            attn_pooled = attn_output.mean(dim=2)
-            
-            # 4. Project through g(·) to get latent Z_groups
-            # The projection head natively supports broadcasting over the groups dimension
-            Z_groups = self.projection_head(attn_pooled)
-
-            # 5. Compute Factorized SAC loss
-            if return_diagnostics:
-                loss_sac, z_norm, sim, w, entropies = self.sac_loss(Z_groups, acoustic_features, return_diagnostics=True)
-                # z is required for some diagnostics plots, use the flat/mean version or group 0
-                z = Z_groups.mean(dim=1)
-            else:
-                loss_sac = self.sac_loss(Z_groups, acoustic_features)
-                z = None
+        # 1. Reconstruction loss (generative objective, MPG)
+        if self.recon_lambda > 0:
+            loss_recon = self.encoder.mpg(x, mask_patch=mask_patch, cluster=cluster)
         else:
-            # 3. Mean pool to get global representation e(X)
-            e = self._pool_tokens(hidden_states)  # [B, embed_dim]
+            loss_recon = torch.tensor(0.0, device=x.device)
 
-            # 4. Project through g(·) to get latent z
-            z = self.projection_head(e)  # [B, proj_dim]
+        # 2. Classification loss (discriminative objective, MPC)
+        if self.classif_lambda > 0:
+            acc, loss_classif = self.encoder.mpc(x, mask_patch=mask_patch, cluster=cluster)
+        else:
+            loss_classif = torch.tensor(0.0, device=x.device)
+            acc = torch.tensor(0.0, device=x.device)
 
-            # 5. Compute SAC loss
-            if return_diagnostics:
-                loss_sac, z_norm, sim, w = self.sac_loss_legacy(z, acoustic_features, return_diagnostics=True)
-                entropies = {}
+        # 3. SAC contrastive loss
+        if self.sac_lambda > 0 and acoustic_features is not None:
+            # Encode FULL (unmasked) spectrogram for the SAC branch
+            with torch.no_grad() if not self.training else torch.enable_grad():
+                hidden_states = self._encode_with_mamba(x)
+
+            if self.use_cross_attention:
+                # Cross-attention to extract group embeddings
+                Q = self.group_queries.unsqueeze(0).expand(B, -1, -1)
+                cls_token_num = self.encoder.cls_token_num
+                attn_output, _ = self.cross_attention(query=Q, key=hidden_states[:, cls_token_num:, :], value=hidden_states[:, cls_token_num:, :])
+                attn_output = attn_output.view(B, self.num_active_groups, self.num_queries_per_group, -1)
+                attn_pooled = attn_output.mean(dim=2)
+                Z_groups = self.projection_head(attn_pooled)
+
+                if return_diagnostics:
+                    loss_sac, z_norm, sim, w, entropies = self.sac_loss(Z_groups, acoustic_features, return_diagnostics=True)
+                    z = Z_groups.mean(dim=1)
+                else:
+                    loss_sac = self.sac_loss(Z_groups, acoustic_features)
+                    z = None
             else:
-                loss_sac = self.sac_loss_legacy(z, acoustic_features)
+                e = self._pool_tokens(hidden_states)
+                z = self.projection_head(e)
+                if return_diagnostics:
+                    loss_sac, z_norm, sim, w = self.sac_loss_legacy(z, acoustic_features, return_diagnostics=True)
+                    entropies = {}
+                else:
+                    loss_sac = self.sac_loss_legacy(z, acoustic_features)
+        else:
+            loss_sac = torch.tensor(0.0, device=x.device)
+            z = None
+            z_norm = None
+            sim = None
+            w = None
+            entropies = {}
 
-        # 6. Total loss
-        loss_total = loss_recon + self.sac_lambda * loss_sac
-
-        # 7. Compute accuracy metric (from discriminative objective, if applicable)
-        # Use MPC for accuracy tracking — no_grad to avoid retaining a third gradient graph
-        with torch.no_grad():
-            try:
-                acc, _ = self.encoder.mpc(x, mask_patch=mask_patch, cluster=cluster)
-            except Exception:
-                acc = torch.tensor(0.0, device=x.device)
+        # 4. Total weighted loss
+        loss_total = (
+            self.recon_lambda * loss_recon +
+            self.classif_lambda * loss_classif +
+            self.sac_lambda * loss_sac
+        )
 
         output = {
             'loss_total': loss_total,
             'loss_recon': loss_recon,
+            'loss_classif': loss_classif,
             'loss_sac': loss_sac,
             'acc': acc.detach() if isinstance(acc, torch.Tensor) else acc,
         }
