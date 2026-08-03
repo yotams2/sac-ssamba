@@ -1,0 +1,29 @@
+Study Name: factorized_sac_per_group_sigma_v6
+Date: 2026-07-29
+
+Description & Context:
+- EMPIRICAL MEDIAN-RELATIVE MULTIPLIER SEARCH (--mode median_relative_sigma):
+  Replaces artificial static entropy baselines with per-group relative multipliers m_g in [0.50, 3.00] anchored directly on each acoustic feature group's empirical median distance (d_med,g) across LibriSpeech.
+- Multiplier m_g = 1.0 corresponds exactly to w_ij(d_med) = 0.50 (matching the proven offline_global_median baseline of EXP6).
+- Empirical Baseline Medians & Search Ranges (d_med,g / sqrt(ln 2) * m_g):
+  * Voice_Quality (1D):  d_med = 0.3120  --> base sigma = 0.3746  --> search range [0.187, 1.124]
+  * Prosody (2D):        d_med = 0.5218  --> base sigma = 0.6267  --> search range [0.313, 1.880]
+  * Vocal_Tract (3D):    d_med = 0.5738  --> base sigma = 0.6891  --> search range [0.345, 2.067]
+  * Timbre (5D):         d_med = 0.9489  --> base sigma = 1.1396  --> search range [0.570, 3.419]
+  * Scene (6D):          d_med = 0.7052  --> base sigma = 0.8469  --> search range [0.423, 2.541]
+- RE-ENGINEERED CONTINUOUS ALIGNMENT METRIC (Wang & Isola, 2020 generalization):
+  * Replaced batch-top-10% percentile alignment with row-normalized expected cosine similarity:
+    Align_sim = (1/B) * sum_{i=1}^B sum_{j != i} w_norm_{ij} * cos(z_i, z_j)  where  w_norm_{ij} = w_{ij} / sum_{k != i} w_{ik}
+  * Eliminates global sum bias (preventing stationary vowels/silence from dominating aggregate sums) and guarantees per-instance expectation, preserving mathematical duality with Wang & Isola squared distance.
+- Evaluation Horizon: Extended to 300 probe steps with last 50 steps evaluated (--probe-steps 300 --eval-last-steps 50) to measure stabilized representation geometry.
+- Command Line Parameters:
+  python /storage/yotam/ssamba/src/sac/optuna_sac_search.py \
+    --mode median_relative_sigma \
+    --mult-min 0.5 --mult-max 3.0 \
+    --tau-min 0.08 --tau-max 0.50 \
+    --probe-steps 300 --eval-last-steps 50 \
+    --n-trials 80 \
+    --batch-size 64 \
+    --lr 4e-4 \
+    --study-name factorized_sac_per_group_sigma_v6 \
+    --out-dir /storage/yotam/ssamba/src/metrics/optuna_hyperparameters_search/ssamba_sac_hyperparameter_tuning/factorized_sac_per_group_sigma_v6

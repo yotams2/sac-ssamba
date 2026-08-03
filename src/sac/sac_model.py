@@ -28,7 +28,7 @@ sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
 
 from models.both_models import AMBAModel
-from sac.sigma_configs import OPTIMAL_SIGMAS
+from sac.sigma_configs import OPTIMAL_SIGMAS, OPTUNA_OPTIMAL_SIGMAS
 
 
 class SSAMBASACModel(nn.Module):
@@ -300,7 +300,10 @@ class SSAMBASACModel(nn.Module):
             cue_dist = torch.cdist(c_group, c_group, p=2)
             
             import math
-            if self.local_sigma_mode == 'static_entropy_optimal':
+            if self.local_sigma_mode == 'optuna_optimal':
+                sigmas_table = OPTUNA_OPTIMAL_SIGMAS.get(B, OPTUNA_OPTIMAL_SIGMAS[64])
+                local_sigma = sigmas_table.get(group_name, self.sac_sigma * math.sqrt(len(indices)))
+            elif self.local_sigma_mode == 'static_entropy_optimal':
                 assert B in [16, 32, 64], f"static_entropy_optimal requires batch size in [16, 32, 64], got {B}"
                 local_sigma = OPTIMAL_SIGMAS[B].get(group_name, self.sac_sigma * math.sqrt(len(indices)))
                 

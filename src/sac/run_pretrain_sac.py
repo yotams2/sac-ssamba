@@ -459,6 +459,9 @@ def train_sac(model, train_loader, test_loader, args, device):
                 plt.close(fig_feat_corr)
                 plt.close(fig_kernel)
                 plt.close(fig_manifold)
+                plt.close('all')
+                import gc
+                gc.collect()
                 model.train()
 
             global_step += 1
@@ -500,6 +503,19 @@ def train_sac(model, train_loader, test_loader, args, device):
                 print('---- evaluation finished ----')
 
         epoch += 1
+
+    # Final evaluation & model saving at completion of all epochs
+    print('---- Final Pretraining Evaluation ----')
+    final_val_loss = validate_sac(model, test_loader, args, device, feature_stats)
+    print(f'  Final Train Loss: {loss_meter.avg:.4f}, Final Val Loss: {final_val_loss:.4f}')
+    final_path = os.path.join(args.exp_dir, 'models', 'audio_model.final.pth')
+    torch.save(model.state_dict(), final_path)
+    if final_val_loss < best_val_loss:
+        best_val_loss = final_val_loss
+        best_path = os.path.join(args.exp_dir, 'models', 'best_audio_model.pth')
+        torch.save(model.state_dict(), best_path)
+        print(f'  New best model saved at end of pretraining (val_loss={final_val_loss:.4f})')
+
 
 
 def validate_sac(model, val_loader, args, device, feature_stats=None):
@@ -642,8 +658,8 @@ def get_args():
                         help='Comma separated list of acoustic features to extract (e.g. formants,mfcc,f0_var,rhythm)')
     parser.add_argument('--proj-dim', type=int, default=128,
                         help='Output dimension of the projection head g(·)')
-    parser.add_argument('--local_sigma_mode', type=str, default='chi2_median',
-                        choices=['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim', 'static_entropy_optimal'],
+    parser.add_argument('--local_sigma_mode', type=str, default='optuna_optimal',
+                        choices=['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim', 'static_entropy_optimal', 'optuna_optimal'],
                         help='How to calculate the local sigma for the Gaussian kernel')
     parser.add_argument('--resume', type=str, default='',
                         help='Path to a checkpoint (.pth) to resume training from.')

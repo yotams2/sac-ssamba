@@ -87,9 +87,48 @@ This document tracks a sequence of four planned experiments designed to improve 
 * **Efficiency Impact:**
   - **Parameter Savings:** Eliminates the decoder (`gpredlayer`), saving **787,456 parameters** (~0.95% of total model parameters).
   - **Compute Speedup:** Cuts Mamba backbone forward passes from 2 to 1 per batch, resulting in **~2x faster pretraining throughput** and significantly lower GPU VRAM consumption.
-**Status:** Implemented & Ready to Launch
+**Status:** Completed
+
+### Insights & Conclusions
+* **Downstream Performance Degradation:** Removing the generative reconstruction loss ($L_{\text{recon}}$) led to substantial performance degradation across all three evaluated downstream tasks:
+  * **VoxCeleb1 (Speaker ID):** Dropped from **`0.6129`** (EXP6 Dual Loss) to **`0.5272`** Test Perf @ Best Dev (-8.57% absolute drop).
+  * **IEMOCAP (Emotion Recognition):** Dropped from **`0.5899`** Max Test / `0.5613` @ Best Dev (EXP6) to **`0.5585`** Max Test / **`0.5253`** @ Best Dev (-3.60% drop @ Best Dev).
+  * **Speech Commands v2 (Keyword Spotting):** Dropped from **`0.9746`** (EXP6) to **`0.9522`** Test Acc (-2.24% drop).
+* **Root Cause - Loss Complementarity:** 
+  * The generative patch reconstruction loss ($L_{\text{recon}}$) acts as a high-frequency local anchor, preserving fine-grained spectrogram patch structures and temporal transitions.
+  * The Factorized SAC loss ($L_{\text{SAC}}$) acts as a low-frequency global regularizer, structuring feature group latent geometry.
+  * Without $L_{\text{recon}}$, the Mamba encoder over-specializes on coarse physical summary statistics and loses fine-grained local spectral representations required for downstream transfer.
+* **Verdict:** Pure SAC loss cannot replace generative reconstruction. Dual-objective pretraining ($L_{\text{recon}} + \lambda L_{\text{SAC}}$) is strictly required for optimal representation learning.
+
+---
+
+## Experiment 8: Optuna-Calibrated Factorized SAC (Dual Loss)
+**Rationale:** Previous pretraining runs used either static heuristic medians (`offline_global_median`) or theoretical entropy baselines (`static_entropy_optimal`). Optuna Hyperparameter Study `v5` identified the mathematically winning configuration (Trial #67) that guarantees non-collapsed representations and optimal alignment/uniformity balance across all 5 feature groups simultaneously. To evaluate if these tuned parameters improve downstream transfer over the **EXP6 baseline** (True BS64 @ LR 4e-4 with `offline_global_median`), we maintain the exact True BS64 @ LR 4e-4 dual loss setup ($L_{\text{recon}} + 0.02 L_{\text{SAC}}$) and test the new `optuna_optimal` group sigmas and temperature ($\tau = 0.5034$).
+**Implementation:**
+* **`sac_temperature`**: `0.5034`
+* **`local_sigma_mode`**: `"optuna_optimal"` ($\sigma_{\text{Prosody}} = 0.2969$, $\sigma_{\text{Vocal\_Tract}} = 0.1982$, $\sigma_{\text{Timbre}} = 0.6409$, $\sigma_{\text{Voice\_Quality}} = 0.0928$, $\sigma_{\text{Scene}} = 0.2748$)
+* **Dual Loss Weights (Matching EXP6)**: `recon_lambda=1.0`, `sac_lambda=0.02`
+* **Training Setup**: True BS64 @ LR 4e-4 with activation checkpointing on LibriSpeech.
+**Status:** Prepared & Ready to Launch
 
 ### Insights & Conclusions
 * *(To be updated after execution)*
+
+---
+
+## Experiment 9: Tri-Objective Pretraining (Reconstruction + Classification + Factorized SAC)
+**Rationale:** Standard SSAST / SSAMBA pretraining (`run_mask_patch_amba.sh`) uses a joint loss combining Masked Patch Classification (MPC, discriminative NCE) and Masked Patch Generation (MPG, generative MSE): $\mathcal{L}_{\text{baseline}} = \mathcal{L}_{\text{MPC}} + 10 \cdot \mathcal{L}_{\text{MPG}}$. All previous SAC experiments (EXP1–EXP8) set `classif_lambda=0.0`, testing only generative reconstruction + SAC loss. Adding the discriminative patch classification loss ($\mathcal{L}_{\text{MPC}}$) introduces discrete patch-level contrastive targets alongside continuous acoustic SAC targets. Normalizing relative to $\mathcal{L}_{\text{MPG}} = 1.0$ (as in `SSAMBASACModel`), maintaining the exact baseline weighting ratio requires $\text{classif\_lambda} = 0.1$ ($\frac{1}{10}$).
+**Implementation:**
+* **`recon_lambda`**: `1.0` ($L_{\text{recon}}$ generative reconstruction)
+* **`classif_lambda`**: `0.1` ($L_{\text{classif}}$ discriminative patch classification, maintaining the $1 : 10$ ratio from `traintest_mask.py`)
+* **`sac_lambda`**: `0.02` ($L_{\text{SAC}}$ factorized acoustic contrastive loss)
+* **`local_sigma_mode`**: `"offline_global_median"` (or `"optuna_optimal"`)
+* **Training Setup**: True BS64 @ LR 4e-4 with activation checkpointing on LibriSpeech-960h (`run_sac.sh`).
+**Status:** Planned
+
+### Insights & Conclusions
+* *(To be updated after execution)*
+
+
 
 

@@ -1,0 +1,27 @@
+Study Name: factorized_sac_per_group_sigma_v5_1
+Date: 2026-07-30
+
+Description & Context:
+- TARGETED ADJUSTMENT OF OPTUNA V5 FOUNDATION (--mode anchor_relative_sigma):
+  Combines the robust anchor_relative_sigma search space with the mathematically sound Continuous Alignment metric.
+- CONTINUOUS ALIGNMENT METRIC (Row-Normalized Expected Cosine Similarity):
+  Align_sim = (1/B) * sum_{i=1}^B sum_{j != i} w_norm_{ij} * cos(z_i, z_j)
+  Replaces batch-top-10% percentile alignment to eliminate top-10% gaming and global sum bias.
+- TARGETED NON-COLLAPSING MULTIPLIER RANGES:
+  Fixes the two collapsing groups (Voice_Quality & Vocal_Tract) by raising their multiplier lower bounds above their collapse floors, while preserving v5's winning search region for Prosody, Timbre, and Scene.
+- Per-Group Search Ranges (base_sigma * alpha_mult_g):
+  * Voice_Quality (1D):  base = 0.0954  --> alpha in [2.5, 4.5]  --> effective sigma in [0.238, 0.429] (Fixes v5 collapse at 0.092)
+  * Vocal_Tract (3D):    base = 0.2223  --> alpha in [1.5, 3.2]  --> effective sigma in [0.333, 0.711] (Fixes v5 collapse at 0.198)
+  * Prosody (2D):        base = 0.1931  --> alpha in [1.0, 2.2]  --> effective sigma in [0.193, 0.425] (Preserves v5 optimal alpha*=1.54)
+  * Timbre (5D):         base = 0.3907  --> alpha in [1.0, 2.0]  --> effective sigma in [0.391, 0.781] (Preserves v5 optimal alpha*=1.64)
+  * Scene (6D):          base = 0.2947  --> alpha in [0.8, 1.8]  --> effective sigma in [0.236, 0.530] (Preserves v5 optimal alpha*=0.93)
+- Evaluated against group-specific physical feasibility limits (Prosody <= -0.35, Vocal_Tract <= -0.25, Voice_Quality <= -0.30, Timbre <= -0.40, Scene <= -0.40).
+- Command Line Parameters:
+  python /storage/yotam/ssamba/src/sac/optuna_sac_search.py \
+    --mode anchor_relative_sigma \
+    --probe-steps 150 --eval-last-steps 25 \
+    --n-trials 80 \
+    --batch-size 64 \
+    --lr 4e-4 \
+    --study-name factorized_sac_per_group_sigma_v5_1 \
+    --out-dir /storage/yotam/ssamba/src/metrics/optuna_hyperparameters_search/ssamba_sac_hyperparameter_tuning/factorized_sac_per_group_sigma_v5_1

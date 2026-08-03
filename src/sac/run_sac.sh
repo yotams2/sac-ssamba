@@ -66,11 +66,11 @@ n_epochs=10
 epoch_iter=4000
 
 # ---- Multi-Loss Configuration ----
-recon_lambda=0.0 # 1.0      # Weight for reconstruction loss (MPG): set to 0.0 for EXP 7 (SAC alone)
-classif_lambda=0.0    # Weight for classification loss (MPC): set to 0.0 if not used
-sac_lambda=1.0 # 0.02       # Weight for SAC contrastive loss: set to 0.0 to disable
-sac_temperature=0.12  # Temperature τ for cosine similarity (optimal from sweep)
-sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by static_entropy_optimal)
+recon_lambda=1.0      # Weight for reconstruction loss (MPG): 1.0 (matching EXP2 dual loss baseline)
+classif_lambda=0.0    # Weight for classification loss (MPC): set to 0.0 for EXP8 dual loss
+sac_lambda=0.02       # Weight for SAC contrastive loss: 0.02 (matching EXP2 dual loss baseline)
+sac_temperature=0.8502  # Temperature τ for cosine similarity (winning value from Optuna v5_1 Trial #49)
+sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by optuna_optimal)
 
 # === PREDEFINED FEATURE LISTS ===
 # Uncomment the list that matches your downstream task.
@@ -101,7 +101,7 @@ sac_features="f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm"
 feature_alias="universal"
 
 proj_dim=128         # Projection head output dimension
-local_sigma_mode="offline_global_median" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal
+local_sigma_mode="optuna_optimal" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal, optuna_optimal
 use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cross-attention)
 num_queries_per_group=1   # Number of queries per acoustic feature group
 
@@ -110,8 +110,8 @@ resume_checkpoint=""
 
 # ---- Experiment Description ----
 # Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
-exp_description="Experiment 7: Pure SAC Loss Alone (recon_lambda=0, sac_lambda=1.0, BS64 LR 4e-4)"
-exp_name_suffix="-exp7_sac_alone"
+exp_description="Experiment 8: Optuna-Calibrated Factorized SAC (Dual Loss: recon_lambda=1.0, classif_lambda=0.0, sac_lambda=0.02, tau=0.8502, mode=optuna_optimal v5_1, BS64 LR 4e-4)"
+exp_name_suffix="-exp8_optuna_v5_1"
 
 # ---- Experiment Directory ----
 exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}

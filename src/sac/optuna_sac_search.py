@@ -106,12 +106,8 @@ def compute_sac_geometry_metrics(z_norm: torch.Tensor, w: torch.Tensor, group_na
         # 3. Uniformity (Wang & Isola, 2020)
         uni = torch.log(torch.exp(-2.0 * sq_dist_flat).mean() + eps).item()
 
-        # 4. Alignment (Top 10% highest target similarity pairs)
-        w_flat = w_k[mask]
-        topk = max(1, int(0.10 * w_flat.numel()))
-        _, topk_idx = torch.topk(w_flat, topk)
-        cos_flat = cos_sim[mask]
-        ali = cos_flat[topk_idx].mean().item()
+        # 4. Continuous Alignment (Row-normalized expected cosine similarity, generalizing Wang & Isola 2020)
+        ali = (w_norm * cos_sim).sum(dim=1).mean().item()
 
         # 5. Effective Rank (Roy & Vetterli, 2007)
         try:
@@ -161,12 +157,29 @@ def run_probe_trial(trial, args, feature_stats, train_loader, device):
     from sac.sigma_configs import OPTIMAL_SIGMAS
     base_sigmas = OPTIMAL_SIGMAS.get(args.batch_size, OPTIMAL_SIGMAS[64])
 
+    PER_GROUP_ALPHA_RANGES = {
+        'Prosody': (1.0, 2.2),
+        'Timbre': (1.0, 2.0),
+        'Scene': (0.8, 1.8),
+        'Vocal_Tract': (1.5, 3.2),
+        'Voice_Quality': (2.5, 4.5),
+    }
+
     if args.mode == 'anchor_relative_sigma':
         sigmas_dict = {}
         for g in group_names:
-            alpha_g = trial.suggest_float(f'alpha_mult_{g}', args.alpha_min, args.alpha_max)
+            a_min, a_max = PER_GROUP_ALPHA_RANGES.get(g, (args.alpha_min, args.alpha_max))
+            alpha_g = trial.suggest_float(f'alpha_mult_{g}', a_min, a_max)
             sigmas_dict[g] = base_sigmas.get(g, 0.25) * alpha_g
         sigma_scale = np.mean([sigmas_dict[g] / base_sigmas.get(g, 0.25) for g in group_names])
+    elif args.mode == 'median_relative_sigma':
+        sigmas_dict = {}
+        for g in group_names:
+            mult_g = trial.suggest_float(f'mult_{g}', args.mult_min, args.mult_max)
+            base_m = feature_stats['group_medians'].get(g, 0.5) if (feature_stats and 'group_medians' in feature_stats) else 0.5
+            target_med = base_m * mult_g
+            sigmas_dict[g] = target_med / math.sqrt(math.log(2.0))
+        sigma_scale = np.mean(list(sigmas_dict.values()))
     elif args.mode == 'shared_sigma':
         sigma_scale = trial.suggest_float('sigma_scale', args.sigma_scale_min, args.sigma_scale_max, log=True)
         sigmas_dict = {g: sigma_scale for g in group_names}
@@ -232,7 +245,7 @@ def run_probe_trial(trial, args, feature_stats, train_loader, device):
     if feature_stats is not None:
         adjusted_stats = dict(feature_stats)
         adjusted_medians = {}
-        if args.mode == 'anchor_relative_sigma':
+        if args.mode in ['median_relative_sigma', 'anchor_relative_sigma']:
             for g in group_names:
                 target_s = sigmas_dict.get(g, 0.25)
                 adjusted_medians[g] = target_s * math.sqrt(math.log(2.0))
@@ -711,7 +724,9 @@ def main():
     parser.add_argument('--use-middle-cls-token', type=lambda x: (str(x).lower() == 'true'), default=False)
 
     # Search Space & Mode
-    parser.add_argument('--mode', type=str, choices=['shared_sigma', 'per_group_sigma', 'anchor_relative_sigma'], default='anchor_relative_sigma')
+    parser.add_argument('--mode', type=str, choices=['shared_sigma', 'per_group_sigma', 'anchor_relative_sigma', 'median_relative_sigma'], default='anchor_relative_sigma')
+    parser.add_argument('--mult-min', type=float, default=0.50, help="Min median multiplier for median_relative_sigma mode")
+    parser.add_argument('--mult-max', type=float, default=3.00, help="Max median multiplier for median_relative_sigma mode")
     parser.add_argument('--alpha-min', type=float, default=0.50, help="Min multiplier for anchor_relative_sigma mode")
     parser.add_argument('--alpha-max', type=float, default=1.80, help="Max multiplier for anchor_relative_sigma mode")
     parser.add_argument('--tau-min', type=float, default=0.05)
