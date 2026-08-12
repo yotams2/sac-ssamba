@@ -64,10 +64,12 @@ class AMBAModel(nn.Module):
     def __init__(self, label_dim=527,
                  fshape=128, tshape=2, fstride=128, tstride=2,
                  input_fdim=128, input_tdim=1024, model_size='base',
+                 in_chans=1,
                  pretrain_stage=True, load_pretrained_mdl_path=None, vision_mamba_config=None):
         
         print("Vision Mamba Config:", vision_mamba_config)
         super(AMBAModel, self).__init__()
+        self.in_chans = in_chans
         #assert timm.__version__ == '0.4.5', 'Please use timm == 0.4.5, the code might not be compatible with newer versions.'
 
         # override timm input shape restriction
@@ -82,7 +84,7 @@ class AMBAModel(nn.Module):
 
             
             default_vision_mamba_config = {
-            'img_size': (128, 1024),
+            'img_size': (input_fdim, input_tdim),
             'patch_size': 16,
             'stride': 8,
             'embed_dim': 768,
@@ -122,7 +124,7 @@ class AMBAModel(nn.Module):
 
             self.cpredlayer = nn.Sequential(nn.Linear(self.original_embedding_dim, self.original_embedding_dim), nn.ReLU(), nn.Linear(self.original_embedding_dim, 256))
             # masked patch reconstruction (generative objective) layer
-            self.gpredlayer = nn.Sequential(nn.Linear(self.original_embedding_dim, self.original_embedding_dim), nn.ReLU(), nn.Linear(self.original_embedding_dim, 256))
+            self.gpredlayer = nn.Sequential(nn.Linear(self.original_embedding_dim, self.original_embedding_dim), nn.ReLU(), nn.Linear(self.original_embedding_dim, in_chans * fshape * tshape))
             self.unfold = torch.nn.Unfold(kernel_size=(fshape, tshape), stride=(fstride, tstride))
 
             # we use learnable mask embedding (follow the BEIT paper), but using a fixed mask embedding (e.g., 0) leads to same performance.
@@ -130,7 +132,7 @@ class AMBAModel(nn.Module):
             self.mask_embed = torch.nn.init.xavier_normal_(self.mask_embed)
 
             # get the intermediate shape
-            self.p_f_dim, self.p_t_dim = self.get_shape(fstride, tstride, input_fdim, input_tdim, fshape, tshape)
+            self.p_f_dim, self.p_t_dim = self.get_shape(fstride, tstride, input_fdim, input_tdim, fshape, tshape, in_chans=in_chans)
             num_patches = self.p_f_dim * self.p_t_dim
             self.num_patches = num_patches
             self.v.patch_embed.num_patches = num_patches
@@ -139,8 +141,8 @@ class AMBAModel(nn.Module):
             print('pretraining patch array dimension: frequency={:d}, time={:d}'.format(self.p_f_dim, self.p_t_dim))
             print('pretraining number of patches={:d}'.format(num_patches))
 
-            # the linear patch projection layer, use 1 channel for spectrogram rather than the original 3 channels for RGB images.
-            new_proj = torch.nn.Conv2d(1, self.original_embedding_dim, kernel_size=(fshape, tshape), stride=(fstride, tstride))
+            # the linear patch projection layer
+            new_proj = torch.nn.Conv2d(in_chans, self.original_embedding_dim, kernel_size=(fshape, tshape), stride=(fstride, tstride))
             self.v.patch_embed.proj = new_proj
 
             # use trainable positional embedding
@@ -178,12 +180,8 @@ class AMBAModel(nn.Module):
                 raise  ValueError('The model loaded is not from a torch.nn.Dataparallel object. Wrap it with torch.nn.Dataparallel and try again.')
 
             print('now load a SSL pretrained models from ' + load_pretrained_mdl_path)
-            # during pretraining, fstride=fshape and tstride=tshape because no patch overlapping is used
-            # here, input_fdim and input_tdim should be that used in pretraining, not that in the fine-tuning.
-            # we need to know input_fdim and input_tdim to do positional embedding cut/interpolation.
-            # generally it should be better to use same input_fdim during pretraining and finetuning, but input_tdim can be safely different
             default_vision_mamba_config = {
-            'img_size': (128, 1024),
+            'img_size': (p_input_fdim, p_input_tdim),
             'patch_size': 16,
             'stride': 8,
             'embed_dim': 768,
@@ -201,13 +199,11 @@ class AMBAModel(nn.Module):
             'use_middle_cls_token': True,
         }
             
-            
             combined_vision_mamba_config = {**default_vision_mamba_config, **vision_mamba_config}
-            # Replace self.v with MambaBlocksSequential
             print("combined_vision_mamba_config",combined_vision_mamba_config)
 
             audio_model = AMBAModel(fstride=p_fshape, tstride=p_tshape, fshape=p_fshape, tshape=p_tshape,
-                                   input_fdim=p_input_fdim, input_tdim=p_input_tdim, pretrain_stage=True, model_size=model_size, vision_mamba_config=combined_vision_mamba_config)
+                                   input_fdim=p_input_fdim, input_tdim=p_input_tdim, in_chans=in_chans, pretrain_stage=True, model_size=model_size, vision_mamba_config=combined_vision_mamba_config)
             
             audio_model = torch.nn.DataParallel(audio_model)
             audio_model.load_state_dict(sd, strict=False)
@@ -220,7 +216,7 @@ class AMBAModel(nn.Module):
             self.mlp_head = nn.Sequential(nn.LayerNorm(self.original_embedding_dim),
                                           nn.Linear(self.original_embedding_dim, label_dim))
 
-            f_dim, t_dim = self.get_shape(fstride, tstride, input_fdim, input_tdim, fshape, tshape)
+            f_dim, t_dim = self.get_shape(fstride, tstride, input_fdim, input_tdim, fshape, tshape, in_chans=in_chans)
             # patch array dimension during pretraining
             p_f_dim, p_t_dim = audio_model.module.p_f_dim, audio_model.module.p_t_dim
             num_patches = f_dim * t_dim
@@ -233,18 +229,14 @@ class AMBAModel(nn.Module):
             if fshape != p_fshape or tshape != p_tshape:
                 raise ValueError('The patch shape of pretraining and fine-tuning is not consistant, pretraining: f={:d}, t={:d}, finetuning: f={:d}, t={:d}'.format(p_fshape, p_tshape, fshape, tshape))
 
-            # patch split stride generally should be different for pretraining and fine-tuning, as patch split overlapping is only used in finetuning
-            # during pretraining, p_fshape = p_fstride and p_tshape = p_tstride
             if fstride != p_fshape or tstride != p_tshape:
                 # initialize a new patch embedding layer with desired new stride.
-                new_proj = torch.nn.Conv2d(1, self.original_embedding_dim, kernel_size=(fshape, tshape), stride=(fstride, tstride))
-                # but the weights of patch embedding layer is still got from the pretrained models
+                new_proj = torch.nn.Conv2d(in_chans, self.original_embedding_dim, kernel_size=(fshape, tshape), stride=(fstride, tstride))
                 new_proj.weight = torch.nn.Parameter(torch.sum(self.v.patch_embed.proj.weight, dim=1).unsqueeze(1))
                 new_proj.bias = self.v.patch_embed.proj.bias
                 self.v.patch_embed.proj = new_proj
 
             new_pos_embed = self.v.pos_embed[:, self.cls_token_num:, :].detach().reshape(1, p_num_patches, self.original_embedding_dim).transpose(1, 2).reshape(1, self.original_embedding_dim, p_f_dim, p_t_dim)
-            # cut or interpolate the positional embedding
             if t_dim < p_t_dim:
                 new_pos_embed = new_pos_embed[:, :, :, int(p_t_dim/2) - int(t_dim / 2): int(p_t_dim/2) - int(t_dim / 2) + t_dim]
             else:
@@ -258,13 +250,63 @@ class AMBAModel(nn.Module):
             self.v.pos_embed = nn.Parameter(torch.cat([self.v.pos_embed[:, :self.cls_token_num, :].detach(), new_pos_embed], dim=1))
 
     # get the shape of intermediate representation.
-    def get_shape(self, fstride, tstride, input_fdim, input_tdim, fshape, tshape):
-        test_input = torch.randn(1, 1, input_fdim, input_tdim)
-        test_proj = nn.Conv2d(1, self.original_embedding_dim, kernel_size=(fshape, tshape), stride=(fstride, tstride))
+    def get_shape(self, fstride, tstride, input_fdim, input_tdim, fshape, tshape, in_chans=1):
+        test_input = torch.randn(1, in_chans, input_fdim, input_tdim)
+        test_proj = nn.Conv2d(in_chans, self.original_embedding_dim, kernel_size=(fshape, tshape), stride=(fstride, tstride))
         test_out = test_proj(test_input)
         f_dim = test_out.shape[2]
         t_dim = test_out.shape[3]
         return f_dim, t_dim
+
+    def _encode_with_mamba(self, x):
+        """
+        Run the bidirectional Mamba encoder and return all token outputs.
+        Args:
+            x: [B, in_chans, F, T] input tensor
+        Returns:
+            hidden_states: [B, num_patches + cls_token_num, embed_dim] encoder output
+        """
+        B = x.shape[0]
+        x_embed = self.v.patch_embed(x)
+
+        cls_tokens = self.v.cls_token.expand(B, -1, -1)
+        x_embed = torch.cat((cls_tokens, x_embed), dim=1)
+
+        x_embed = x_embed + self.v.pos_embed
+        x_embed = self.v.pos_drop(x_embed)
+
+        residual = None
+        hidden_states, residual = self._forward_mamba_layers(x_embed, residual)
+
+        if not self.v.fused_add_norm:
+            if residual is None:
+                residual = hidden_states
+            else:
+                residual = residual + self.v.drop_path(hidden_states)
+            hidden_states = self.v.norm_f(
+                residual.to(dtype=self.v.norm_f.weight.dtype)
+            )
+        else:
+            try:
+                from mamba_ssm.ops.triton.layernorm import rms_norm_fn, layer_norm_fn, RMSNorm
+                fused_add_norm_fn = rms_norm_fn if (RMSNorm is not None and isinstance(self.v.norm_f, RMSNorm)) else layer_norm_fn
+                hidden_states = fused_add_norm_fn(
+                    self.v.drop_path(hidden_states),
+                    self.v.norm_f.weight,
+                    self.v.norm_f.bias,
+                    eps=self.v.norm_f.eps,
+                    residual=residual,
+                    prenorm=False,
+                    residual_in_fp32=self.v.residual_in_fp32,
+                )
+            except (ImportError, TypeError):
+                if residual is None:
+                    residual = hidden_states
+                else:
+                    residual = residual + hidden_states
+                hidden_states = self.v.norm_f(residual)
+
+        return hidden_states
 
     # generate mask for 16*16 patch
     def gen_maskid_patch(self, sequence_len=512, mask_size=100, cluster=3):

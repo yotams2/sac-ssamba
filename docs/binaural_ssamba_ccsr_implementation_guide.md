@@ -18,8 +18,8 @@
                                            │
                                            ▼
              [CCSR Channel-Conditional Masking (apply_ccsr_masking)]
-                ├──> X_spat = X * W                              (Identical Time-Frame Mask W on both mics)
-                └──> X_spec = X with Right-mic inverse mask     (Inverse Time-Frame Mask 1-W on Right mic)
+                ├──> X_spat = X * W                              (Identical Time Mask W on both mics)
+                └──> X_spec = [Left * W, Right * (1-W)]         (Target Left * W, Right inverse mask 1-W)
                                            │
                 ┌──────────────────────────┴──────────────────────────┐
                 ▼                                                     ▼
@@ -27,12 +27,12 @@
      Conv2d(in_chans=4, 768, ...)                          Conv2d(in_chans=4, 768, ...)
      Output: h_spat ∈ R^(B × N × D)                         Output: h_spec ∈ R^(B × N × D)
                 │                                                     │
-                ├─────────────────────────────────────────────────────┤
-                ▼                                                     ▼
-     [Factorized SAC Projection Head]                     [Shared FC Reconstruction Decoder]
-     Attaches ONLY to h_spat                              Concat(h_spat, h_spec) -> R^(B × N × 2D)
-     Groups: Prosody, VocalTract, Timbre,                 Predicts Re_L, Im_L for masked time frames
-     VoiceQuality, SceneNoise, SPATIAL                    MSE Loss over masked region of Channel 1
+                ├───────────────────────────────┬─────────────────────┤
+                ▼                               ▼                     ▼
+   [Spatial SAC Head (h_spat)]     [Spectral SAC Head (h_spec)] [Shared Reconstruction Decoder]
+   Projection Head (NO CA layer)   Projection Head + CA Layer   Concat(h_spat, h_spec) -> [B, N, 2D]
+   Target: 5 Spatial Features      Target: 15 Monaural Features  Predicts Re_L, Im_L for Channel 1
+   (TDOA, GCC-PHAT, Coherence)     (Prosody, VocalTract, etc.)   MSE Loss over masked time-frames
 ```
 
 ---
