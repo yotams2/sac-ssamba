@@ -12,6 +12,7 @@ __pycache__/
 
 # Data and dataset files
 *.json
+*.bak
 **/data/ESC-50-master/
 **/data/datafiles/
 **/data/speech_commands_v0.02/
