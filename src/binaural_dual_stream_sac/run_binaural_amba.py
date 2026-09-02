@@ -134,7 +134,8 @@ def validate_binaural_sac(model, val_loader, device):
             c_mono = c_mono.to(device)
             c_spatial = c_spatial.to(device)
 
-            out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
+            with torch.amp.autocast('cuda'):
+                out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
 
             if isinstance(out, dict):
                 loss_total = out['loss_total'].mean()
@@ -257,12 +258,13 @@ def main():
     if torch.cuda.device_count() > 1:
         model = BinauralSSAMBASACModelParallel(model)
 
-    # 7. Optimizer & Scheduler
+    # 7. Optimizer, Scheduler & AMP Scaler
     trainables = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(trainables, lr=args.lr, weight_decay=1e-2)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=args.lr_patience, verbose=True
     )
+    scaler = torch.amp.GradScaler('cuda')
 
     # 8. Resume Checkpoint Logic
     global_step = 0
@@ -316,10 +318,12 @@ def main():
                     param_group['lr'] = warm_lr
 
             optimizer.zero_grad()
-            out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
-            loss = out['loss_total']
-            loss.backward()
-            optimizer.step()
+            with torch.amp.autocast('cuda'):
+                out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
+                loss = out['loss_total']
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             B = X.size(0)
             loss_meter.update(loss.item(), B)

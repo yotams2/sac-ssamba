@@ -378,11 +378,22 @@ class BinauralSSAMBASACModel(nn.Module):
 
 class BinauralSSAMBASACModelParallel(nn.Module):
     """
-    Thin DataParallel wrapper for BinauralSSAMBASACModel.
+    DataParallel wrapper for BinauralSSAMBASACModel.
+    Scatters inputs across GPUs and averages scalar loss dictionary elements.
     """
     def __init__(self, model: BinauralSSAMBASACModel):
         super().__init__()
+        self.dp = nn.DataParallel(model)
         self.module = model
 
     def forward(self, X, W, c_mono=None, c_spatial=None, return_diagnostics=False):
-        return self.module(X, W, c_mono=c_mono, c_spatial=c_spatial, return_diagnostics=return_diagnostics)
+        if return_diagnostics:
+            return self.module(X, W, c_mono=c_mono, c_spatial=c_spatial, return_diagnostics=True)
+        out = self.dp(X, W, c_mono=c_mono, c_spatial=c_spatial)
+        res = {}
+        for k, v in out.items():
+            if isinstance(v, torch.Tensor):
+                res[k] = v.mean()
+            else:
+                res[k] = v
+        return res
