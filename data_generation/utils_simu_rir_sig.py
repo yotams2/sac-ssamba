@@ -1037,9 +1037,14 @@ class MicrophoneSignalOrRIR():
         else:
              src_idx = np.random.randint(0, srcdataset.__len__())
         
-        src_sig = srcdataset.__getitem__(src_idx)
+        res = srcdataset.__getitem__(src_idx)
+        if isinstance(res, tuple):
+            src_sig, metadata = res
+        else:
+            src_sig, metadata = res, {}
         src_sig = src_sig[:, 0:sa_cfg['src_traj_pts'].shape[-1]]
         sa_cfg['src_idx'] = src_idx
+        sa_cfg.update(metadata)
 
         # Generate clean or direct-path microphone signal
         mic_sig_clean, mic_sig_srcs_clean = roomir.rir_conv_src(rir, src_sig, gpu_conv=False)

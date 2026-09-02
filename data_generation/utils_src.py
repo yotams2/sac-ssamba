@@ -371,3 +371,236 @@ class LibriSpeechForSimuDataset(Dataset):
 
         s_sources = np.array(s_sources).transpose(1, 0)
         return s_sources
+
+
+class VoxCeleb1ForSimuDataset(Dataset):
+    """ VoxCeleb1 dataset for room simulation / spatialization.
+        Uses same-speaker utterance concatenation (pad_cut_sig_samespk) for short clips < T=8.0s,
+        and dry signal pre-convolution cropping for clips > T=8.0s.
+        Preserves official verification/identification splits from veri_test_class.txt.
+    """
+    def __init__(self, vox1_root, meta_file, split='pretrain', T=8.0, fs=16000, num_source=1, size=None):
+        self.vox1_root = Path(vox1_root)
+        self.T = T
+        self.fs = fs
+        self.num_source = num_source
+        self.split = split
+
+        split_map = {'pretrain': 1, 'preval': 2, 'pretest': 3}
+        target_split_id = split_map.get(split, 1)
+
+        # Parse veri_test_class.txt / iden_split.txt
+        # Lines: <split_id> <rel_path>  (e.g., "1 id10001/1zcIwhmdeo4/00001.wav")
+        self.items = [] # list of (rel_path, full_path, spk_id, label_idx)
+        self.spk2utts = {} # spk_id -> list of full_paths
+
+        with open(meta_file, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 2:
+                    continue
+                split_id = int(parts[0])
+                rel_path = parts[1] # "id10001/1zcIwhmdeo4/00001.wav"
+                spk_id = rel_path.split('/')[0] # "id10001"
+                label_idx = int(spk_id[2:]) - 10001 # 0..1250
+
+                full_path = str(self.vox1_root / 'wav' / rel_path)
+
+                if spk_id not in self.spk2utts:
+                    self.spk2utts[spk_id] = []
+                self.spk2utts[spk_id].append(full_path)
+
+                if split_id == target_split_id:
+                    self.items.append((rel_path, full_path, spk_id, label_idx))
+
+        self.sz = len(self.items) if size is None else min(size, len(self.items))
+
+    def __len__(self):
+        return self.sz
+
+    def __getitem__(self, idx):
+        if idx < 0: idx = len(self.items) + idx
+        elif idx >= len(self.items): idx = idx % len(self.items)
+
+        rel_path, full_path, spk_id, label_idx = self.items[idx]
+        spk_utts = self.spk2utts[spk_id]
+        current_utt_idx = spk_utts.index(full_path) if full_path in spk_utts else 0
+
+        s_shape_desired = int(self.T * self.fs)
+
+        # Concatenate same-speaker dry signal to T=8.0s before RIR convolution
+        s = pad_cut_sig_samespk(spk_utts, current_utt_idx, s_shape_desired, self.fs)
+        s -= s.mean()
+
+        s_sources = np.expand_dims(s, axis=1) # [nsample, 1]
+        metadata = {
+            'speaker_id': spk_id,
+            'label_idx': label_idx,
+            'orig_rel_path': rel_path,
+        }
+        return s_sources, metadata
+
+
+class IEMOCAPForSimuDataset(Dataset):
+    """ IEMOCAP dataset for room simulation / spatialization.
+        Uses exact fold1 evaluation split from s3prl:
+          - pretest: All utterances in Session1 (test_meta_data.json)
+          - pretrain: 80% of Session2-5 (train_meta_data.json) via torch.manual_seed(0) random_split
+          - preval: 20% of Session2-5 (train_meta_data.json) via torch.manual_seed(0) random_split
+        T=6.0s container. Labels: neu (0), hap (1, includes exc), ang (2), sad (3).
+    """
+    def __init__(self, iemocap_root, meta_dir, split='pretrain', test_fold='fold1', T=6.0, fs=16000, size=None):
+        import json
+        self.iemocap_root = Path(iemocap_root)
+        self.T = T
+        self.fs = fs
+
+        fold_dir = Path(meta_dir) / test_fold.replace('fold', 'Session')
+        test_path = fold_dir / 'test_meta_data.json'
+        train_path = fold_dir / 'train_meta_data.json'
+
+        class_dict = {'neu': 0, 'hap': 1, 'ang': 2, 'sad': 3}
+
+        if split == 'pretest':
+            with open(test_path, 'r') as f:
+                data = json.load(f)['meta_data']
+            self.items = data
+        else:
+            with open(train_path, 'r') as f:
+                data = json.load(f)['meta_data']
+            
+            # Deterministic 80/20 split matching s3prl DownstreamExpert
+            n_total = len(data)
+            n_train = int(0.8 * n_total)
+            indices = list(range(n_total))
+            rng = random.Random(0)
+            rng.shuffle(indices)
+            
+            train_indices = indices[:n_train]
+            val_indices = indices[n_train:]
+            
+            if split == 'pretrain':
+                self.items = [data[i] for i in train_indices]
+            else: # preval
+                self.items = [data[i] for i in val_indices]
+
+        self.class_dict = class_dict
+        self.sz = len(self.items) if size is None else min(size, len(self.items))
+
+    def __len__(self):
+        return self.sz
+
+    def __getitem__(self, idx):
+        if idx < 0: idx = len(self.items) + idx
+        elif idx >= len(self.items): idx = idx % len(self.items)
+
+        item = self.items[idx]
+        rel_path = item['path'] # e.g. "Session1/sentences/wav/Ses01F_impro01/Ses01F_impro01_F000.wav"
+        full_path = str(self.iemocap_root / rel_path)
+
+        label_str = item['label']
+        label_idx = self.class_dict[label_str]
+        speaker_id = item.get('speaker', rel_path.split('/')[-1].split('_')[0])
+        session = rel_path.split('/')[0]
+
+        # Read audio
+        s, fs = soundfile.read(full_path)
+        if fs != self.fs:
+            s = scipy.signal.resample_poly(s, up=self.fs, down=fs)
+
+        if s.ndim > 1:
+            s = s[:, 0]
+
+        s_shape_desired = int(self.T * self.fs)
+        if len(s) < s_shape_desired:
+            pad = np.zeros(s_shape_desired - len(s))
+            s = np.concatenate([s, pad])
+        else:
+            s = s[:s_shape_desired]
+
+        s -= s.mean()
+        s_sources = np.expand_dims(s, axis=1) # [nsample, 1]
+
+        metadata = {
+            'emotion_label': label_str,
+            'emotion_idx': label_idx,
+            'speaker_id': speaker_id,
+            'session': session,
+            'orig_rel_path': rel_path,
+        }
+        return s_sources, metadata
+
+
+class SpeechCommandsForSimuDataset(Dataset):
+    """ Google Speech Commands v2 dataset for room simulation / spatialization.
+        Uses T=2.0s container (1.0s dry keyword placed at start, remaining 1.0s zero-padded)
+        so RIR convolution produces 1.0s keyword + 1.0s natural reverberant decay tail.
+        Splits: pretrain (train_list.txt), preval (validation_list.txt), pretest (testing_list.txt).
+    """
+    def __init__(self, sc_root, label_csv, split='pretrain', T=2.0, fs=16000, size=None):
+        self.sc_root = Path(sc_root)
+        self.T = T
+        self.fs = fs
+
+        # Load label mapping
+        label_set = np.loadtxt(label_csv, delimiter=',', dtype='str')
+        self.label_map = {}
+        for i in range(1, len(label_set)):
+            # label_set[i] is like ['0', 'yes', "'00'"]
+            key = eval(label_set[i][2]) if label_set[i][2].startswith("'") else label_set[i][2]
+            self.label_map[label_set[i][0]] = key
+
+        split_file_map = {
+            'pretrain': 'train_list.txt',
+            'preval': 'validation_list.txt',
+            'pretest': 'testing_list.txt',
+        }
+        list_file = self.sc_root / split_file_map.get(split, 'train_list.txt')
+
+        self.items = []
+        with open(list_file, 'r') as f:
+            for line in f:
+                rel_path = line.strip()
+                if not rel_path:
+                    continue
+                keyword = rel_path.split('/')[0]
+                if keyword in self.label_map:
+                    label_idx = int(self.label_map[keyword])
+                    full_path = str(self.sc_root / rel_path)
+                    self.items.append((rel_path, full_path, keyword, label_idx))
+
+        self.sz = len(self.items) if size is None else min(size, len(self.items))
+
+    def __len__(self):
+        return self.sz
+
+    def __getitem__(self, idx):
+        if idx < 0: idx = len(self.items) + idx
+        elif idx >= len(self.items): idx = idx % len(self.items)
+
+        rel_path, full_path, keyword, label_idx = self.items[idx]
+
+        s, fs = soundfile.read(full_path)
+        if fs != self.fs:
+            s = scipy.signal.resample_poly(s, up=self.fs, down=fs)
+
+        if s.ndim > 1:
+            s = s[:, 0]
+
+        s_shape_desired = int(self.T * self.fs)
+        if len(s) < s_shape_desired:
+            pad = np.zeros(s_shape_desired - len(s))
+            s = np.concatenate([s, pad])
+        else:
+            s = s[:s_shape_desired]
+
+        s -= s.mean()
+        s_sources = np.expand_dims(s, axis=1) # [nsample, 1]
+
+        metadata = {
+            'keyword': keyword,
+            'keyword_idx': label_idx,
+            'file_id': rel_path.split('/')[-1],
+            'orig_rel_path': rel_path,
+        }
+        return s_sources, metadata
