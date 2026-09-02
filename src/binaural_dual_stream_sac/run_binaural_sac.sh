@@ -8,7 +8,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd "${SCRIPT_DIR}"
 
 # CUDA / GPU environment
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-"0"}
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-"0,1,4,5"}
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 
 # Datasets (absolute paths)
 data_train="/scratch/yotam/ssamba/data/binaural_train.json"
