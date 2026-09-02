@@ -11,6 +11,9 @@ from torch.utils.data import DataLoader
 
 # Ensure package imports work
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, '/scratch/yotam/ssamba/Vim')
+sys.path.insert(0, '/scratch/yotam/ssamba/Vim/vim')
+sys.path.insert(0, '/scratch/yotam/ssamba/Vim/mamba-1p1p1')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')

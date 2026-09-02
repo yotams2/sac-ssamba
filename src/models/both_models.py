@@ -17,6 +17,9 @@ from timm.models.layers import to_2tuple
 from random import randrange
 from matplotlib import pyplot as plt
 import random
+sys.path.insert(0, '/scratch/yotam/ssamba/Vim')
+sys.path.insert(0, '/scratch/yotam/ssamba/Vim/vim')
+sys.path.insert(0, '/scratch/yotam/ssamba/Vim/mamba-1p1p1')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
 sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
