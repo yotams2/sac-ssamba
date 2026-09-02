@@ -3,12 +3,16 @@
 # Binaural Dual-Stream SSAMBA + Dual-Branch SAC Pretraining Script
 # ==============================================================================
 
+# Change directory to the script's directory so exp/ is saved here
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "${SCRIPT_DIR}"
+
 # CUDA / GPU environment
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-"0"}
 
-# Datasets
-data_train="./data/binaural_train.json"
-data_val="./data/binaural_val.json"
+# Datasets (absolute paths)
+data_train="/scratch/yotam/ssamba/data/binaural_train.json"
+data_val="/scratch/yotam/ssamba/data/binaural_val.json"
 
 # Training Hyperparameters
 batch_size=32
@@ -40,10 +44,11 @@ mkdir -p ${exp_dir}/models
 echo "${exp_description}" > ${exp_dir}/description.log
 
 echo "Starting Binaural SSAMBA Pretraining..."
+echo "  Script Directory:     ${SCRIPT_DIR}"
 echo "  Experiment Directory: ${exp_dir}"
 echo "  Local Sigma Mode:     ${local_sigma_mode}"
 
-python3 src/binaural_dual_stream_sac/run_binaural_amba.py \
+python3 run_binaural_amba.py \
   --data_train ${data_train} \
   --data_val ${data_val} \
   --exp_dir ${exp_dir} \
