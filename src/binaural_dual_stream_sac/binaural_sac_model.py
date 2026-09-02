@@ -152,9 +152,11 @@ class BinauralSSAMBASACModel(nn.Module):
         
         # Masked region weights (where W == 0)
         masked_weights = (1.0 - W).squeeze(1).squeeze(1) # [B, T]
-        patch_w = F.adaptive_avg_pool1d(masked_weights.unsqueeze(1), pred_patches.shape[1]).transpose(1, 2)
+        patch_w = F.adaptive_avg_pool1d(masked_weights.unsqueeze(1), pred_patches.shape[1]).transpose(1, 2) # [B, num_patches, 1]
         
-        denom = patch_w.sum() + 1e-8
+        # Normalize by total masked element count (masked patches * patch_dim)
+        patch_dim = pred_patches.shape[-1]
+        denom = patch_w.sum() * patch_dim + 1e-8
         loss_recon = torch.sum(patch_w * (pred_patches - target_patches) ** 2) / denom
         return loss_recon
 
