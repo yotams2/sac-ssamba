@@ -28,10 +28,16 @@ sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
 
 try:
     from models_mamba import VisionMamba
-    from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
-    
 except ImportError:
-    RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
+    VisionMamba = None
+
+try:
+    from mamba_ssm.ops.triton.layer_norm import RMSNorm, layer_norm_fn, rms_norm_fn
+except ImportError:
+    try:
+        from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
+    except ImportError:
+        RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
     
     
 
@@ -470,6 +476,8 @@ class AMBAModel(nn.Module):
             combined_vision_mamba_config = {**default_vision_mamba_config, **vision_mamba_config}
             # Replace self.v with MambaBlocksSequential
             print("combined_vision_mamba_config",combined_vision_mamba_config)
+            if VisionMamba is None:
+                raise ImportError("VisionMamba could not be imported from models_mamba. Please check environment dependencies (mamba_ssm, selective_scan_cuda).")
             self.v = VisionMamba(**combined_vision_mamba_config)
 
             self.cls_token_num = 1

@@ -51,6 +51,7 @@ class BinauralSSAMBASACModel(nn.Module):
         share_encoder_weights=False,
         num_queries_per_group=4,
         use_cross_attention_spat=False, # Default False: single vector projection for spatial stream
+        use_checkpointing=True, # Default True to save memory during double forward pass
     ):
         super(BinauralSSAMBASACModel, self).__init__()
         self.sac_temperature = sac_temperature
@@ -58,6 +59,7 @@ class BinauralSSAMBASACModel(nn.Module):
         self.sac_spec_lambda = sac_spec_lambda
         self.sac_spat_lambda = sac_spat_lambda
         self.recon_lambda = recon_lambda
+        self.use_checkpointing = use_checkpointing
         self.local_sigma_mode = local_sigma_mode
         self.fshape = fshape
         self.tshape = tshape
@@ -83,6 +85,15 @@ class BinauralSSAMBASACModel(nn.Module):
 
         # Dual Encoder (Spatial + Spectral Mamba streams)
         self.dual_encoder = BinauralAMBAEncoder(encoder_config, share_weights=share_encoder_weights)
+        
+        self.dual_encoder.spatial_encoder.use_checkpointing = use_checkpointing
+        if hasattr(self.dual_encoder.spatial_encoder, 'v'):
+            self.dual_encoder.spatial_encoder.v.use_checkpointing = use_checkpointing
+            
+        if not share_encoder_weights:
+            self.dual_encoder.spectral_encoder.use_checkpointing = use_checkpointing
+            if hasattr(self.dual_encoder.spectral_encoder, 'v'):
+                self.dual_encoder.spectral_encoder.v.use_checkpointing = use_checkpointing
 
         # Shared Reconstruction Decoder (CCSR Eq. 6)
         patch_dim = 2 * fshape * tshape # Re_L and Im_L for 1st mic
@@ -218,9 +229,10 @@ class BinauralSSAMBASACModel(nn.Module):
             diag_mask = torch.eye(B, device=device, dtype=torch.bool)
             off_diag = ~diag_mask
             
-            exp_sim = torch.exp(sim) * off_diag.float()
-            den = exp_sim.sum(dim=1, keepdim=True) + eps
-            log_prob = sim - torch.log(den)
+            # Numerically stable LogSumExp
+            sim_masked = sim.masked_fill(~off_diag, float('-inf'))
+            log_den = torch.logsumexp(sim_masked, dim=1, keepdim=True)
+            log_prob = sim - log_den
             
             w_masked = w * off_diag.float()
             w_sum = w_masked.sum(dim=1, keepdim=True) + eps
@@ -289,9 +301,10 @@ class BinauralSSAMBASACModel(nn.Module):
         diag_mask = torch.eye(B, device=device, dtype=torch.bool)
         off_diag = ~diag_mask
         
-        exp_sim = torch.exp(sim) * off_diag.float()
-        den = exp_sim.sum(dim=1, keepdim=True) + eps
-        log_prob = sim - torch.log(den)
+        # Numerically stable LogSumExp
+        sim_masked = sim.masked_fill(~off_diag, float('-inf'))
+        log_den = torch.logsumexp(sim_masked, dim=1, keepdim=True)
+        log_prob = sim - log_den
         
         w_masked = w * off_diag.float()
         w_sum = w_masked.sum(dim=1, keepdim=True) + eps
@@ -312,19 +325,27 @@ class BinauralSSAMBASACModel(nn.Module):
         """
         B = X.shape[0]
         
-        # 1. Dual Encoder Pass
-        h_spat, h_spec = self.dual_encoder(X, W)
+        # 1. Dual Encoder Pass (Masked, for Reconstruction)
+        h_spat_masked, h_spec_masked = self.dual_encoder(X, W)
         
         # 2. Reconstruction Loss (CCSR Eq. 6)
         if self.recon_lambda > 0:
-            loss_recon = self._reconstruct(h_spat, h_spec, X, W)
+            loss_recon = self._reconstruct(h_spat_masked, h_spec_masked, X, W)
         else:
             loss_recon = torch.tensor(0.0, device=X.device)
+            
+        # 2.5. Dual Encoder Pass (Unmasked, for SAC)
+        if (self.sac_spec_lambda > 0 and c_mono is not None) or (self.sac_spat_lambda > 0 and c_spatial is not None):
+            W_unmasked = torch.ones_like(W)
+            with torch.no_grad() if not self.training else torch.enable_grad():
+                h_spat_unmasked, h_spec_unmasked = self.dual_encoder(X, W_unmasked)
+        else:
+            h_spat_unmasked, h_spec_unmasked = None, None
         
-        # 3. SPECTRAL SAC BRANCH (Attaches to h_spec with CA Layer & sac.acoustic_features)
+        # 3. SPECTRAL SAC BRANCH (Attaches to h_spec_unmasked with CA Layer & sac.acoustic_features)
         if self.sac_spec_lambda > 0 and c_mono is not None:
             Q_spec = self.group_queries_spec.unsqueeze(0).expand(B, -1, -1)
-            attn_spec, _ = self.cross_attention_spec(query=Q_spec, key=h_spec[:, 1:, :], value=h_spec[:, 1:, :])
+            attn_spec, _ = self.cross_attention_spec(query=Q_spec, key=h_spec_unmasked[:, 1:, :], value=h_spec_unmasked[:, 1:, :])
             attn_spec = attn_spec.view(B, self.num_active_spec_groups, self.num_queries_per_group, -1).mean(dim=2)
             Z_spec_groups = self.projection_head_spec(attn_spec)
             
@@ -342,15 +363,15 @@ class BinauralSSAMBASACModel(nn.Module):
             loss_sac_spec = torch.tensor(0.0, device=X.device)
             entropies_spec = {}
 
-        # 4. SPATIAL SAC BRANCH (Attaches to h_spat with Projection Head & NO CA layer)
+        # 4. SPATIAL SAC BRANCH (Attaches to h_spat_unmasked with Projection Head & NO CA layer)
         if self.sac_spat_lambda > 0 and c_spatial is not None:
             if not self.use_cross_attention_spat:
-                e_spat = h_spat[:, 1:, :].mean(dim=1) # [B, D]
+                e_spat = h_spat_unmasked[:, 1:, :].mean(dim=1) # [B, D]
                 z_spat = self.projection_head_spat(e_spat) # [B, proj_dim]
                 loss_sac_spat = self._compute_single_vector_sac(z_spat, c_spatial)
             else:
                 Q_spat = self.group_queries_spat.unsqueeze(0).expand(B, -1, -1)
-                attn_spat, _ = self.cross_attention_spat(query=Q_spat, key=h_spat[:, 1:, :], value=h_spat[:, 1:, :])
+                attn_spat, _ = self.cross_attention_spat(query=Q_spat, key=h_spat_unmasked[:, 1:, :], value=h_spat_unmasked[:, 1:, :])
                 attn_spat = attn_spat.view(B, self.num_active_spat_groups, self.num_queries_per_group, -1).mean(dim=2)
                 Z_spat_groups = self.projection_head_spat(attn_spat)
                 

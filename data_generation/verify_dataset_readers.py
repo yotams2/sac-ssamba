@@ -12,8 +12,13 @@ from utils_src import VoxCeleb1ForSimuDataset, IEMOCAPForSimuDataset, SpeechComm
 
 
 def verify_speech_commands():
-    sc_root = Path('/scratch/yotam/ssamba/src/finetune/speechcommands_v2/data/speech_commands_v0.02')
-    label_csv = Path('/scratch/yotam/ssamba/src/finetune/speechcommands_v2/data/speechcommands_class_labels_indices.csv')
+    sc_root = Path('/storage/yotam/ssamba/src/finetune/speechcommands_v2/data/speech_commands_v0.02')
+    if not sc_root.exists():
+        sc_root = Path('/scratch/yotam/ssamba/src/finetune/speechcommands_v2/data/speech_commands_v0.02')
+
+    label_csv = Path('/storage/yotam/ssamba/src/finetune/speechcommands_v2/data/speechcommands_class_labels_indices.csv')
+    if not label_csv.exists():
+        label_csv = Path('/scratch/yotam/ssamba/src/finetune/speechcommands_v2/data/speechcommands_class_labels_indices.csv')
 
     if not sc_root.exists() or not label_csv.exists():
         print("Speech Commands dataset not found on disk yet. Skipping live audio read check.")
@@ -32,8 +37,13 @@ def verify_speech_commands():
 
 
 def verify_iemocap():
-    iemocap_root = Path('/scratch/yotam/data/IEMOCAP_full_release')
-    meta_dir = Path('/scratch/yotam/s3prl/s3prl/downstream/emotion/meta_data')
+    iemocap_root = Path('/storage/data/IEMOCAP_audio_only/IEMOCAP_full_release')
+    if not iemocap_root.exists():
+        iemocap_root = Path('/scratch/yotam/data/IEMOCAP_full_release')
+
+    meta_dir = Path('/storage/yotam/s3prl/s3prl/downstream/emotion/meta_data')
+    if not meta_dir.exists():
+        meta_dir = Path('/scratch/yotam/s3prl/s3prl/downstream/emotion/meta_data')
 
     if not iemocap_root.exists():
         print("\n--- IEMOCAP dataset root not found on disk. Checking meta_data parsing... ---")
@@ -54,14 +64,19 @@ def verify_iemocap():
 
 
 def verify_voxceleb1():
-    vox1_root = Path('/scratch/yotam/data/voxceleb1')
-    meta_file = Path('/scratch/yotam/s3prl/s3prl/downstream/voxceleb1/veri_test_class.txt')
+    vox1_root = Path('/storage/data/voxceleb1')
+    if not vox1_root.exists():
+        vox1_root = Path('/scratch/yotam/data/voxceleb1')
+
+    meta_file = Path('/storage/yotam/s3prl/s3prl/downstream/voxceleb1/veri_test_class.txt')
+    if not meta_file.exists():
+        meta_file = Path('/scratch/yotam/s3prl/s3prl/downstream/voxceleb1/veri_test_class.txt')
 
     if not meta_file.exists():
         print("VoxCeleb1 meta_file not found. Skipping.")
         return
 
-    print("\n--- Verifying VoxCeleb1 meta_file parsing ---")
+    print("\n--- Verifying VoxCeleb1 dataset reader & split parsing ---")
     if not vox1_root.exists():
         print(f"VoxCeleb1 root {vox1_root} not on disk yet. Verifying split parsing from {meta_file}...")
         ds_tr = VoxCeleb1ForSimuDataset(vox1_root=vox1_root, meta_file=meta_file, split='pretrain', T=8.0)
@@ -69,6 +84,14 @@ def verify_voxceleb1():
         ds_te = VoxCeleb1ForSimuDataset(vox1_root=vox1_root, meta_file=meta_file, split='pretest', T=8.0)
         print(f"VoxCeleb1 parsed pretrain: {len(ds_tr)} items, preval: {len(ds_va)} items, pretest: {len(ds_te)} items.")
         print("✓ VoxCeleb1 Split Parsing VERIFIED SUCCESSFULLY!")
+    else:
+        ds = VoxCeleb1ForSimuDataset(vox1_root=vox1_root, meta_file=meta_file, split='pretrain', T=8.0)
+        sig, meta = ds[0]
+        print(f"VoxCeleb1 Sample 0 shape: {sig.shape}")
+        print(f"VoxCeleb1 Sample 0 metadata: {meta}")
+        assert sig.shape == (128000, 1), f"Expected shape (128000, 1), got {sig.shape}"
+        assert 'speaker_id' in meta and 'label_idx' in meta, "Missing VoxCeleb1 metadata keys"
+        print("✓ VoxCeleb1ForSimuDataset VERIFIED SUCCESSFULLY!")
 
 if __name__ == '__main__':
     verify_speech_commands()

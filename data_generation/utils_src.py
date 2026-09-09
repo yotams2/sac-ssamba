@@ -6,6 +6,7 @@ import scipy.io
 import scipy.signal
 import soundfile
 import webrtcvad
+from pathlib import Path
 from torch.utils.data import Dataset
 
 def explore_corpus(path, file_extension):
@@ -546,9 +547,10 @@ class SpeechCommandsForSimuDataset(Dataset):
         label_set = np.loadtxt(label_csv, delimiter=',', dtype='str')
         self.label_map = {}
         for i in range(1, len(label_set)):
-            # label_set[i] is like ['0', 'yes', "'00'"]
-            key = eval(label_set[i][2]) if label_set[i][2].startswith("'") else label_set[i][2]
-            self.label_map[label_set[i][0]] = key
+            # label_set[i] is ['index', 'mid', '"display_name"']
+            idx = int(label_set[i][0])
+            kw = label_set[i][2].strip('"').strip("'")
+            self.label_map[kw] = idx
 
         split_file_map = {
             'pretrain': 'train_list.txt',
@@ -565,7 +567,7 @@ class SpeechCommandsForSimuDataset(Dataset):
                     continue
                 keyword = rel_path.split('/')[0]
                 if keyword in self.label_map:
-                    label_idx = int(self.label_map[keyword])
+                    label_idx = self.label_map[keyword]
                     full_path = str(self.sc_root / rel_path)
                     self.items.append((rel_path, full_path, keyword, label_idx))
 

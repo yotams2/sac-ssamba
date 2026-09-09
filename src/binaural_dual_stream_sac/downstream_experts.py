@@ -21,7 +21,15 @@ class MonauralSpectralUpstreamExpert(nn.Module):
         
         if model_checkpoint_path is not None and os.path.exists(model_checkpoint_path):
             sd = torch.load(model_checkpoint_path, map_location='cpu')
-            self.binaural_model.load_state_dict(sd, strict=False)
+            new_sd = {}
+            for k, v in sd.items():
+                if k.startswith('dp.module.'):
+                    continue # skip duplicates from DataParallel wrapper
+                elif k.startswith('module.'):
+                    new_sd[k.replace('module.', '', 1)] = v
+                else:
+                    new_sd[k] = v
+            self.binaural_model.load_state_dict(new_sd, strict=False)
 
         # Freeze spectral encoder for upstream feature extraction
         self.spectral_encoder = self.binaural_model.dual_encoder.spectral_encoder
@@ -70,7 +78,15 @@ class SpatialBinauralUpstreamExpert(nn.Module):
         
         if model_checkpoint_path is not None and os.path.exists(model_checkpoint_path):
             sd = torch.load(model_checkpoint_path, map_location='cpu')
-            self.binaural_model.load_state_dict(sd, strict=False)
+            new_sd = {}
+            for k, v in sd.items():
+                if k.startswith('dp.module.'):
+                    continue
+                elif k.startswith('module.'):
+                    new_sd[k.replace('module.', '', 1)] = v
+                else:
+                    new_sd[k] = v
+            self.binaural_model.load_state_dict(new_sd, strict=False)
 
         self.spatial_encoder = self.binaural_model.dual_encoder.spatial_encoder
         self.spatial_encoder.eval()

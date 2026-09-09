@@ -134,7 +134,7 @@ def validate_binaural_sac(model, val_loader, device):
             c_mono = c_mono.to(device)
             c_spatial = c_spatial.to(device)
 
-            with torch.amp.autocast('cuda'):
+            with torch.cuda.amp.autocast():
                 out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
 
             if isinstance(out, dict):
@@ -170,7 +170,7 @@ def main():
     parser.add_argument('--use_wandb', action='store_true', help="Enable WandB experiment tracking")
     
     parser.add_argument('--batch_size', type=int, default=32, help="Pretraining batch size")
-    parser.add_argument('--num_workers', type=int, default=8, help="DataLoader workers")
+    parser.add_argument('--num_workers', type=int, default=0, help="DataLoader workers")
     parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
     parser.add_argument('--lr_patience', type=int, default=2, help="LR scheduler patience")
     parser.add_argument('--epochs', type=int, default=10, help="Number of pretraining epochs")
@@ -191,9 +191,14 @@ def main():
     parser.add_argument('--time_mask_ratio', type=float, default=0.5, help="CCSR time-frame mask ratio")
     parser.add_argument('--resume', type=str, default='', help="Path to checkpoint (.pth) to resume training")
     parser.add_argument('--verify_synthetic', action='store_true', default=False, help="Run synthetic batch verification and exit")
+    parser.add_argument('--use_checkpointing', action='store_true', help="Enable gradient checkpointing to save memory at the cost of training speed")
+    parser.add_argument('--disable_sac_spec', action='store_true', help="Disable spectral SAC loss for ablation")
 
     args = parser.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    if args.disable_sac_spec:
+        args.sac_spec_lambda = 0.0
 
     # 1. Verification test
     verify_synthetic_forward_pass(device=device)
@@ -230,11 +235,13 @@ def main():
         'coh_freq_bands': (1000.0, 4000.0),
     }
     train_dataset = BinauralAudioDataset(args.data_train, audio_conf=audio_conf)
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
+                              num_workers=args.num_workers, pin_memory=False, drop_last=True)
 
     if args.data_val and os.path.exists(args.data_val):
         val_dataset = BinauralAudioDataset(args.data_val, audio_conf=audio_conf)
-        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, drop_last=True)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,
+                                num_workers=args.num_workers, pin_memory=False, drop_last=True)
     else:
         val_loader = None
 
@@ -248,12 +255,16 @@ def main():
         local_sigma_mode=args.local_sigma_mode,
         spectral_features=args.spectral_features,
         share_encoder_weights=args.share_encoder_weights,
+        use_checkpointing=args.use_checkpointing,
     ).to(device)
 
     # 6. Feature Stats calculation for offline_global_median
+    #    Use num_workers=0 to avoid segfaults from torch.stft / scipy in forked workers
     if args.local_sigma_mode == 'offline_global_median':
-        feature_stats = calculate_binaural_feature_stats(train_loader, device=device)
+        stats_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, drop_last=True)
+        feature_stats = calculate_binaural_feature_stats(stats_loader, device=device)
         model.feature_stats = feature_stats
+        del stats_loader
 
     if torch.cuda.device_count() > 1:
         model = BinauralSSAMBASACModelParallel(model)
@@ -264,7 +275,7 @@ def main():
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=args.lr_patience, verbose=True
     )
-    scaler = torch.amp.GradScaler('cuda')
+    scaler = torch.cuda.amp.GradScaler()
 
     # 8. Resume Checkpoint Logic
     global_step = 0
@@ -305,7 +316,10 @@ def main():
     for epoch in range(start_epoch, args.epochs + 1):
         model.train()
 
+        batch_start = time.time()
         for batch_idx, (X, W, c_mono, c_spatial) in enumerate(train_loader):
+            if batch_idx == 0:
+                print(f"DEBUG: Data loading for batch 0 took {time.time() - batch_start:.2f} seconds", flush=True)
             X = X.to(device)
             W = W.to(device)
             c_mono = c_mono.to(device)
@@ -318,10 +332,43 @@ def main():
                     param_group['lr'] = warm_lr
 
             optimizer.zero_grad()
-            with torch.amp.autocast('cuda'):
+            if batch_idx == 0:
+                print("DEBUG: Starting forward pass...", flush=True)
+                fwd_start = time.time()
+            with torch.cuda.amp.autocast():
                 out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
                 loss = out['loss_total']
+            
+            # Hard stop on non-finite loss
+            if not torch.isfinite(loss) or not torch.isfinite(out['loss_recon']) or not torch.isfinite(out['loss_sac_spec']) or not torch.isfinite(out['loss_sac_spat']):
+                print(f"FATAL ERROR: Loss went NaN/Inf at epoch {epoch}, step {global_step}!")
+                print(f"  Loss Total: {loss.item()}")
+                print(f"  Loss Recon: {out['loss_recon'].item()}")
+                print(f"  Loss Spec SAC: {out['loss_sac_spec'].item()}")
+                print(f"  Loss Spat SAC: {out['loss_sac_spat'].item()}")
+                sys.exit(1)
+                
+            if batch_idx == 0:
+                print(f"DEBUG: Forward pass took {time.time() - fwd_start:.2f} seconds. Starting backward...", flush=True)
+                bwd_start = time.time()
             scaler.scale(loss).backward()
+            
+            # Unscale and clip gradients
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
+            # Hard stop on non-finite gradients
+            has_nan_grad = False
+            for p in model.parameters():
+                if p.grad is not None and not torch.isfinite(p.grad).all():
+                    has_nan_grad = True
+                    break
+            if has_nan_grad:
+                print(f"FATAL ERROR: Gradients went NaN/Inf at epoch {epoch}, step {global_step}!")
+                sys.exit(1)
+                
+            if batch_idx == 0:
+                print(f"DEBUG: Backward pass took {time.time() - bwd_start:.2f} seconds.", flush=True)
             scaler.step(optimizer)
             scaler.update()
 
@@ -332,7 +379,7 @@ def main():
             spat_meter.update(out['loss_sac_spat'].item(), B)
 
             # Step Logging
-            if global_step % args.n_print_steps == 0 and global_step > 0:
+            if (global_step % args.n_print_steps == 0 or global_step == 1) and global_step > 0:
                 print(f'Epoch [{epoch}][{batch_idx}/{len(train_loader)}] '
                       f'Total: {loss_meter.avg:.4f} | Recon: {recon_meter.avg:.4f} | '
                       f'Spec SAC: {spec_meter.avg:.4f} | Spat SAC: {spat_meter.avg:.4f} | '
@@ -357,6 +404,7 @@ def main():
                     wandb.log(log_dict)
 
             global_step += 1
+            batch_start = time.time()
 
             # Evaluation & Checkpoint saving
             if val_loader is not None and global_step % args.epoch_iter == 0:
