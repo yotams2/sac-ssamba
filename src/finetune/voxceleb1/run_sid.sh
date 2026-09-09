@@ -15,13 +15,21 @@ export TORCH_HOME=../../pretrained_models
 # Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
 model_input=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
 lr=${2:-1e-4}
+upstream_name=${3:-ssamba_local}
+
+# check if using binaural sac to override dataset
+if [[ "$upstream_name" == *"binaural"* ]] || [[ "$upstream_name" == *"sac"* ]]; then
+    file_path_override=",,config.downstream_expert.datarc.file_path=/storage/yotam/ssamba/data/VoxCeleb1"
+else
+    file_path_override=""
+fi
 
 # Check if model_input is a directory path
 if [ -d "$model_input" ]; then
-    upstream_args="-u ssamba_local -k ${model_input}/models/best_audio_model.pth"
+    upstream_args="-u $upstream_name -k ${model_input}/models/best_audio_model.pth"
     expname_prefix=$(basename "$model_input")
 elif [ -f "$model_input" ]; then
-    upstream_args="-u ssamba_local -k ${model_input}"
+    upstream_args="-u $upstream_name -k ${model_input}"
     expname_prefix=$(basename $(dirname "$model_input"))
 else
     upstream_args="-u $model_input"
@@ -35,4 +43,4 @@ mkdir -p $expdir
 # Prevent PyTorch/NumPy threading crashes in DataLoader forks
 export OMP_NUM_THREADS=1
 
-PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir -m train $upstream_args -d voxceleb1 -c /storage/yotam/s3prl/s3prl/downstream/voxceleb1/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.runner.total_steps=50000" -f -a
+PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir -m train $upstream_args -d voxceleb1 -c /storage/yotam/s3prl/s3prl/downstream/voxceleb1/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.runner.total_steps=50000$file_path_override" -f -a

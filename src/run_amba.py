@@ -19,6 +19,38 @@ import sys
 import wandb
 sys.path.append('/share/naplab/users/ss6928/ssast/modules')
 
+class BinauralSACClassifier(torch.nn.Module):
+    def __init__(self, ckpt, label_dim):
+        super().__init__()
+        import sys
+        sys.path.insert(0, '/storage/yotam/ssamba/src')
+        from binaural_dual_stream_sac.downstream_experts import MonauralSpectralUpstreamExpert
+        
+        self.encoder = MonauralSpectralUpstreamExpert(ckpt)
+        self.encoder_dim = self.encoder.model.spectral_encoder.embed_dim
+        
+        self.mlp_head = torch.nn.Sequential(
+            torch.nn.LayerNorm(self.encoder_dim),
+            torch.nn.Linear(self.encoder_dim, label_dim)
+        )
+        
+    def forward(self, x, task=None, cluster=None, mask_patch=None):
+        # x is [B, T_frames, F_bins]
+        x_mono = x.transpose(1, 2).unsqueeze(1) # [B, 1, F, T]
+        x_4ch = x_mono.repeat(1, 4, 1, 1).to(x.device)
+        
+        h = self.encoder.model.spectral_encoder._encode_with_mamba(x_4ch)
+        
+        if task == 'ft_avgtok':
+            h = h[:, 1:, :] # Skip the CLS token
+            h_pool = h.mean(dim=1)
+        elif task == 'ft_cls':
+            h_pool = h[:, 0, :]
+        else:
+            raise ValueError(f"Task {task} not supported for BinauralSACClassifier")
+            
+        return self.mlp_head(h_pool)
+
 
 print("I am process %s, running on %s: starting (%s)" % (os.getpid(), os.uname()[1], time.asctime()))
 
@@ -223,10 +255,12 @@ if 'pretrain' in args.task:
                        input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=True, vision_mamba_config=vision_mamba_config)
 # in the fine-tuning stage
 else:
-
-    audio_model = AMBAModel(label_dim=args.n_class, fshape=args.fshape, tshape=args.tshape, fstride=args.fstride, tstride=args.tstride,
-                       input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=False,
-                       load_pretrained_mdl_path=args.pretrained_mdl_path, vision_mamba_config=vision_mamba_config)
+    if args.model_size == 'binaural_sac':
+        audio_model = BinauralSACClassifier(args.pretrained_mdl_path, args.n_class)
+    else:
+        audio_model = AMBAModel(label_dim=args.n_class, fshape=args.fshape, tshape=args.tshape, fstride=args.fstride, tstride=args.tstride,
+                           input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=False,
+                           load_pretrained_mdl_path=args.pretrained_mdl_path, vision_mamba_config=vision_mamba_config)
 
 if not isinstance(audio_model, torch.nn.DataParallel):
     audio_model = torch.nn.DataParallel(audio_model)

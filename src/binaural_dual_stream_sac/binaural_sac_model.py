@@ -336,9 +336,8 @@ class BinauralSSAMBASACModel(nn.Module):
             
         # 2.5. Dual Encoder Pass (Unmasked, for SAC)
         if (self.sac_spec_lambda > 0 and c_mono is not None) or (self.sac_spat_lambda > 0 and c_spatial is not None):
-            W_unmasked = torch.ones_like(W)
             with torch.no_grad() if not self.training else torch.enable_grad():
-                h_spat_unmasked, h_spec_unmasked = self.dual_encoder(X, W_unmasked)
+                h_spat_unmasked, h_spec_unmasked = self.dual_encoder(X, W=None)
         else:
             h_spat_unmasked, h_spec_unmasked = None, None
         

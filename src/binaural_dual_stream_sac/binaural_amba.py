@@ -26,7 +26,7 @@ def apply_ccsr_masking(X, W):
     X_spec = X.clone()
     X_spec[:, :2, :, :] = X[:, :2, :, :] * W         # Target Left channel masked with W
     X_spec[:, 2:, :, :] = X[:, 2:, :, :] * (1.0 - W) # Reference Right channel inverse-masked with (1 - W)
-    
+
     return X_spat, X_spec
 
 
@@ -49,17 +49,22 @@ class BinauralAMBAEncoder(nn.Module):
         else:
             self.spectral_encoder = AMBAModel(**cfg)
 
-    def forward(self, X, W):
+    def forward(self, X, W=None):
         """
         Args:
             X: [B, 4, F, T] complex STFT tensor
-            W: [B, 1, 1, T] binary time-frame mask
+            W: [B, 1, 1, T] binary time-frame mask. If None, bypassed.
             
         Returns:
             h_spat: [B, num_patches + cls, D] spatial encoder representations
             h_spec: [B, num_patches + cls, D] spectral encoder representations
         """
-        X_spat, X_spec = apply_ccsr_masking(X, W)
+        if W is not None:
+            X_spat, X_spec = apply_ccsr_masking(X, W)
+        else:
+            # Bypass masking entirely for unmasked SAC pass
+            X_spat, X_spec = X, X
+            
         h_spat = self.spatial_encoder._encode_with_mamba(X_spat)
         h_spec = self.spectral_encoder._encode_with_mamba(X_spec)
         return h_spat, h_spec

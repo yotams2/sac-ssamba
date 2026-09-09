@@ -65,4 +65,5 @@ python3 run_binaural_amba.py \
   --sac_spat_lambda ${sac_spat_lambda} \
   --recon_lambda ${recon_lambda} \
   --local_sigma_mode ${local_sigma_mode} \
-  --time_mask_ratio ${time_mask_ratio}
+  --time_mask_ratio ${time_mask_ratio} \
+  --use_checkpointing
