@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
-
+from collections import deque
 # Ensure package imports work
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, '/scratch/yotam/ssamba/Vim')
@@ -47,15 +47,16 @@ def calculate_binaural_feature_stats(dataloader, device, num_batches=50, spectra
     """
     print("\n--- Computing Binaural Feature Statistics (offline_global_median) ---")
     all_spatial_feats = []
+    all_mono_feats = []
     
-    # We create a dummy dataloader adapter returning (fbank, waveform, labels) for sac.acoustic_features
     with torch.no_grad():
         for i, batch in enumerate(dataloader):
             if i >= num_batches:
                 break
             if len(batch) >= 4:
-                _, _, _, c_spatial = batch
+                c_mono, c_spatial = batch[2], batch[3]
                 all_spatial_feats.append(c_spatial.cpu())
+                all_mono_feats.append(c_mono.cpu())
 
     feature_stats = {'group_medians': {}}
 
@@ -69,6 +70,37 @@ def calculate_binaural_feature_stats(dataloader, device, num_batches=50, spectra
         feature_stats['group_medians']['spatial'] = median_dist
         print(f"  spatial global median: {median_dist:.6f}")
 
+    if len(all_mono_feats) > 0:
+        mono_tensor = torch.cat(all_mono_feats, dim=0) # [N, 15]
+        mean = mono_tensor.mean(dim=0)
+        std = mono_tensor.std(dim=0)
+        feature_stats['mono_mean'] = mean
+        feature_stats['mono_std'] = std
+        
+        # Normalize features to match what the model will see during training
+        norm_mono = (mono_tensor - mean.unsqueeze(0)) / (3.0 * std.unsqueeze(0) + 1e-6)
+        norm_mono = norm_mono.clamp(-1.0, 1.0)
+        
+        from sac.acoustic_features import get_feature_groups
+        active_groups, _ = get_feature_groups(spectral_features)
+        
+        # Subsample to avoid memory explosion if N is very large
+        if norm_mono.shape[0] > 2000:
+            rand_idx = torch.randperm(norm_mono.shape[0])[:2000]
+            norm_mono = norm_mono[rand_idx]
+            
+        for group_name, idxs in active_groups.items():
+            group_feats = norm_mono[:, idxs]
+            dist_matrix = torch.cdist(group_feats, group_feats, p=2)
+            N = dist_matrix.shape[0]
+            off_diag_mask = ~torch.eye(N, dtype=torch.bool, device=dist_matrix.device)
+            off_diag_dists = dist_matrix[off_diag_mask]
+            
+            median_dist = max(float(off_diag_dists.median().item()), 1e-4)
+            feature_stats['group_medians'][group_name] = median_dist
+            print(f"  {group_name} global median: {median_dist:.6f}")
+
+    print(f"  FULL DICT RETURNED: {feature_stats['group_medians']}")
     print("----------------------------------------------------------------------\n")
     return feature_stats
 
@@ -128,11 +160,8 @@ def validate_binaural_sac(model, val_loader, device):
     losses_spat = []
 
     with torch.no_grad():
-        for batch_idx, (X, W, c_mono, c_spatial) in enumerate(val_loader):
-            X = X.to(device)
-            W = W.to(device)
-            c_mono = c_mono.to(device)
-            c_spatial = c_spatial.to(device)
+        for batch_idx, batch in enumerate(val_loader):
+            X, W, c_mono, c_spatial = batch[0].to(device), batch[1].to(device), batch[2].to(device), batch[3].to(device)
 
             with torch.cuda.amp.autocast():
                 out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
@@ -311,19 +340,25 @@ def main():
     recon_meter = AverageMeter()
     spec_meter = AverageMeter()
     spat_meter = AverageMeter()
+    
+    grad_norms_buffer = deque(maxlen=20)
+    consecutive_nan_events = 0
+    consecutive_nan_loss_events = 0
 
     print(f"\nStarting Binaural SSAMBA Dual-Branch Pretraining ({args.epochs} epochs)...")
     for epoch in range(start_epoch, args.epochs + 1):
         model.train()
 
         batch_start = time.time()
-        for batch_idx, (X, W, c_mono, c_spatial) in enumerate(train_loader):
+        for batch_idx, batch in enumerate(train_loader):
             if batch_idx == 0:
                 print(f"DEBUG: Data loading for batch 0 took {time.time() - batch_start:.2f} seconds", flush=True)
-            X = X.to(device)
-            W = W.to(device)
-            c_mono = c_mono.to(device)
-            c_spatial = c_spatial.to(device)
+            X, W, c_mono, c_spatial = batch[0].to(device), batch[1].to(device), batch[2].to(device), batch[3].to(device)
+            wav_paths = batch[4] if len(batch) > 4 else None
+            
+            if batch_idx % 10 == 0:
+                print(f"DEBUG Batch {batch_idx} c_mono stats: min={c_mono.min().item():.4f}, max={c_mono.max().item():.4f}")
+                print(f"DEBUG Batch {batch_idx} c_mono std(dim=0): {c_mono.std(dim=0).cpu().numpy()}")
 
             # Warmup learning rate
             if global_step <= 1000 and global_step % 50 == 0:
@@ -340,32 +375,119 @@ def main():
                 loss = out['loss_total']
             
             # Hard stop on non-finite loss
-            if not torch.isfinite(loss) or not torch.isfinite(out['loss_recon']) or not torch.isfinite(out['loss_sac_spec']) or not torch.isfinite(out['loss_sac_spat']):
-                print(f"FATAL ERROR: Loss went NaN/Inf at epoch {epoch}, step {global_step}!")
-                print(f"  Loss Total: {loss.item()}")
-                print(f"  Loss Recon: {out['loss_recon'].item()}")
-                print(f"  Loss Spec SAC: {out['loss_sac_spec'].item()}")
-                print(f"  Loss Spat SAC: {out['loss_sac_spat'].item()}")
-                sys.exit(1)
+            loss_total_is_finite = torch.isfinite(loss).item()
+            loss_recon_is_finite = torch.isfinite(out['loss_recon']).item()
+            loss_sac_spec_is_finite = torch.isfinite(out['loss_sac_spec']).item()
+            loss_sac_spat_is_finite = torch.isfinite(out['loss_sac_spat']).item()
+            
+            if not loss_total_is_finite or not loss_recon_is_finite or not loss_sac_spec_is_finite or not loss_sac_spat_is_finite:
+                consecutive_nan_loss_events += 1
+                print(f"WARNING: Loss went NaN/Inf at epoch {epoch}, step {global_step}! (Consecutive NaNs: {consecutive_nan_loss_events})")
+                print(f"  Loss Total finite? {loss_total_is_finite} (Value: {loss.item()})")
+                print(f"  Loss Recon finite? {loss_recon_is_finite} (Value: {out['loss_recon'].item()})")
+                print(f"  Loss Spec SAC finite? {loss_sac_spec_is_finite} (Value: {out['loss_sac_spec'].item()})")
+                print(f"  Loss Spat SAC finite? {loss_sac_spat_is_finite} (Value: {out['loss_sac_spat'].item()})")
+                print(f"  REQUIRES_GRAD STATUS AT WARNING: {out.get('req_grad_status', {})}")
+                
+                print("  c_spatial Diagnostics:")
+                print(f"    c_spatial.isnan().any(): {c_spatial.isnan().any().item()}")
+                print(f"    c_spatial.isinf().any(): {c_spatial.isinf().any().item()}")
+                print(f"    c_spatial.abs().max(): {c_spatial.abs().max().item()}")
+                print(f"    c_spatial.min(): {c_spatial.min().item()}, c_spatial.max(): {c_spatial.max().item()}")
+                
+                print("  c_mono Diagnostics:")
+                print(f"    c_mono.isnan().any(): {c_mono.isnan().any().item()}")
+                print(f"    c_mono.isinf().any(): {c_mono.isinf().any().item()}")
+                print(f"    c_mono.abs().max(): {c_mono.abs().max().item()}")
+                
+                if wav_paths is not None:
+                    spat_names = ['tdoa', 'gcc_phat_peak', 'coh_low', 'coh_mid', 'coh_high']
+                    mono_names = args.spectral_features.split(',')
+                    print(f"  Failing Audio Paths & Raw Feature Values:")
+                    for idx, (path, spat_vals, mono_vals) in enumerate(zip(wav_paths, c_spatial.cpu().numpy(), c_mono.cpu().numpy())):
+                        print(f"    [{idx}] {path}")
+                        print(f"       Spatial: {dict(zip(spat_names, spat_vals))}")
+                        print(f"       Monaural: {dict(zip(mono_names, mono_vals))}")
+                
+                if consecutive_nan_loss_events >= 5:
+                    print(f"FATAL ERROR: Loss went NaN/Inf for {consecutive_nan_loss_events} consecutive steps. Model has likely diverged.")
+                    sys.exit(1)
+                else:
+                    print("  Allowing backward pass to proceed so AMP GradScaler can catch the NaN gradients and reduce scale.")
+            else:
+                consecutive_nan_loss_events = 0
+                
+            if batch_idx == 0 and epoch == 1:
+                print(f"DEBUG REQUIRES_GRAD (Epoch 1, Batch 0): {out.get('req_grad_status', {})}")
+                print(f"DEBUG w_norm ENTROPY (Epoch 1, Batch 0): {out.get('entropies_spec', {})}")
                 
             if batch_idx == 0:
                 print(f"DEBUG: Forward pass took {time.time() - fwd_start:.2f} seconds. Starting backward...", flush=True)
                 bwd_start = time.time()
             scaler.scale(loss).backward()
             
-            # Unscale and clip gradients
+            # Unscale gradients BEFORE tracking norms
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             # Hard stop on non-finite gradients
+            submodule_names = [
+                "dual_encoder.spatial_encoder",
+                "dual_encoder.spectral_encoder",
+                "cross_attention_spec",
+                "projection_head_spec",
+                "projection_head_spat",
+                "reconstruction_decoder"
+            ]
+            
+            step_grad_norms = {sm: 0.0 for sm in submodule_names}
+            step_grad_norms["other"] = 0.0
+            
             has_nan_grad = False
-            for p in model.parameters():
-                if p.grad is not None and not torch.isfinite(p.grad).all():
-                    has_nan_grad = True
-                    break
+            nan_submodules = set()
+            
+            for name, p in model.named_parameters():
+                if p.grad is not None:
+                    if not torch.isfinite(p.grad).all():
+                        has_nan_grad = True
+                        assigned = False
+                        for sm in submodule_names:
+                            if sm in name:
+                                nan_submodules.add(sm)
+                                assigned = True
+                                break
+                        if not assigned:
+                            nan_submodules.add(f"other ({name})")
+                    else:
+                        grad_norm = p.grad.detach().norm(2).item()
+                        assigned = False
+                        for sm in submodule_names:
+                            if sm in name:
+                                step_grad_norms[sm] += grad_norm ** 2
+                                assigned = True
+                                break
+                        if not assigned:
+                            step_grad_norms["other"] += grad_norm ** 2
+            
+            for k in step_grad_norms:
+                step_grad_norms[k] = (step_grad_norms[k]) ** 0.5
+            
+            grad_norms_buffer.append(step_grad_norms)
+
             if has_nan_grad:
-                print(f"FATAL ERROR: Gradients went NaN/Inf at epoch {epoch}, step {global_step}!")
-                sys.exit(1)
+                consecutive_nan_events += 1
+                print(f"WARNING: Gradients went NaN/Inf at epoch {epoch}, step {global_step}! AMP will skip optimizer step and reduce scale. (Consecutive NaNs: {consecutive_nan_events})")
+                print("RAW FINITE STATUS PER SUBMODULE AT WARNING STEP:")
+                for sm in submodule_names:
+                    print(f"  {sm} contains NaN? {sm in nan_submodules}")
+                print(f"  other contains NaN? {any('other' in x for x in nan_submodules)}")
+                if consecutive_nan_events >= 5:
+                    print(f"FATAL ERROR: Gradients went NaN/Inf for {consecutive_nan_events} consecutive steps. Model has likely diverged.")
+                    sys.exit(1)
+            else:
+                consecutive_nan_events = 0
+                
+            # Clip gradients AFTER tracking norms
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 
             if batch_idx == 0:
                 print(f"DEBUG: Backward pass took {time.time() - bwd_start:.2f} seconds.", flush=True)

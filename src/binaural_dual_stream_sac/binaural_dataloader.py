@@ -84,16 +84,24 @@ class BinauralAudioDataset(Dataset):
         W = generate_ccsr_time_mask(T, mask_ratio=self.mask_ratio)
 
         coh_freq_bands = self.audio_conf.get('coh_freq_bands', (1000.0, 4000.0))
-        # Extract 5 spatial features
-        spatial_feats = extract_spatial_features(waveform, sr=sr, coh_freq_bands=coh_freq_bands)
+        
+        # 1. Spatial features
+        if 'spatial_features' in datum and datum['spatial_features'] is not None:
+            spatial_feats = np.array(datum['spatial_features'], dtype=np.float32)
+        else:
+            # Live fallback
+            spatial_feats = extract_spatial_features(waveform, sr=sr, coh_freq_bands=coh_freq_bands)
 
-        # 15 monaural features
-        if 'acoustic_features' in datum:
+        # 2. Monaural features
+        if 'acoustic_features' in datum and datum['acoustic_features'] is not None:
             mono_feats = np.array(datum['acoustic_features'], dtype=np.float32)
         else:
-            mono_feats = np.zeros(15, dtype=np.float32)
+            # We strictly enforce precomputed features to avoid silent zero-vector collapses.
+            # If they are missing or null (due to extraction failure), we explicitly error out
+            # rather than falling back to zeros.
+            raise RuntimeError(f"Missing or null 'acoustic_features' for {wav_path}. Please run precompute_acoustic_features.py.")
 
-        return stft_4ch, W, torch.tensor(mono_feats, dtype=torch.float32), torch.tensor(spatial_feats, dtype=torch.float32)
+        return stft_4ch, W, torch.tensor(mono_feats, dtype=torch.float32), torch.tensor(spatial_feats, dtype=torch.float32), wav_path
 
     def __len__(self):
         return len(self.data)

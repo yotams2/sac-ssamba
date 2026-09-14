@@ -341,12 +341,33 @@ class BinauralSSAMBASACModel(nn.Module):
         else:
             h_spat_unmasked, h_spec_unmasked = None, None
         
+        req_grad_status = {}
+        if self.training:
+            req_grad_status['h_spec_unmasked'] = h_spec_unmasked.requires_grad if h_spec_unmasked is not None else None
+            req_grad_status['group_queries_spec'] = self.group_queries_spec.requires_grad
+
         # 3. SPECTRAL SAC BRANCH (Attaches to h_spec_unmasked with CA Layer & sac.acoustic_features)
         if self.sac_spec_lambda > 0 and c_mono is not None:
+            # Normalize c_mono using global offline stats if available
+            if hasattr(self, 'feature_stats') and self.feature_stats is not None:
+                if 'mono_mean' in self.feature_stats and 'mono_std' in self.feature_stats:
+                    mean = self.feature_stats['mono_mean'].to(c_mono.device)
+                    std = self.feature_stats['mono_std'].to(c_mono.device)
+                    c_mono = (c_mono - mean) / (3.0 * std + 1e-6)
+                    c_mono = c_mono.clamp(-1.0, 1.0)
+                    
             Q_spec = self.group_queries_spec.unsqueeze(0).expand(B, -1, -1)
+            if self.training:
+                req_grad_status['Q_spec'] = Q_spec.requires_grad
+                
             attn_spec, _ = self.cross_attention_spec(query=Q_spec, key=h_spec_unmasked[:, 1:, :], value=h_spec_unmasked[:, 1:, :])
+            if self.training:
+                req_grad_status['attn_spec'] = attn_spec.requires_grad
+                
             attn_spec = attn_spec.view(B, self.num_active_spec_groups, self.num_queries_per_group, -1).mean(dim=2)
             Z_spec_groups = self.projection_head_spec(attn_spec)
+            if self.training:
+                req_grad_status['Z_spec_groups'] = Z_spec_groups.requires_grad
             
             groups_dict = {g: self.spec_group_indices[g] for g in self.spec_group_indices}
             groups_dict['_raw_c'] = c_mono
@@ -393,6 +414,7 @@ class BinauralSSAMBASACModel(nn.Module):
             'loss_sac_spec': loss_sac_spec,
             'loss_sac_spat': loss_sac_spat,
             'entropies_spec': entropies_spec,
+            'req_grad_status': req_grad_status,
         }
         
         return output
@@ -414,8 +436,14 @@ class BinauralSSAMBASACModelParallel(nn.Module):
         out = self.dp(X, W, c_mono=c_mono, c_spatial=c_spatial)
         res = {}
         for k, v in out.items():
-            if isinstance(v, torch.Tensor):
+            if isinstance(v, torch.Tensor) and v.dim() > 0:
                 res[k] = v.mean()
-            else:
+            elif isinstance(v, torch.Tensor) and v.dim() == 0:
                 res[k] = v
+            else:
+                # E.g. req_grad_status dictionary, list of dicts from DataParallel, etc.
+                if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
+                    res[k] = v[0] # Just take the first GPU's status
+                else:
+                    res[k] = v
         return res
