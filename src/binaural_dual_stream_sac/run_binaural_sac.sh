@@ -27,6 +27,10 @@ sac_spec_lambda=1.0
 sac_spat_lambda=1.0
 recon_lambda=1.0
 
+# SAC Temperatures
+spec_sac_temperature=0.3
+spat_sac_temperature=0.15
+
 # Sigma calculation mode (default: offline_global_median)
 local_sigma_mode="offline_global_median"
 
@@ -64,6 +68,8 @@ python3 run_binaural_amba.py \
   --sac_spec_lambda ${sac_spec_lambda} \
   --sac_spat_lambda ${sac_spat_lambda} \
   --recon_lambda ${recon_lambda} \
+  --spec_sac_temperature ${spec_sac_temperature} \
+  --spat_sac_temperature ${spat_sac_temperature} \
   --local_sigma_mode ${local_sigma_mode} \
   --time_mask_ratio ${time_mask_ratio} \
   --use_checkpointing

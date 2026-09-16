@@ -39,7 +39,8 @@ class BinauralSSAMBASACModel(nn.Module):
         model_size='base',
         embed_dim=768,
         proj_dim=128,
-        sac_temperature=0.3,
+        spec_sac_temperature=0.3,
+        spat_sac_temperature=0.3,
         sac_sigma=1.0,
         sac_spec_lambda=1.0,
         sac_spat_lambda=1.0,
@@ -54,7 +55,8 @@ class BinauralSSAMBASACModel(nn.Module):
         use_checkpointing=True, # Default True to save memory during double forward pass
     ):
         super(BinauralSSAMBASACModel, self).__init__()
-        self.sac_temperature = sac_temperature
+        self.spec_sac_temperature = spec_sac_temperature
+        self.spat_sac_temperature = spat_sac_temperature
         self.sac_sigma = sac_sigma
         self.sac_spec_lambda = sac_spec_lambda
         self.sac_spat_lambda = sac_spat_lambda
@@ -224,7 +226,7 @@ class BinauralSSAMBASACModel(nn.Module):
             
             w = torch.exp(-(cue_dist / local_sigma) ** 2)
             z_norm = F.normalize(z_group, dim=-1)
-            sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature
+            sim = torch.matmul(z_norm, z_norm.T) / self.spec_sac_temperature
             
             diag_mask = torch.eye(B, device=device, dtype=torch.bool)
             off_diag = ~diag_mask
@@ -266,7 +268,12 @@ class BinauralSSAMBASACModel(nn.Module):
         B = z_spat.shape[0]
 
         if B < 2:
-            return torch.tensor(0.0, device=device, requires_grad=True)
+            dummy_diag = {
+                'spat_sim_mean': torch.tensor(0.0, device=device),
+                'spat_sim_std': torch.tensor(0.0, device=device),
+                'z_spat_std_mean': torch.tensor(0.0, device=device)
+            }
+            return torch.tensor(0.0, device=device, requires_grad=True), dummy_diag
 
         cue_dist = torch.cdist(c_spat, c_spat, p=2)
         
@@ -295,8 +302,14 @@ class BinauralSSAMBASACModel(nn.Module):
             local_sigma = self.sac_sigma * math.sqrt(D)
 
         w = torch.exp(-(cue_dist / local_sigma) ** 2)
-        z_norm = F.normalize(z_spat, dim=-1)
-        sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature
+        
+        orig_dtype = z_spat.dtype
+        z_spat_fp32 = z_spat.float()
+        with torch.cuda.amp.autocast(enabled=False):
+            z_norm = F.normalize(z_spat_fp32, dim=-1)
+            sim = torch.matmul(z_norm, z_norm.T) / self.spat_sac_temperature
+        
+        sim = sim.to(orig_dtype)
         
         diag_mask = torch.eye(B, device=device, dtype=torch.bool)
         off_diag = ~diag_mask
@@ -311,7 +324,19 @@ class BinauralSSAMBASACModel(nn.Module):
         w_norm = w_masked / w_sum
         
         loss_per_sample = -(w_norm * log_prob).sum(dim=1)
-        return loss_per_sample.mean()
+        loss = loss_per_sample.mean()
+
+        sim_off_diag = sim[off_diag]
+        spat_sim_mean = sim_off_diag.mean()
+        spat_sim_std = sim_off_diag.std()
+        z_spat_std_mean = z_spat.std(dim=0).mean()
+
+        diagnostics = {
+            'spat_sim_mean': spat_sim_mean,
+            'spat_sim_std': spat_sim_std,
+            'z_spat_std_mean': z_spat_std_mean
+        }
+        return loss, diagnostics
 
     def forward(self, X, W, c_mono=None, c_spatial=None, return_diagnostics=False):
         """
@@ -388,7 +413,7 @@ class BinauralSSAMBASACModel(nn.Module):
             if not self.use_cross_attention_spat:
                 e_spat = h_spat_unmasked[:, 1:, :].mean(dim=1) # [B, D]
                 z_spat = self.projection_head_spat(e_spat) # [B, proj_dim]
-                loss_sac_spat = self._compute_single_vector_sac(z_spat, c_spatial)
+                loss_sac_spat, spat_diagnostics = self._compute_single_vector_sac(z_spat, c_spatial)
             else:
                 Q_spat = self.group_queries_spat.unsqueeze(0).expand(B, -1, -1)
                 attn_spat, _ = self.cross_attention_spat(query=Q_spat, key=h_spat_unmasked[:, 1:, :], value=h_spat_unmasked[:, 1:, :])
@@ -398,8 +423,18 @@ class BinauralSSAMBASACModel(nn.Module):
                 groups_dict_spat = {g: self.spat_group_indices[g] for g in self.spat_group_indices}
                 groups_dict_spat['_raw_c'] = c_spatial
                 loss_sac_spat = self._compute_factorized_sac(Z_spat_groups, groups_dict_spat, self.num_active_spat_groups)
+                spat_diagnostics = {
+                    'spat_sim_mean': torch.tensor(0.0, device=X.device),
+                    'spat_sim_std': torch.tensor(0.0, device=X.device),
+                    'z_spat_std_mean': torch.tensor(0.0, device=X.device)
+                }
         else:
             loss_sac_spat = torch.tensor(0.0, device=X.device)
+            spat_diagnostics = {
+                'spat_sim_mean': torch.tensor(0.0, device=X.device),
+                'spat_sim_std': torch.tensor(0.0, device=X.device),
+                'z_spat_std_mean': torch.tensor(0.0, device=X.device)
+            }
 
         # 5. Total Weighted Loss
         loss_total = (
@@ -416,6 +451,7 @@ class BinauralSSAMBASACModel(nn.Module):
             'entropies_spec': entropies_spec,
             'req_grad_status': req_grad_status,
         }
+        output.update(spat_diagnostics)
         
         return output
 

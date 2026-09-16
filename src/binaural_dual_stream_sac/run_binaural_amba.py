@@ -211,6 +211,10 @@ def main():
     parser.add_argument('--sac_spat_lambda', type=float, default=1.0, help="Weight for Spatial SAC loss")
     parser.add_argument('--recon_lambda', type=float, default=1.0, help="Weight for reconstruction loss")
     
+    # SAC Temperatures
+    parser.add_argument('--spec_sac_temperature', type=float, default=0.3, help="Temperature for Spectral SAC loss")
+    parser.add_argument('--spat_sac_temperature', type=float, default=0.3, help="Temperature for Spatial SAC loss")
+    
     # Model configs
     parser.add_argument('--local_sigma_mode', type=str, default='offline_global_median',
                         choices=['offline_global_median', 'dynamic_batch_median', 'chi2_median', 'sqrt_dim'],
@@ -281,6 +285,8 @@ def main():
         sac_spec_lambda=args.sac_spec_lambda,
         sac_spat_lambda=args.sac_spat_lambda,
         recon_lambda=args.recon_lambda,
+        spec_sac_temperature=args.spec_sac_temperature,
+        spat_sac_temperature=args.spat_sac_temperature,
         local_sigma_mode=args.local_sigma_mode,
         spectral_features=args.spectral_features,
         share_encoder_weights=args.share_encoder_weights,
@@ -359,6 +365,8 @@ def main():
             if batch_idx % 10 == 0:
                 print(f"DEBUG Batch {batch_idx} c_mono stats: min={c_mono.min().item():.4f}, max={c_mono.max().item():.4f}")
                 print(f"DEBUG Batch {batch_idx} c_mono std(dim=0): {c_mono.std(dim=0).cpu().numpy()}")
+                print(f"DEBUG Batch {batch_idx} c_spatial stats: min={c_spatial.min().item():.4f}, max={c_spatial.max().item():.4f}")
+                print(f"DEBUG Batch {batch_idx} c_spatial std(dim=0): {c_spatial.std(dim=0).cpu().numpy()}")
 
             # Warmup learning rate
             if global_step <= 1000 and global_step % 50 == 0:
@@ -373,6 +381,9 @@ def main():
             with torch.cuda.amp.autocast():
                 out = model(X, W, c_mono=c_mono, c_spatial=c_spatial)
                 loss = out['loss_total']
+                
+            if batch_idx % 10 == 0 and 'spat_sim_mean' in out:
+                print(f"DEBUG Batch {batch_idx} REP COLLAPSE TEST: sim_mean={out['spat_sim_mean'].item():.4f}, sim_std={out['spat_sim_std'].item():.4f}, z_spat_std_mean={out['z_spat_std_mean'].item():.6f}")
             
             # Hard stop on non-finite loss
             loss_total_is_finite = torch.isfinite(loss).item()
