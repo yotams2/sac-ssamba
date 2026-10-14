@@ -129,7 +129,7 @@ class BinauralSSAMBASACModel(nn.Module):
         
         self.projection_head_spat = nn.Sequential(
             nn.Linear(embed_dim, embed_dim),
-            nn.LayerNorm(embed_dim),
+            nn.BatchNorm1d(embed_dim),
             nn.ReLU(inplace=True),
             nn.Linear(embed_dim, proj_dim),
         )
