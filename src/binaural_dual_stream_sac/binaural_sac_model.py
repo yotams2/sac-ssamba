@@ -410,6 +410,14 @@ class BinauralSSAMBASACModel(nn.Module):
 
         # 4. SPATIAL SAC BRANCH (Attaches to h_spat_unmasked with Projection Head & NO CA layer)
         if self.sac_spat_lambda > 0 and c_spatial is not None:
+            # Normalize c_spatial using global offline stats if available
+            if hasattr(self, 'feature_stats') and self.feature_stats is not None:
+                if 'spatial_mean' in self.feature_stats and 'spatial_std' in self.feature_stats:
+                    mean = self.feature_stats['spatial_mean'].to(c_spatial.device)
+                    std = self.feature_stats['spatial_std'].to(c_spatial.device)
+                    c_spatial = (c_spatial - mean) / (3.0 * std + 1e-6)
+                    c_spatial = c_spatial.clamp(-1.0, 1.0)
+
             if not self.use_cross_attention_spat:
                 e_spat = h_spat_unmasked[:, 1:, :].mean(dim=1) # [B, D]
                 z_spat = self.projection_head_spat(e_spat) # [B, proj_dim]

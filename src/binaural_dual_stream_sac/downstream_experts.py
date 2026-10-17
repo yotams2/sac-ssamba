@@ -3,6 +3,9 @@ import torch.nn as nn
 import sys
 import os
 
+sys.path.insert(0, '/storage/yotam/ssamba/Vim')
+sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
+sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from binaural_dual_stream_sac.binaural_sac_model import BinauralSSAMBASACModel
 

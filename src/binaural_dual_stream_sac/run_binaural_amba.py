@@ -62,7 +62,16 @@ def calculate_binaural_feature_stats(dataloader, device, num_batches=50, spectra
 
     if len(all_spatial_feats) > 0:
         spatial_tensor = torch.cat(all_spatial_feats, dim=0) # [N, 5]
-        dist_matrix = torch.cdist(spatial_tensor, spatial_tensor, p=2)
+        spatial_mean = spatial_tensor.mean(dim=0)
+        spatial_std = spatial_tensor.std(dim=0)
+        feature_stats['spatial_mean'] = spatial_mean
+        feature_stats['spatial_std'] = spatial_std
+
+        # Standardize spatial features to match what the model will see during training
+        norm_spatial = (spatial_tensor - spatial_mean.unsqueeze(0)) / (3.0 * spatial_std.unsqueeze(0) + 1e-6)
+        norm_spatial = norm_spatial.clamp(-1.0, 1.0)
+
+        dist_matrix = torch.cdist(norm_spatial, norm_spatial, p=2)
         N = dist_matrix.shape[0]
         off_diag_mask = ~torch.eye(N, dtype=torch.bool, device=dist_matrix.device)
         off_diag_dists = dist_matrix[off_diag_mask]
