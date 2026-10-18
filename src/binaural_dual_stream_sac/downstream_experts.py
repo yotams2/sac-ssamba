@@ -34,18 +34,21 @@ class MonauralSpectralUpstreamExpert(nn.Module):
                     new_sd[k] = v
             self.binaural_model.load_state_dict(new_sd, strict=False)
 
-        # Freeze spectral encoder for upstream feature extraction
+        # Keep spectral encoder trainable for end-to-end downstream fine-tuning (-f)
+        # Freeze non-spectral parameters (spatial encoder, decoder, SAC projection heads)
         self.spectral_encoder = self.binaural_model.dual_encoder.spectral_encoder
-        self.spectral_encoder.eval()
-        for param in self.spectral_encoder.parameters():
-            param.requires_grad = False
+        for name, param in self.binaural_model.named_parameters():
+            if 'spectral_encoder' in name and (param.is_floating_point() or param.is_complex()):
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
 
     def forward(self, x_mono):
         """
         Args:
             x_mono: [B, 1, F, T] or [B, F, T] mono spectrogram or STFT tensor
         Returns:
-            features: [B, embed_dim] mean-pooled patch representation
+            features: [B, 64, 16 * embed_dim] patch representation preserving frequency bands
         """
         if x_mono.dim() == 3:
             x_mono = x_mono.unsqueeze(1)
@@ -58,13 +61,15 @@ class MonauralSpectralUpstreamExpert(nn.Module):
         else:
             x_4ch = x_mono
 
-        with torch.no_grad():
-            hidden_states = self.spectral_encoder._encode_with_mamba(x_4ch)
+        hidden_states = self.spectral_encoder._encode_with_mamba(x_4ch)
             
-        # Mean pool patch tokens (skipping CLS token at index 0)
+        # Reshape to preserve frequency bands (skipping CLS token at index 0)
+        # [B, 1024, D] -> [B, 16, 64, D] -> [B, 64, 16, D] -> [B, 64, 16 * D]
         patch_tokens = hidden_states[:, 1:, :]
-        pooled_features = patch_tokens.mean(dim=1)
-        return pooled_features
+        B = x_4ch.size(0)
+        D = patch_tokens.size(-1)
+        features = patch_tokens.reshape(B, 16, 64, D).permute(0, 2, 1, 3).reshape(B, 64, 16 * D)
+        return features
 
 
 class SpatialBinauralUpstreamExpert(nn.Module):
