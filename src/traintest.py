@@ -51,15 +51,19 @@ def train(audio_model, train_loader, test_loader, args):
 
     # diff lr optimizer
     mlp_list = ['mlp_head.0.weight', 'mlp_head.0.bias', 'mlp_head.1.weight', 'mlp_head.1.bias']
-    mlp_params = list(filter(lambda kv: kv[0] in mlp_list, audio_model.module.named_parameters()))
-    base_params = list(filter(lambda kv: kv[0] not in mlp_list, audio_model.module.named_parameters()))
-    mlp_params = [i[1] for i in mlp_params]
-    base_params = [i[1] for i in base_params]
+    mlp_params = [p for name, p in audio_model.module.named_parameters() if name in mlp_list and p.requires_grad]
+    base_params = [p for name, p in audio_model.module.named_parameters() if name not in mlp_list and p.requires_grad]
     # only finetuning small/tiny models on balanced audioset uses different learning rate for mlp head
     print('The mlp header uses {:d} x larger lr'.format(args.head_lr))
-    optimizer = torch.optim.Adam([{'params': base_params, 'lr': args.lr}, {'params': mlp_params, 'lr': args.lr * args.head_lr}], weight_decay=5e-7, betas=(0.95, 0.999))
-    mlp_lr = optimizer.param_groups[1]['lr']
-    lr_list = [args.lr, mlp_lr]
+    param_groups = []
+    lr_list = []
+    if len(base_params) > 0:
+        param_groups.append({'params': base_params, 'lr': args.lr})
+        lr_list.append(args.lr)
+    if len(mlp_params) > 0:
+        param_groups.append({'params': mlp_params, 'lr': args.lr * args.head_lr})
+        lr_list.append(args.lr * args.head_lr)
+    optimizer = torch.optim.Adam(param_groups, weight_decay=5e-7, betas=(0.95, 0.999))
 
     print('Total mlp parameter number is : {:.3f} million'.format(sum(p.numel() for p in mlp_params) / 1e6))
     print('Total base parameter number is : {:.3f} million'.format(sum(p.numel() for p in base_params) / 1e6))
@@ -267,7 +271,8 @@ def train(audio_model, train_loader, test_loader, args):
             scheduler.step()
 
         print('Epoch-{0} lr: {1}'.format(epoch, optimizer.param_groups[0]['lr']))
-        print('Epoch-{0} lr: {1}'.format(epoch, optimizer.param_groups[1]['lr']))
+        if len(optimizer.param_groups) > 1:
+            print('Epoch-{0} lr: {1}'.format(epoch, optimizer.param_groups[1]['lr']))
 
         with open(exp_dir + '/stats_' + str(epoch) +'.pickle', 'wb') as handle:
             pickle.dump(stats, handle, protocol=pickle.HIGHEST_PROTOCOL)

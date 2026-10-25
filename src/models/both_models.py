@@ -123,6 +123,7 @@ class AMBAModel(nn.Module):
             self.original_num_patches = self.v.patch_embed.num_patches
             self.oringal_hw = int(self.original_num_patches ** 0.5)
             self.original_embedding_dim = self.v.pos_embed.shape[2]
+            self.embed_dim = self.original_embedding_dim
 
             # SSL Pretraining Code
             self.softmax = nn.Softmax(dim=-1)

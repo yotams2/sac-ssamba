@@ -27,7 +27,18 @@ class BinauralSACClassifier(torch.nn.Module):
         from binaural_dual_stream_sac.downstream_experts import MonauralSpectralUpstreamExpert
         
         self.encoder = MonauralSpectralUpstreamExpert(ckpt)
-        self.encoder_dim = self.encoder.model.spectral_encoder.embed_dim
+        spectral_enc = getattr(self.encoder, 'spectral_encoder', getattr(self.encoder, 'model', None))
+        if hasattr(spectral_enc, 'spectral_encoder'):
+            spectral_enc = spectral_enc.spectral_encoder
+        self.spectral_encoder = spectral_enc
+        if hasattr(self.spectral_encoder, 'embed_dim'):
+            self.encoder_dim = self.spectral_encoder.embed_dim
+        elif hasattr(self.spectral_encoder, 'original_embedding_dim'):
+            self.encoder_dim = self.spectral_encoder.original_embedding_dim
+        elif hasattr(self.spectral_encoder, 'v') and hasattr(self.spectral_encoder.v, 'pos_embed'):
+            self.encoder_dim = self.spectral_encoder.v.pos_embed.shape[-1]
+        else:
+            self.encoder_dim = 768
         
         self.mlp_head = torch.nn.Sequential(
             torch.nn.LayerNorm(self.encoder_dim),
@@ -39,7 +50,11 @@ class BinauralSACClassifier(torch.nn.Module):
         x_mono = x.transpose(1, 2).unsqueeze(1) # [B, 1, F, T]
         x_4ch = x_mono.repeat(1, 4, 1, 1).to(x.device)
         
-        h = self.encoder.model.spectral_encoder._encode_with_mamba(x_4ch)
+        # Ensure dimensions match expected (256, 1024) for the pre-trained positional embeddings
+        if x_4ch.shape[-2] != 256 or x_4ch.shape[-1] != 1024:
+            x_4ch = torch.nn.functional.interpolate(x_4ch, size=(256, 1024), mode='bilinear', align_corners=False)
+        
+        h = self.spectral_encoder._encode_with_mamba(x_4ch)
         
         if task == 'ft_avgtok':
             h = h[:, 1:, :] # Skip the CLS token
@@ -121,6 +136,7 @@ parser.add_argument("--wa", help='if do weight averaging in finetuning', type=as
 parser.add_argument("--wa_start", type=int, default=16, help="which epoch to start weight averaging in finetuning")
 parser.add_argument("--wa_end", type=int, default=30, help="which epoch to end weight averaging in finetuning")
 parser.add_argument("--loss", type=str, default="BCE", help="the loss function for finetuning, depend on the task", choices=["BCE", "CE"])
+parser.add_argument("--freeze_base", action="store_true", default=False, help="freeze base encoder weights for linear probing")
 parser.add_argument('--use_wandb', action='store_true', help='Enable logging to Weights & Biases')
 
 # vision mamba arguments
@@ -261,6 +277,12 @@ else:
         audio_model = AMBAModel(label_dim=args.n_class, fshape=args.fshape, tshape=args.tshape, fstride=args.fstride, tstride=args.tstride,
                            input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=False,
                            load_pretrained_mdl_path=args.pretrained_mdl_path, vision_mamba_config=vision_mamba_config)
+
+if args.freeze_base:
+    print('Freezing base encoder parameters for linear probing...')
+    for name, p in audio_model.named_parameters():
+        if 'mlp_head' not in name:
+            p.requires_grad = False
 
 if not isinstance(audio_model, torch.nn.DataParallel):
     audio_model = torch.nn.DataParallel(audio_model)

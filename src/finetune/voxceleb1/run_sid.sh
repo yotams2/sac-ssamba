@@ -15,7 +15,13 @@ export TORCH_HOME=../../pretrained_models
 # Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
 model_input=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
 lr=${2:-1e-4}
-upstream_name=${3:-ssamba_local}
+if [[ "$model_input" == *"binaural"* ]] || [[ "$model_input" == *"sac"* ]]; then
+    default_upstream="binaural_sac_local"
+else
+    default_upstream="ssamba_local"
+fi
+upstream_name=${3:-$default_upstream}
+frozen=${4:-${FROZEN:-false}}
 
 # check if using binaural sac to override dataset
 if [[ "$upstream_name" == *"binaural"* ]] || [[ "$upstream_name" == *"sac"* ]]; then
@@ -36,11 +42,23 @@ else
     expname_prefix=$model_input
 fi
 
-expname=sid_${expname_prefix}_${lr}
+# Configure frozen vs fine-tuned (trainable upstream)
+# In s3prl, -f (--upstream_trainable) enables fine-tuning. Omitting -f freezes the upstream model.
+if [ "$frozen" = "true" ] || [ "$frozen" = "frozen" ] || [ "$frozen" = "1" ]; then
+    trainable_flag=""
+    expname=sid_${expname_prefix}_frozen_${lr}
+    echo "Running in FROZEN upstream mode (upstream weights frozen)"
+else
+    trainable_flag="-f"
+    expname=sid_${expname_prefix}_${lr}
+    echo "Running in FINE-TUNING mode (upstream weights trainable)"
+fi
+
 expdir=./exp/$expname
 mkdir -p $expdir
 
 # Prevent PyTorch/NumPy threading crashes in DataLoader forks
 export OMP_NUM_THREADS=1
 
-PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir -m train $upstream_args -d voxceleb1 -c /storage/yotam/s3prl/s3prl/downstream/voxceleb1/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.runner.total_steps=50000$file_path_override" -f -a
+PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir -m train $upstream_args -d voxceleb1 -c /storage/yotam/s3prl/s3prl/downstream/voxceleb1/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.runner.total_steps=50000$file_path_override" $trainable_flag -a
+

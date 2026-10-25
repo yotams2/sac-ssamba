@@ -15,11 +15,17 @@ export TORCH_HOME=../../pretrained_models
 # Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
 model_input=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
 lr=${2:-1e-5}
-upstream_name=${3:-ssamba_local}
+if [[ "$model_input" == *"binaural"* ]] || [[ "$model_input" == *"sac"* ]]; then
+    default_upstream="binaural_sac_local"
+else
+    default_upstream="ssamba_local"
+fi
+upstream_name=${3:-$default_upstream}
+frozen=${4:-${FROZEN:-false}}
 
-# check if using binaural sac to override dataset
-if [[ "$upstream_name" == *"binaural"* ]] || [[ "$upstream_name" == *"sac"* ]]; then
-    file_path_override=",,config.downstream_expert.datarc.root=/storage/yotam/ssamba/data/IEMOCAP"
+# Ensure datarc.root points to the actual IEMOCAP directory containing Session1-Session5
+if [ -d "/storage/data/IEMOCAP_audio_only/IEMOCAP_full_release" ]; then
+    file_path_override=",,config.downstream_expert.datarc.root=/storage/data/IEMOCAP_audio_only/IEMOCAP_full_release"
 else
     file_path_override=""
 fi
@@ -36,7 +42,20 @@ else
     expname_prefix=$model_input
 fi
 
-expname=emotion_${expname_prefix}_${lr}
+# Configure frozen vs fine-tuned (trainable upstream)
+# In s3prl, -f (--upstream_trainable) enables fine-tuning. Omitting -f freezes the upstream model.
+if [ "$frozen" = "true" ] || [ "$frozen" = "frozen" ] || [ "$frozen" = "1" ]; then
+    trainable_flag=""
+    mode_name="freeze"
+    expname=emotion_${expname_prefix}_frozen_${lr}
+    echo "Running in FROZEN upstream mode (upstream weights frozen / linear probing)"
+else
+    trainable_flag="-f"
+    mode_name="unfreeze"
+    expname=emotion_${expname_prefix}_${lr}
+    echo "Running in FINE-TUNING mode (upstream weights trainable)"
+fi
+
 expdir=./exp/$expname
 mkdir -p $expdir
 
@@ -50,6 +69,6 @@ export SSAMBA_WINDOW_SECS=6.0
 for test_fold in fold1;
 do
   echo "running cross-validation on $test_fold"
-  mkdir -p $expdir/unfreeze_cross-valid-on-${test_fold}; mkdir -p ./log/emotion/unfreeze_cross-valid-on-${test_fold}
-  PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir/unfreeze_cross-valid-on-${test_fold} -m train $upstream_args -d emotion -c /storage/yotam/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.downstream_expert.datarc.test_fold='$test_fold'$file_path_override" -f -a
+  mkdir -p $expdir/${mode_name}_cross-valid-on-${test_fold}; mkdir -p ./log/emotion/${mode_name}_cross-valid-on-${test_fold}
+  PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir/${mode_name}_cross-valid-on-${test_fold} -m train $upstream_args -d emotion -c /storage/yotam/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.downstream_expert.datarc.test_fold='$test_fold'$file_path_override" $trainable_flag -a
 done

@@ -1,6 +1,8 @@
 #!/bin/bash
 # ==============================================================================
-# Binaural Dual-Stream SSAMBA + Dual-Branch SAC Pretraining Script
+# Binaural Dual-Stream SSAMBA + Dual-Branch SAC Pretraining Script (Exp A + B)
+# Exp A: projection_head_spat uses BatchNorm1d
+# Exp B: standardized c_spatial ([-1, 1]) + standardized offline median heuristic
 # ==============================================================================
 
 # Change directory to the script's directory so exp/ is saved here
@@ -37,8 +39,8 @@ local_sigma_mode="offline_global_median"
 # WandB Experiment Tracking
 use_wandb=true
 wandb_project="SSAMBA-Binaural"
-exp_name_suffix="-binaural_ccsr_dual_sac"
-exp_description="Binaural SSAMBA CCSR pretraining with dual SAC branches (Spectral CA branch + Spatial Projection head), offline_global_median sigma."
+exp_name_suffix="${EXP_NAME_SUFFIX:--binaural_ccsr_dual_sac_bn_standardized_spatial}"
+exp_description="Binaural SSAMBA CCSR pretraining with dual SAC branches (Spectral CA + Spatial Projection Head with BatchNorm1d and Standardized Spatial SAC), offline_global_median sigma."
 
 exp_name="binaural-sac-bs${batch_size}-lr${lr}-mode_${local_sigma_mode}${exp_name_suffix}"
 exp_dir="./exp/${exp_name}"
@@ -48,7 +50,7 @@ mkdir -p ${exp_dir}/models
 # Save experiment description
 echo "${exp_description}" > ${exp_dir}/description.log
 
-echo "Starting Binaural SSAMBA Pretraining..."
+echo "Starting Binaural SSAMBA Pretraining (BatchNorm1d + Standardized Spatial SAC)..."
 echo "  Script Directory:     ${SCRIPT_DIR}"
 echo "  Experiment Directory: ${exp_dir}"
 echo "  Local Sigma Mode:     ${local_sigma_mode}"

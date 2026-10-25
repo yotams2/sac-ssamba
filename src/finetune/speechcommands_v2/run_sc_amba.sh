@@ -20,7 +20,25 @@ fi
 # source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
 # conda activate new_env_name
 
-input_arg=$1
+input_arg=${1:-amba_base_400}
+if [ "$2" = "true" ] || [ "$2" = "frozen" ]; then
+    lr=2.5e-4
+    frozen="true"
+else
+    lr=${2:-2.5e-4}
+    frozen=${3:-${FROZEN:-false}}
+fi
+
+# Configure frozen vs fine-tuned (linear probing)
+if [ "$frozen" = "true" ] || [ "$frozen" = "frozen" ] || [ "$frozen" = "1" ]; then
+    frozen_flag="--freeze_base"
+    exp_task_name="${task}-frozen"
+    echo "Running in FROZEN upstream mode (upstream weights frozen / linear probing)"
+else
+    frozen_flag=""
+    exp_task_name="${task}"
+    echo "Running in FINE-TUNING mode (upstream weights trainable)"
+fi
 
 if [ -d "$input_arg" ]; then
     pretrain_path="${input_arg}/models/best_audio_model.pth"
@@ -49,7 +67,6 @@ val_data=./data/datafiles/speechcommand_valid_data.json
 eval_data=./data/datafiles/speechcommand_eval_data.json
 
 bal=none
-lr=2.5e-4
 freqm=48
 timem=48
 mixup=0.6
@@ -103,12 +120,16 @@ fi
 
 head_lr=1
 
-base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${task}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}
+base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${exp_task_name}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}
 
+exp_dir=./exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}
 
-exp_dir=./exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${task}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}
+PYTHON_BIN=${PYTHON:-/storage/yotam/venvs/ssamba_ide/bin/python}
+if [ ! -f "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python"
+fi
 
-CUDA_CACHE_DISABLE=1 python -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \
+CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${val_data} --data-eval ${eval_data} --exp-dir $exp_dir \
 --label-csv ./data/speechcommands_class_labels_indices.csv --n_class 35 \
 --lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
@@ -121,4 +142,4 @@ CUDA_CACHE_DISABLE=1 python -W ignore ../../run_amba.py --use_wandb --dataset ${
 --lrscheduler_start 5 --lrscheduler_step 1 --lrscheduler_decay 0.85 --wa False --loss BCE --metrics acc --embed_dim ${embed_dim} --depth ${depth} \
 --rms_norm ${rms_norm} --residual_in_fp32 ${residual_in_fp32} \
 --fused_add_norm ${fused_add_norm} --if_rope ${if_rope} --if_rope_residual ${if_rope_residual} \
---bimamba_type ${bimamba_type} --use_middle_cls_token ${use_middle_cls_token} --drop_path_rate ${drop_path_rate} --stride ${stride} --channels ${channels} --num_classes ${num_classes} --drop_rate ${drop_rate} --norm_epsilon ${norm_epsilon} --if_bidirectional ${if_bidirectional} --final_pool_type ${final_pool_type} --if_abs_pos_embed ${if_abs_pos_embed} --if_bimamba ${if_bimamba} --if_cls_token ${if_cls_token} --if_devide_out ${if_devide_out} --use_double_cls_token ${use_double_cls_token} 
+--bimamba_type ${bimamba_type} --use_middle_cls_token ${use_middle_cls_token} --drop_path_rate ${drop_path_rate} --stride ${stride} --channels ${channels} --num_classes ${num_classes} --drop_rate ${drop_rate} --norm_epsilon ${norm_epsilon} --if_bidirectional ${if_bidirectional} --final_pool_type ${final_pool_type} --if_abs_pos_embed ${if_abs_pos_embed} --if_bimamba ${if_bimamba} --if_cls_token ${if_cls_token} --if_devide_out ${if_devide_out} --use_double_cls_token ${use_double_cls_token} $frozen_flag 

@@ -304,7 +304,7 @@ def main():
 
     # 6. Feature Stats calculation for offline_global_median
     #    Use num_workers=0 to avoid segfaults from torch.stft / scipy in forked workers
-    if args.local_sigma_mode == 'offline_global_median':
+    if args.local_sigma_mode == 'offline_global_median' and (args.sac_spec_lambda > 0 or args.sac_spat_lambda > 0):
         stats_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, drop_last=True)
         feature_stats = calculate_binaural_feature_stats(stats_loader, device=device)
         model.feature_stats = feature_stats
