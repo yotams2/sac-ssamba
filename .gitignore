@@ -22,3 +22,8 @@ __pycache__/
 Vim/
 
 
+
+# Slurm logs
+job_*.out
+sac_env_setup_*.out
+gramt_smoke_*.out
