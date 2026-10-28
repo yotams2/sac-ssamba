@@ -13,12 +13,12 @@ the folder, so it is kept in git as `logs/.gitkeep`. Once a run is done, copy it
 - [x] **Environment** builds `/scratch200/yotams2/venvs/sac`, clones Vim, downloads `labhamlet/gramt-binaural-frame`.
   `sbatch scripts/setup_env.sbatch`. It is done when the log `logs/sac_env_setup_<jobid>.out` ends with `done:`.
   The empty `/scratch200/yotams2/venvs/gramt` from an earlier attempt can then be deleted.
-- [ ] **Smoke test**: `sbatch scripts/smoke_test.sbatch`. The log `logs/gramt_smoke_<jobid>.out` must end with `OK`.
+- [x] **Smoke test** (passed on CPU, job 23244826): `sbatch scripts/smoke_test.sbatch`. The log `logs/gramt_smoke_<jobid>.out` must end with `OK`.
   GPU jobs must use `gpu-general-pool`; `power-general-shared-pool` rejects GPU requests. The GPU queue can be days long,
   and the test also runs on CPU: `sbatch -p power-general-shared-pool --gres=none scripts/smoke_test.sbatch`.
-- [ ] **Speech Commands v2** (frozen probe, run_amba.py):
+- [ ] **Speech Commands v2** (frozen probe, run_amba.py), running as job 23244879 (about 4 h):
   `sbatch src/finetune/speechcommands_v2/run_gramt.sh labhamlet/gramt-binaural-frame 2.5e-4 true`
-- [ ] **IEMOCAP ER** (frozen, s3prl, fold1 only):
+- [ ] **IEMOCAP ER** (frozen, s3prl, fold1 only). Blocked: crashes until the IEMOCAP simulation is fixed (see below):
   `sbatch src/finetune/iemocap/run_gramt.sh gramt_binaural 1e-4 true`
 - [ ] **VoxCeleb1 SID** (frozen, s3prl):
   `sbatch src/finetune/voxceleb1/run_gramt.sh gramt_binaural 1e-4 true`
@@ -33,9 +33,15 @@ the folder, so it is kept in git as `logs/.gitkeep`. Once a run is done, copy it
 
 ## Open issues / to check
 
-- [ ] **Frozen GRAM-T on SC2 still runs dropout.** `train()` sets the whole model to `.train()`, so with
-  `--freeze_base` the GRAM-T encoder's dropout stays active. s3prl keeps frozen upstreams in eval mode.
-  Check the model's dropout rate. If it is not 0, put the encoder in eval mode when it is frozen.
+- [ ] **Binaural downstream sets were sampled with replacement.** In `data_generation/utils_simu_rir_sig.py`,
+  `generate_microphone_signal` picks `src_idx = np.random.randint(0, len(srcdataset))` instead of `src_idx = idx`.
+  So each simulated split covers only ~63% of its source utterances, and the rest of its clips are repeats in other rooms
+  (IEMOCAP: 3,519 unique of 5,531; VoxCeleb1 and SC2: ~63% per split). No train/test overlap.
+  - IEMOCAP + `spatial_data_root` (`run_er.sh` for binaural/SAC upstreams, `iemocap/run_gramt.sh`) **crashes**:
+    `emotion/dataset.py` asserts that every s3prl fold utterance has a simulation (fold1: 398 test / 1,614 train missing).
+  - VoxCeleb1 and SC2 run, but on the reduced, duplicated splits: fine for comparing SAC with GRAM-T, not the standard test sets.
+  - Fix: use `src_idx = idx` for the downstream sets and re-simulate IEMOCAP, VoxCeleb1 and SC2. Until then,
+    either keep IEMOCAP mono (drop the `spatial_data_root` override) or evaluate fold1 on the simulated splits as they are.
 - [ ] **wandb is not installed** in the shared venv (to save space). `--use_wandb` is then silently skipped.
   If you want it, run `$PYTHON -m pip install --no-cache-dir wandb` and `wandb login` once.
 - [ ] **IEMOCAP runs only fold1** (`run_gramt.sh`, `run_er.sh`). Run all 5 folds for the final numbers.
@@ -52,6 +58,9 @@ the folder, so it is kept in git as `logs/.gitkeep`. Once a run is done, copy it
   deleted once the extracted `data/` is confirmed complete.
 
 ## Done
+
+- [x] Frozen GRAM-T dropout: not an issue. `encoder_dropout` and `encoder_attention_dropout` are 0.0 in the HF config, so
+  `train()` putting the frozen encoder in train mode changes nothing.
 
 - [x] Binaural SC2 eval fix (the SAC encoder now gets the 4-channel STFT used in pretraining, not repeated
   mono fbanks): merged to `main` (ecdca0f).
