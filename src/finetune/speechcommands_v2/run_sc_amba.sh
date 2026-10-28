@@ -131,9 +131,11 @@ fi
 
 head_lr=1
 
-base_exp_dir="${SCRIPT_DIR}/exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${exp_task_name}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}"
+exp_root=${SAC_EXP_ROOT:+${SAC_EXP_ROOT}/speechcommands_v2}  # set by env.sh; unset: ./exp next to this script
+exp_root=${exp_root:-${SCRIPT_DIR}/exp}
+base_exp_dir="${exp_root}/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${exp_task_name}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}"
 
-exp_dir="${SCRIPT_DIR}/exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}"
+exp_dir="${exp_root}/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}"
 
 PYTHON_BIN=${PYTHON:-/storage/yotam/venvs/ssamba_ide/bin/python}
 if [ ! -f "$PYTHON_BIN" ]; then

@@ -40,7 +40,7 @@ batch_size=128
 epoch=30
 mixup=0.6
 
-exp_dir=${SCRIPT_DIR}/exp/gramt-speechcommands-b${batch_size}-lr${lr}-${exp_task_name}-$(basename ${model_id})
+exp_dir=${SAC_EXP_ROOT}/speechcommands_v2/gramt-speechcommands-b${batch_size}-lr${lr}-${exp_task_name}-$(basename ${model_id})
 
 cd ${SCRIPT_DIR}
 CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore ../../run_amba.py --use_wandb --dataset speechcommands \

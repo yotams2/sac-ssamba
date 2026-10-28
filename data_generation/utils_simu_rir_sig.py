@@ -977,7 +977,16 @@ class MicrophoneSignalOrRIR():
         contrastive_learning_data_aug: bool=False,
         spat_aug_coef: float=1.0,
         spec_aug_coef: float=1.0,
+        sequential_src: bool=False,
         ):
+        """
+        sequential_src: use source item `idx` for simulated item `idx` (each source simulated exactly once, as
+            needed for downstream sets that must cover every utterance). The default picks a random source
+            with replacement, which leaves ~37% of the sources out when data_num == len(srcdataset).
+        If the source metadata has 'src_num_samples' (the length of the real signal inside the fixed T
+        container), the clean, direct-path and noise signals are cut to that length before mixing, so the
+        SNR and peak normalisation only see the real signal and the saved clip keeps the source's length.
+        """
 
         # print(seed+idx)
         if contrastive_learning:
@@ -1034,6 +1043,9 @@ class MicrophoneSignalOrRIR():
              pass
         elif contrastive_learning_data_aug:
              src_idx = np.random.randint(0, srcdataset.__len__())
+        elif sequential_src:
+             assert idx < srcdataset.__len__(), (idx, srcdataset.__len__())
+             src_idx = idx
         else:
              src_idx = np.random.randint(0, srcdataset.__len__())
         
@@ -1053,6 +1065,13 @@ class MicrophoneSignalOrRIR():
         # Generate noise signal
         noi_sig = noidataset.generate_random_noise(mic_pos=sa_cfg['mic_pos'])
         snr = np.random.uniform(*snr_range)
+
+        # Drop the container padding (see docstring)
+        src_num_samples = metadata.get('src_num_samples')
+        if src_num_samples is not None:
+            mic_sig_clean, mic_sig_dp = mic_sig_clean[:src_num_samples], mic_sig_dp[:src_num_samples]
+            mic_sig_srcs_clean, mic_sig_srcs_dp = mic_sig_srcs_clean[:src_num_samples], mic_sig_srcs_dp[:src_num_samples]
+            noi_sig = noi_sig[:src_num_samples]
 
         # Generate noisy microphone signal
         mic_sig = noidataset.add_noise(mic_sig_clean, noi_sig, snr, mic_sig_dp=mic_sig_dp) 

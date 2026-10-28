@@ -35,7 +35,7 @@ else
     expname=sid_${upstream_name}_${lr}
 fi
 
-expdir=${SCRIPT_DIR}/exp/$expname
+expdir=${SAC_EXP_ROOT}/voxceleb1/$expname
 mkdir -p $expdir
 
 # Prevent PyTorch/NumPy threading crashes in DataLoader forks

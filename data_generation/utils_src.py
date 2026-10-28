@@ -449,6 +449,8 @@ class IEMOCAPForSimuDataset(Dataset):
           - pretrain: 80% of Session2-5 (train_meta_data.json) via torch.manual_seed(0) random_split
           - preval: 20% of Session2-5 (train_meta_data.json) via torch.manual_seed(0) random_split
         T=6.0s container. Labels: neu (0), hap (1, includes exc), ang (2), sad (3).
+        metadata['src_num_samples'] is the utterance length inside the container (used to cut the padding
+        off the simulated signal); utterances longer than T are truncated, see max_num_samples().
     """
     def __init__(self, iemocap_root, meta_dir, split='pretrain', test_fold='fold1', T=6.0, fs=16000, size=None):
         import json
@@ -491,6 +493,14 @@ class IEMOCAPForSimuDataset(Dataset):
     def __len__(self):
         return self.sz
 
+    def max_num_samples(self):
+        """Length (at self.fs) of the longest utterance in this split, read from the wav headers."""
+        longest = 0
+        for item in self.items[:self.sz]:
+            info = soundfile.info(str(self.iemocap_root / item['path']))
+            longest = max(longest, int(np.ceil(info.frames * self.fs / info.samplerate)))
+        return longest
+
     def __getitem__(self, idx):
         if idx < 0: idx = len(self.items) + idx
         elif idx >= len(self.items): idx = idx % len(self.items)
@@ -513,16 +523,14 @@ class IEMOCAPForSimuDataset(Dataset):
             s = s[:, 0]
 
         s_shape_desired = int(self.T * self.fs)
-        if len(s) < s_shape_desired:
-            pad = np.zeros(s_shape_desired - len(s))
-            s = np.concatenate([s, pad])
-        else:
-            s = s[:s_shape_desired]
-
-        s -= s.mean()
+        src_num_samples = min(len(s), s_shape_desired)
+        s = s[:src_num_samples]
+        s -= s.mean()  # over the real signal only, so the padding stays exactly zero
+        s = np.concatenate([s, np.zeros(s_shape_desired - src_num_samples)])
         s_sources = np.expand_dims(s, axis=1) # [nsample, 1]
 
         metadata = {
+            'src_num_samples': src_num_samples,
             'emotion_label': label_str,
             'emotion_idx': label_idx,
             'speaker_id': speaker_id,

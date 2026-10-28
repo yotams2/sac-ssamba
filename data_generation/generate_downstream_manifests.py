@@ -20,6 +20,7 @@ def generate_manifests(dataset: str, simu_dir: str, out_dir: str):
     out_path.mkdir(parents=True, exist_ok=True)
 
     splits = ['pretrain', 'preval', 'pretest']
+    split_items = {}
 
     for split in splits:
         split_dir = simu_path / split
@@ -71,7 +72,15 @@ def generate_manifests(dataset: str, simu_dir: str, out_dir: str):
                         item[k] = v.item() if hasattr(v, 'item') else v
 
             items.append(item)
+        split_items[split] = items
 
+    if dataset == 'iemocap':
+        # s3prl maps every fold utterance to its simulation by orig_rel_path, so each must occur exactly once
+        rel_paths = [item['orig_rel_path'] for items in split_items.values() for item in items]
+        n_dup = len(rel_paths) - len(set(rel_paths))
+        assert n_dup == 0, f'{n_dup} IEMOCAP utterances are simulated more than once; regenerate with gen_simu_iemocap.py'
+
+    for split, items in split_items.items():
         out_json = out_path / f"{dataset}_spatial_{split}.json"
         with open(out_json, 'w') as f:
             json.dump({'data': items}, f, indent=2)

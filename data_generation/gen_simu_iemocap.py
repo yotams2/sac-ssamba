@@ -1,7 +1,11 @@
 """
     Generate simulated room impulse responses and binaural microphone signals for IEMOCAP.
 
-    Examples:
+    Every utterance of the split is simulated exactly once (source idx = item idx) at its full length:
+    T=0 (default) sets the container to the longest utterance of the split, and the padding is cut off
+    the simulated signal. The full pipeline (3 splits + manifests + checks) is regen_iemocap.sh.
+
+    Examples (older form; --data_num must now equal the split size or be left out):
         python gen_simu_iemocap.py --stage pretrain --data_num 3556 --iemocap_root /scratch/yotam/data/IEMOCAP_full_release --meta_dir /scratch/yotam/s3prl/s3prl/downstream/emotion/meta_data --save_to ../../data/IEMOCAP/simu --gpus [0]
         python gen_simu_iemocap.py --stage preval --data_num 890 --iemocap_root /scratch/yotam/data/IEMOCAP_full_release --meta_dir /scratch/yotam/s3prl/s3prl/downstream/emotion/meta_data --save_to ../../data/IEMOCAP/simu --gpus [0]
         python gen_simu_iemocap.py --stage pretest --data_num 1085 --iemocap_root /scratch/yotam/data/IEMOCAP_full_release --meta_dir /scratch/yotam/s3prl/s3prl/downstream/emotion/meta_data --save_to ../../data/IEMOCAP/simu --gpus [0]
@@ -45,13 +49,13 @@ def GenerateRandomMicSigIEMOCAP(
     fs: int=16000,
     c: float=343.0,
     ism_db: float=12,
-    T: float=6.0, # 6.0s duration for IEMOCAP
+    T: float=0.0, # container length in s; 0 = longest utterance of the split (no truncation)
     iemocap_root: str='',
     meta_dir: str='',
     test_fold: str='fold1',
     noi_dir: str='',
     stage: str='pretrain',
-    data_num: int=1,
+    data_num: int=0, # 0 = all utterances of the split; any other value must equal the split size
     save_to: str='',
     save_dp: bool=False,
     gpu_conv: bool=False,
@@ -84,6 +88,27 @@ def GenerateRandomMicSigIEMOCAP(
     print('Args:')
     print(dict(args), '\n')
 
+    srcdataset = IEMOCAPForSimuDataset(
+        iemocap_root=iemocap_root,
+        meta_dir=meta_dir,
+        split=stage,
+        test_fold=test_fold,
+        T=T if T > 0 else 1.0,
+        fs=fs,
+        size=None,
+    )
+    if data_num <= 0:
+        data_num = len(srcdataset)
+    assert data_num == len(srcdataset), \
+        f'data_num={data_num} but the {stage} split has {len(srcdataset)} utterances; each must be simulated exactly once'
+    if T <= 0:
+        T = float(np.ceil(srcdataset.max_num_samples() / fs * 10) / 10)  # longest utterance, rounded up to 0.1 s
+        srcdataset.T = T
+        if traj_pt_mode == 'time' and 'moving' in source_state:
+            nb_points = int(T/0.1)
+    args['T'], args['data_num'] = T, data_num
+    print(f'IEMOCAP source dataset: {len(srcdataset)} items, container T={T}s, split={stage}, test_fold={test_fold}')
+
     spatialacoustics = SpatialAcoustics()
     roomir = RoomImpulseResponse(fs=fs, c=c, ism_db=ism_db)
     sa_cfgs = []
@@ -115,16 +140,6 @@ def GenerateRandomMicSigIEMOCAP(
 
     mic_sig_or_rir = MicrophoneSignalOrRIR()
 
-    srcdataset = IEMOCAPForSimuDataset(
-        iemocap_root=iemocap_root,
-        meta_dir=meta_dir,
-        split=stage,
-        test_fold=test_fold,
-        T=T,
-        fs=fs,
-        size=data_num,
-    )
-    print(f'IEMOCAP source dataset: {len(srcdataset)} items, T={T}s, split={stage}, test_fold={test_fold}')
 
     noidataset = NoiseSignal(
         T=T,
@@ -138,7 +153,7 @@ def GenerateRandomMicSigIEMOCAP(
     pbar = tqdm.tqdm(total=data_num)
     pbar.set_description(f'IEMOCAP ({stage}) micro-signals')
 
-    gen_range = range(min(data_num, len(srcdataset)))
+    gen_range = range(data_num)
 
     if use_gpu:
         def init_env_var(gpus: List[int]):
@@ -167,6 +182,7 @@ def GenerateRandomMicSigIEMOCAP(
                 save_dp=save_dp,
                 gpu_conv=gpu_conv,
                 seed=seed,
+                sequential_src=True,
             ),
             gen_range,
             chunksize=100,
@@ -189,6 +205,7 @@ def GenerateRandomMicSigIEMOCAP(
                 save_dp=save_dp,
                 gpu_conv=gpu_conv,
                 seed=seed,
+                sequential_src=True,
             )
             pbar.update()
     pbar.close()

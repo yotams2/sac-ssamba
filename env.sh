@@ -7,5 +7,6 @@ export SAC_VENV=${SAC_VENV:-${SAC_SCRATCH}/venvs/sac}                  # one ven
 export VIM_ROOT=${VIM_ROOT:-${SAC_SCRATCH}/code/Vim}                   # hustvl/Vim checkout, read by models/both_models.py
 export HF_HOME=${HF_HOME:-${SAC_SCRATCH}/hf}                           # GRAM-T weights (labhamlet/gramt-*)
 export SAC_DATA_ROOT=${SAC_DATA_ROOT:-${SAC_SCRATCH}/sac-ssamba/data}  # replaces /storage/yotam/ssamba/data in the jsons
+export SAC_EXP_ROOT=${SAC_EXP_ROOT:-${SAC_SCRATCH}/sac-ssamba/exp}    # checkpoints + logs: <SAC_EXP_ROOT>/<task>/<experiment>
 export PIP_NO_CACHE_DIR=1
 export PYTHON=${SAC_PYTHON:-${SAC_VENV}/bin/python}

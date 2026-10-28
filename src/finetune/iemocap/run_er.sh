@@ -61,7 +61,8 @@ else
     echo "Running in FINE-TUNING mode (upstream weights trainable)"
 fi
 
-expdir=./exp/$expname
+expdir=${SAC_EXP_ROOT:+${SAC_EXP_ROOT}/iemocap}  # set by env.sh; unset: ./exp
+expdir=${expdir:-./exp}/$expname
 mkdir -p $expdir
 
 # Prevent PyTorch/NumPy threading crashes in DataLoader forks

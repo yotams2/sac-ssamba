@@ -40,7 +40,7 @@ else
     expname=emotion_${upstream_name}_${lr}
 fi
 
-expdir=${SCRIPT_DIR}/exp/$expname
+expdir=${SAC_EXP_ROOT}/iemocap/$expname
 mkdir -p $expdir
 
 # Prevent PyTorch/NumPy threading crashes in DataLoader forks
