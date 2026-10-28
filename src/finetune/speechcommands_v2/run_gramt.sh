@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=gramt_sc
-#SBATCH --partition=power-general-shared-pool
+#SBATCH --partition=gpu-general-pool
 #SBATCH --gres=gpu:1
 #SBATCH --time=2-00:00:00
 #SBATCH --cpus-per-task=8        # Number of CPUs
