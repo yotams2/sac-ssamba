@@ -114,9 +114,9 @@ elif [[ $pretrain_model == *"small"* ]]; then
 elif [[ $pretrain_model == *"binaural"* ]] || [[ $pretrain_model == *"sac"* ]]; then
   model_size="binaural_sac"
   embed_dim=768
-  tr_data=/storage/yotam/ssamba/data/speechcommands_spatial_pretrain.json
-  val_data=/storage/yotam/ssamba/data/speechcommands_spatial_preval.json
-  eval_data=/storage/yotam/ssamba/data/speechcommands_spatial_pretest.json
+  tr_data=${SAC_DATA_ROOT:-/storage/yotam/ssamba/data}/speechcommands_spatial_pretrain.json
+  val_data=${SAC_DATA_ROOT:-/storage/yotam/ssamba/data}/speechcommands_spatial_preval.json
+  eval_data=${SAC_DATA_ROOT:-/storage/yotam/ssamba/data}/speechcommands_spatial_pretest.json
   noise=False
   freqm=0
   timem=0

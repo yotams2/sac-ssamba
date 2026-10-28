@@ -30,6 +30,11 @@ else
     file_path_override=""
 fi
 
+# Binaural models are evaluated on the binaural simulation of IEMOCAP (same utterances/folds/labels)
+if [[ "$upstream_name" == *"binaural"* ]] || [[ "$upstream_name" == *"sac"* ]]; then
+    file_path_override="${file_path_override},,config.downstream_expert.datarc.spatial_data_root=${SAC_DATA_ROOT:-/storage/yotam/ssamba/data}"
+fi
+
 # Check if model_input is a directory path
 if [ -d "$model_input" ]; then
     upstream_args="-u $upstream_name -k ${model_input}/models/best_audio_model.pth"

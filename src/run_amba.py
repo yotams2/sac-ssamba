@@ -25,7 +25,7 @@ class BinauralSACClassifier(torch.nn.Module):
     def __init__(self, ckpt, label_dim, pool_real_time_only=False):
         super().__init__()
         import sys
-        sys.path.insert(0, '/storage/yotam/ssamba/src')
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from binaural_dual_stream_sac.downstream_experts import MonauralSpectralUpstreamExpert
         
         self.encoder = MonauralSpectralUpstreamExpert(ckpt)
@@ -146,6 +146,8 @@ parser.add_argument("--wa_end", type=int, default=30, help="which epoch to end w
 parser.add_argument("--loss", type=str, default="BCE", help="the loss function for finetuning, depend on the task", choices=["BCE", "CE"])
 parser.add_argument("--freeze_base", action="store_true", default=False, help="freeze base encoder weights for linear probing")
 parser.add_argument('--use_wandb', action='store_true', help='Enable logging to Weights & Biases')
+parser.add_argument("--gramt_model_id", type=str, default="labhamlet/gramt-binaural-frame", help="GRAM-T HF repo id or local snapshot dir, used with --model_size gramt")
+parser.add_argument("--clip_secs", type=float, default=1.0, help="waveform clip length in seconds, used with --model_size gramt")
 
 # vision mamba arguments
 parser.add_argument('--patch_size', type=int, default=16)
@@ -211,7 +213,13 @@ def main():
     val_audio_conf = {'num_mel_bins': args.num_mel_bins, 'target_length': args.target_length, 'freqm': 0, 'timem': 0, 'mixup': 0, 'dataset': args.dataset,
                       'mode': 'evaluation', 'mean': args.dataset_mean, 'std': args.dataset_std, 'noise': False}
 
-    dataset_class = dataloader.BinauralSTFTClassificationDataset if args.model_size == 'binaural_sac' else dataloader.AudioDataset
+    def dataset_class(json_file, label_csv, audio_conf):
+        if args.model_size == 'gramt':
+            from gramt_wrapper import BinauralWaveformDataset
+            return BinauralWaveformDataset(json_file, label_csv=label_csv, target_secs=args.clip_secs, mixup=audio_conf['mixup'])
+        if args.model_size == 'binaural_sac':
+            return dataloader.BinauralSTFTClassificationDataset(json_file, label_csv=label_csv, audio_conf=audio_conf)
+        return dataloader.AudioDataset(json_file, label_csv=label_csv, audio_conf=audio_conf)
 
     if args.bal == 'bal':
         print('balanced sampler is being used')
@@ -227,8 +235,7 @@ def main():
             dataset_class(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf),
             batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False, drop_last=True)
         
-    dataset = dataset_class(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf)
-    print(f"Dataset size: {len(dataset)}")
+    print(f"Dataset size: {len(train_loader.dataset)}")
     print(f"Number of batches: {len(train_loader)}")
 
     val_loader = torch.utils.data.DataLoader(
@@ -276,6 +283,9 @@ def main():
         if args.model_size == 'binaural_sac':
             pool_real_time_only = getattr(args, 'pool_real_time_only', False)
             audio_model = BinauralSACClassifier(args.pretrained_mdl_path, args.n_class, pool_real_time_only=pool_real_time_only)
+        elif args.model_size == 'gramt':
+            from gramt_wrapper import GRAMTClassifier
+            audio_model = GRAMTClassifier(args.n_class, model_id=args.gramt_model_id)
         else:
             audio_model = AMBAModel(label_dim=args.n_class, fshape=args.fshape, tshape=args.tshape, fstride=args.fstride, tstride=args.tstride,
                                input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=False,

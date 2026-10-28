@@ -18,6 +18,7 @@ import random
 import os
 import sys
 import logging
+from data_paths import remap_wav_path
 
 logging.basicConfig(filename='audio_loading.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -280,8 +281,8 @@ class BinauralSTFTClassificationDataset(Dataset):
             mix_idx = random.randint(0, len(self.data) - 1)
             mix_datum = self.data[mix_idx]
             
-            w1, sr1 = torchaudio.load(datum['wav'])
-            w2, sr2 = torchaudio.load(mix_datum['wav'])
+            w1, sr1 = torchaudio.load(remap_wav_path(datum['wav']))
+            w2, sr2 = torchaudio.load(remap_wav_path(mix_datum['wav']))
             
             if w1.shape[0] == 1:
                 logging.warning("Mono waveform encountered in mixup w1; duplicating to 2 channels.")
@@ -318,7 +319,7 @@ class BinauralSTFTClassificationDataset(Dataset):
             label_vector = torch.tensor(mix_lambda * lbl1 + (1.0 - mix_lambda) * lbl2, dtype=torch.float32)
             return stft_4ch, label_vector
         else:
-            w, sr = torchaudio.load(datum['wav'])
+            w, sr = torchaudio.load(remap_wav_path(datum['wav']))
             stft_4ch = wav2stft(
                 w,
                 n_fft=self.n_fft,

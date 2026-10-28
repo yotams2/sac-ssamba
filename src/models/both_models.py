@@ -17,12 +17,12 @@ from timm.models.layers import to_2tuple
 from random import randrange
 from matplotlib import pyplot as plt
 import random
-sys.path.insert(0, '/scratch/yotam/ssamba/Vim')
-sys.path.insert(0, '/scratch/yotam/ssamba/Vim/vim')
-sys.path.insert(0, '/scratch/yotam/ssamba/Vim/mamba-1p1p1')
-sys.path.insert(0, '/storage/yotam/ssamba/Vim')
-sys.path.insert(0, '/storage/yotam/ssamba/Vim/vim')
-sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
+import os
+# Vision Mamba checkout (git clone https://github.com/hustvl/Vim.git); defaults to <repo>/Vim
+VIM_ROOT = os.environ.get('VIM_ROOT', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Vim')))
+sys.path.insert(0, VIM_ROOT)
+sys.path.insert(0, os.path.join(VIM_ROOT, 'vim'))
+sys.path.insert(0, os.path.join(VIM_ROOT, 'mamba-1p1p1'))
 
 
 try:
