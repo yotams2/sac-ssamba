@@ -45,6 +45,7 @@ class BinauralSSAMBASACModel(nn.Module):
         sac_spec_lambda=1.0,
         sac_spat_lambda=1.0,
         recon_lambda=1.0,
+        classif_lambda=0.0,
         spectral_features="f0,hnr,centroid,flux,zcr",
         spatial_features="spatial",
         vision_mamba_config=None,
@@ -61,6 +62,7 @@ class BinauralSSAMBASACModel(nn.Module):
         self.sac_spec_lambda = sac_spec_lambda
         self.sac_spat_lambda = sac_spat_lambda
         self.recon_lambda = recon_lambda
+        self.classif_lambda = classif_lambda
         self.use_checkpointing = use_checkpointing
         self.local_sigma_mode = local_sigma_mode
         self.fshape = fshape
@@ -101,6 +103,13 @@ class BinauralSSAMBASACModel(nn.Module):
         patch_dim = 2 * fshape * tshape # Re_L and Im_L for 1st mic
         self.reconstruction_decoder = nn.Sequential(
             nn.Linear(2 * embed_dim, embed_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(embed_dim, patch_dim)
+        )
+
+        # Masked Patch Classification Head (MPC, attached to h_spec)
+        self.classif_head = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim),
             nn.ReLU(inplace=True),
             nn.Linear(embed_dim, patch_dim)
         )
@@ -172,6 +181,66 @@ class BinauralSSAMBASACModel(nn.Module):
         denom = patch_w.sum() * patch_dim + 1e-8
         loss_recon = torch.sum(patch_w * (pred_patches - target_patches) ** 2) / denom
         return loss_recon
+
+    def _compute_classification_loss(self, h_spec, X, W):
+        """
+        Masked Patch Classification (MPC) InfoNCE loss per SSAMBA / SSAST.
+        Operates on spectral encoder representations (h_spec) predicting masked raw patches of Channel 1.
+        """
+        B = X.shape[0]
+        # Exclude CLS token (index 0)
+        h_spec_patch = h_spec[:, 1:, :] # [B, num_patches, D]
+        pred_patches = self.classif_head(h_spec_patch) # [B, num_patches, patch_dim]
+        
+        # Target: unfold Channel 1 (Re_L, Im_L) raw STFT patches
+        X_ch1 = X[:, :2, :, :]
+        unfold = torch.nn.Unfold(kernel_size=(self.fshape, self.tshape), stride=(self.fshape, self.tshape))
+        target_patches = unfold(X_ch1).transpose(1, 2) # [B, num_patches, patch_dim]
+        
+        # Masked region weights (where W == 0)
+        masked_weights = (1.0 - W).squeeze(1).squeeze(1) # [B, T]
+        patch_w = F.adaptive_avg_pool1d(masked_weights.unsqueeze(1), pred_patches.shape[1]).transpose(1, 2) # [B, num_patches, 1]
+        
+        mask = (patch_w.squeeze(-1) > 0.5) # [B, num_patches]
+        counts = mask.sum(dim=1)
+        
+        if (counts == counts[0]).all() and counts[0] > 1:
+            M = counts[0].item()
+            # Vectorized computation across batch in FP32 for numerical stability
+            y_masked = target_patches[mask].view(B, M, -1).float() # [B, M, patch_dim]
+            p_masked = pred_patches[mask].view(B, M, -1).float()   # [B, M, patch_dim]
+            
+            # total: [B, M, M] where total[b, j, k] = y[b, j] . p[b, k]
+            total = torch.bmm(y_masked, p_masked.transpose(1, 2))
+            
+            # InfoNCE log_softmax over true candidate patches (dim 1)
+            log_prob = F.log_softmax(total, dim=1) # [B, M, M]
+            diag_log_prob = torch.diagonal(log_prob, dim1=1, dim2=2) # [B, M]
+            loss_classif = -diag_log_prob.mean()
+            
+            pred_id = torch.argmax(total, dim=1) # [B, M]
+            target_id = torch.arange(M, device=X.device).unsqueeze(0).expand(B, -1)
+            acc_classif = (pred_id == target_id).float().mean()
+            return loss_classif, acc_classif
+        else:
+            losses = []
+            accs = []
+            for b in range(B):
+                m_b = mask[b]
+                M_b = m_b.sum().item()
+                if M_b <= 1:
+                    continue
+                y_b = target_patches[b, m_b].float()
+                p_b = pred_patches[b, m_b].float()
+                total_b = torch.mm(y_b, p_b.T)
+                log_prob_b = F.log_softmax(total_b, dim=0)
+                losses.append(-torch.diag(log_prob_b).mean())
+                pred_id_b = torch.argmax(total_b, dim=0)
+                accs.append((pred_id_b == torch.arange(M_b, device=X.device)).float().mean())
+            if len(losses) > 0:
+                return torch.stack(losses).mean(), torch.stack(accs).mean()
+            else:
+                return torch.tensor(0.0, device=X.device), torch.tensor(0.0, device=X.device)
 
     def _compute_factorized_sac(self, z_groups, c_group_indices, num_groups, eps=1e-8, return_diagnostics=False):
         """
@@ -359,6 +428,13 @@ class BinauralSSAMBASACModel(nn.Module):
         else:
             loss_recon = torch.tensor(0.0, device=X.device)
             
+        # 2.1 Masked Patch Classification Loss (MPC)
+        if self.classif_lambda > 0:
+            loss_classif, acc_classif = self._compute_classification_loss(h_spec_masked, X, W)
+        else:
+            loss_classif = torch.tensor(0.0, device=X.device)
+            acc_classif = torch.tensor(0.0, device=X.device)
+            
         # 2.5. Dual Encoder Pass (Unmasked, for SAC)
         if (self.sac_spec_lambda > 0 and c_mono is not None) or (self.sac_spat_lambda > 0 and c_spatial is not None):
             with torch.no_grad() if not self.training else torch.enable_grad():
@@ -447,6 +523,7 @@ class BinauralSSAMBASACModel(nn.Module):
         # 5. Total Weighted Loss
         loss_total = (
             self.recon_lambda * loss_recon +
+            self.classif_lambda * loss_classif +
             self.sac_spec_lambda * loss_sac_spec +
             self.sac_spat_lambda * loss_sac_spat
         )
@@ -454,6 +531,8 @@ class BinauralSSAMBASACModel(nn.Module):
         output = {
             'loss_total': loss_total,
             'loss_recon': loss_recon,
+            'loss_classif': loss_classif,
+            'acc_classif': acc_classif,
             'loss_sac_spec': loss_sac_spec,
             'loss_sac_spat': loss_sac_spat,
             'entropies_spec': entropies_spec,

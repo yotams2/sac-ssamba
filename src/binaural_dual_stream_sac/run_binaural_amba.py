@@ -132,6 +132,7 @@ def verify_synthetic_forward_pass(device='cpu'):
         sac_spec_lambda=1.0,
         sac_spat_lambda=1.0,
         recon_lambda=1.0,
+        classif_lambda=0.1,
         local_sigma_mode='offline_global_median',
         share_encoder_weights=False,
         vision_mamba_config={'fused_add_norm': False if device == 'cpu' else True},
@@ -150,6 +151,7 @@ def verify_synthetic_forward_pass(device='cpu'):
     print(f"✓ Spatial Features c_spatial Shape: {dummy_c_spatial.shape}")
     print(f"✓ Loss Total:     {out['loss_total'].item():.4f}")
     print(f"✓ Loss Recon:     {out['loss_recon'].item():.4f}")
+    print(f"✓ Loss Classif:   {out['loss_classif'].item():.4f} (Acc: {out['acc_classif'].item()*100:.2f}%)")
     print(f"✓ Loss SAC Spec:  {out['loss_sac_spec'].item():.4f}")
     print(f"✓ Loss SAC Spat:  {out['loss_sac_spat'].item():.4f}")
     
@@ -165,6 +167,8 @@ def validate_binaural_sac(model, val_loader, device):
     model.eval()
     losses_total = []
     losses_recon = []
+    losses_classif = []
+    accs_classif = []
     losses_spec = []
     losses_spat = []
 
@@ -178,20 +182,26 @@ def validate_binaural_sac(model, val_loader, device):
             if isinstance(out, dict):
                 loss_total = out['loss_total'].mean()
                 loss_recon = out['loss_recon'].mean()
+                loss_classif = out['loss_classif'].mean() if 'loss_classif' in out else torch.tensor(0.0)
+                acc_classif = out['acc_classif'].mean() if 'acc_classif' in out else torch.tensor(0.0)
                 loss_spec = out['loss_sac_spec'].mean()
                 loss_spat = out['loss_sac_spat'].mean()
             else:
                 loss_total = out.mean()
-                loss_recon, loss_spec, loss_spat = loss_total, loss_total, loss_total
+                loss_recon, loss_classif, acc_classif, loss_spec, loss_spat = loss_total, torch.tensor(0.0), torch.tensor(0.0), loss_total, loss_total
 
             losses_total.append(loss_total.item())
             losses_recon.append(loss_recon.item())
+            losses_classif.append(loss_classif.item())
+            accs_classif.append(acc_classif.item())
             losses_spec.append(loss_spec.item())
             losses_spat.append(loss_spat.item())
 
     return {
         'val_loss_total': float(np.mean(losses_total)),
         'val_loss_recon': float(np.mean(losses_recon)),
+        'val_loss_classif': float(np.mean(losses_classif)),
+        'val_acc_classif': float(np.mean(accs_classif)),
         'val_loss_spec': float(np.mean(losses_spec)),
         'val_loss_spat': float(np.mean(losses_spat)),
     }
@@ -219,6 +229,7 @@ def main():
     parser.add_argument('--sac_spec_lambda', type=float, default=1.0, help="Weight for Spectral SAC loss")
     parser.add_argument('--sac_spat_lambda', type=float, default=1.0, help="Weight for Spatial SAC loss")
     parser.add_argument('--recon_lambda', type=float, default=1.0, help="Weight for reconstruction loss")
+    parser.add_argument('--classif_lambda', type=float, default=0.0, help="Weight for Masked Patch Classification (MPC) loss")
     
     # SAC Temperatures
     parser.add_argument('--spec_sac_temperature', type=float, default=0.3, help="Temperature for Spectral SAC loss")
@@ -294,6 +305,7 @@ def main():
         sac_spec_lambda=args.sac_spec_lambda,
         sac_spat_lambda=args.sac_spat_lambda,
         recon_lambda=args.recon_lambda,
+        classif_lambda=args.classif_lambda,
         spec_sac_temperature=args.spec_sac_temperature,
         spat_sac_temperature=args.spat_sac_temperature,
         local_sigma_mode=args.local_sigma_mode,
@@ -353,6 +365,8 @@ def main():
     start_time = time.time()
     loss_meter = AverageMeter()
     recon_meter = AverageMeter()
+    classif_meter = AverageMeter()
+    classif_acc_meter = AverageMeter()
     spec_meter = AverageMeter()
     spat_meter = AverageMeter()
     
@@ -517,15 +531,26 @@ def main():
             B = X.size(0)
             loss_meter.update(loss.item(), B)
             recon_meter.update(out['loss_recon'].item(), B)
+            if 'loss_classif' in out:
+                classif_meter.update(out['loss_classif'].item(), B)
+            if 'acc_classif' in out:
+                classif_acc_meter.update(out['acc_classif'].item(), B)
             spec_meter.update(out['loss_sac_spec'].item(), B)
             spat_meter.update(out['loss_sac_spat'].item(), B)
 
             # Step Logging
             if (global_step % args.n_print_steps == 0 or global_step == 1) and global_step > 0:
-                print(f'Epoch [{epoch}][{batch_idx}/{len(train_loader)}] '
-                      f'Total: {loss_meter.avg:.4f} | Recon: {recon_meter.avg:.4f} | '
-                      f'Spec SAC: {spec_meter.avg:.4f} | Spat SAC: {spat_meter.avg:.4f} | '
-                      f'LR: {optimizer.param_groups[0]["lr"]:.2e}', flush=True)
+                log_str = (
+                    f'Epoch [{epoch}][{batch_idx}/{len(train_loader)}] '
+                    f'Total: {loss_meter.avg:.4f} | Recon: {recon_meter.avg:.4f}'
+                )
+                if args.classif_lambda > 0:
+                    log_str += f' | MPC: {classif_meter.avg:.4f} (Acc: {classif_acc_meter.avg*100:.2f}%)'
+                log_str += (
+                    f' | Spec SAC: {spec_meter.avg:.4f} | Spat SAC: {spat_meter.avg:.4f} | '
+                    f'LR: {optimizer.param_groups[0]["lr"]:.2e}'
+                )
+                print(log_str, flush=True)
 
                 if args.use_wandb:
                     import wandb
@@ -538,6 +563,9 @@ def main():
                         'step': global_step,
                         'epoch': epoch,
                     }
+                    if args.classif_lambda > 0:
+                        log_dict['train/loss_classif'] = classif_meter.avg
+                        log_dict['train/acc_classif'] = classif_acc_meter.avg
                     if 'entropies_spec' in out and isinstance(out['entropies_spec'], dict):
                         for g_name, ent_val in out['entropies_spec'].items():
                             if isinstance(ent_val, torch.Tensor):
@@ -555,18 +583,27 @@ def main():
                 val_res = validate_binaural_sac(model, val_loader, device)
                 val_loss = val_res['val_loss_total']
 
-                print(f'  Val Loss Total: {val_loss:.4f} | Recon: {val_res["val_loss_recon"]:.4f} | '
-                      f'Spec: {val_res["val_loss_spec"]:.4f} | Spat: {val_res["val_loss_spat"]:.4f}')
+                val_print_str = (
+                    f'  Val Loss Total: {val_loss:.4f} | Recon: {val_res["val_loss_recon"]:.4f}'
+                )
+                if args.classif_lambda > 0:
+                    val_print_str += f' | MPC: {val_res["val_loss_classif"]:.4f} (Acc: {val_res["val_acc_classif"]*100:.2f}%)'
+                val_print_str += f' | Spec: {val_res["val_loss_spec"]:.4f} | Spat: {val_res["val_loss_spat"]:.4f}'
+                print(val_print_str)
 
                 if args.use_wandb:
                     import wandb
-                    wandb.log({
+                    val_wandb_dict = {
                         'val/loss_total': val_res['val_loss_total'],
                         'val/loss_recon': val_res['val_loss_recon'],
                         'val/loss_sac_spec': val_res['val_loss_spec'],
                         'val/loss_sac_spat': val_res['val_loss_spat'],
                         'step': global_step,
-                    })
+                    }
+                    if args.classif_lambda > 0:
+                        val_wandb_dict['val/loss_classif'] = val_res['val_loss_classif']
+                        val_wandb_dict['val/acc_classif'] = val_res['val_acc_classif']
+                    wandb.log(val_wandb_dict)
 
                 # Save periodic checkpoint
                 save_path = os.path.join(args.exp_dir, 'models', f'audio_model.{equ_epoch}.pth')
@@ -586,6 +623,8 @@ def main():
 
                 loss_meter.reset()
                 recon_meter.reset()
+                classif_meter.reset()
+                classif_acc_meter.reset()
                 spec_meter.reset()
                 spat_meter.reset()
                 model.train()

@@ -19,6 +19,49 @@ def generate_ccsr_time_mask(T, mask_ratio=0.5):
     return W.view(1, 1, T)
 
 
+import logging
+
+
+def wav2stft(waveform, n_fft=512, hop_length=160, target_freq_bins=256, target_length=1024):
+    """
+    Extracts 4-channel Complex STFT: [4, F, T] from a 1D or 2D waveform tensor.
+    If waveform is mono (1 channel), duplicates to 2 channels and logs a warning.
+    """
+    if waveform.ndim == 1:
+        waveform = waveform.unsqueeze(0)
+
+    if waveform.shape[0] == 1:
+        logging.warning("Mono waveform encountered; duplicating to 2 channels for binaural STFT.")
+        waveform = waveform.repeat(2, 1)
+    elif waveform.shape[0] > 2:
+        waveform = waveform[:2, :]
+
+    # STFT extraction for Left and Right channels
+    stft_L = torch.stft(waveform[0], n_fft=n_fft, hop_length=hop_length, return_complex=True)
+    stft_R = torch.stft(waveform[1], n_fft=n_fft, hop_length=hop_length, return_complex=True)
+
+    # Stack [Re_L, Im_L, Re_R, Im_R] -> [4, F, T]
+    stft_4ch = torch.stack([
+        stft_L.real, stft_L.imag,
+        stft_R.real, stft_R.imag
+    ], dim=0)
+
+    # Truncate frequency dimension to target_freq_bins (e.g. 256) for patch divisibility
+    if stft_4ch.shape[1] > target_freq_bins:
+        stft_4ch = stft_4ch[:, :target_freq_bins, :]
+    elif stft_4ch.shape[1] < target_freq_bins:
+        stft_4ch = F.pad(stft_4ch, (0, 0, 0, target_freq_bins - stft_4ch.shape[1]))
+
+    # Cut or pad time dimension to target_length (e.g. 1024 frames)
+    T = stft_4ch.shape[2]
+    if T < target_length:
+        stft_4ch = F.pad(stft_4ch, (0, target_length - T))
+    elif T > target_length:
+        stft_4ch = stft_4ch[:, :, :target_length]
+
+    return stft_4ch
+
+
 class BinauralAudioDataset(Dataset):
     """
     Dataset for loading 2-channel binaural audio, extracting 4-channel Complex STFT,
@@ -40,39 +83,16 @@ class BinauralAudioDataset(Dataset):
 
     def _wav2stft(self, filename):
         """
-        Loads 2-channel WAV audio and extracts 4-channel Complex STFT: [4, F, T].
+        Loads WAV audio and extracts 4-channel Complex STFT: [4, F, T].
         """
         waveform, sr = torchaudio.load(filename)
-        
-        # Ensure 2 channels
-        if waveform.shape[0] == 1:
-            waveform = waveform.repeat(2, 1)
-        elif waveform.shape[0] > 2:
-            waveform = waveform[:2, :]
-
-        # STFT extraction for Left and Right channels
-        stft_L = torch.stft(waveform[0], n_fft=self.n_fft, hop_length=self.hop_length, return_complex=True)
-        stft_R = torch.stft(waveform[1], n_fft=self.n_fft, hop_length=self.hop_length, return_complex=True)
-
-        # Stack [Re_L, Im_L, Re_R, Im_R] -> [4, F, T]
-        stft_4ch = torch.stack([
-            stft_L.real, stft_L.imag,
-            stft_R.real, stft_R.imag
-        ], dim=0)
-
-        # Truncate frequency dimension to target_freq_bins (e.g. 256) for patch divisibility
-        if stft_4ch.shape[1] > self.target_freq_bins:
-            stft_4ch = stft_4ch[:, :self.target_freq_bins, :]
-        elif stft_4ch.shape[1] < self.target_freq_bins:
-            stft_4ch = F.pad(stft_4ch, (0, 0, 0, self.target_freq_bins - stft_4ch.shape[1]))
-
-        # Cut or pad time dimension to target_length (e.g. 1024 frames)
-        T = stft_4ch.shape[2]
-        if T < self.target_length:
-            stft_4ch = F.pad(stft_4ch, (0, self.target_length - T))
-        elif T > self.target_length:
-            stft_4ch = stft_4ch[:, :, :self.target_length]
-
+        stft_4ch = wav2stft(
+            waveform,
+            n_fft=self.n_fft,
+            hop_length=self.hop_length,
+            target_freq_bins=self.target_freq_bins,
+            target_length=self.target_length
+        )
         return stft_4ch, waveform, sr
 
     def __getitem__(self, index):

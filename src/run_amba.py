@@ -15,12 +15,14 @@ from models import AMBAModel
 import numpy as np
 from traintest import train, validate
 from traintest_mask import trainmask
-import sys
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 sys.path.append('/share/naplab/users/ss6928/ssast/modules')
 
 class BinauralSACClassifier(torch.nn.Module):
-    def __init__(self, ckpt, label_dim):
+    def __init__(self, ckpt, label_dim, pool_real_time_only=False):
         super().__init__()
         import sys
         sys.path.insert(0, '/storage/yotam/ssamba/src')
@@ -44,21 +46,27 @@ class BinauralSACClassifier(torch.nn.Module):
             torch.nn.LayerNorm(self.encoder_dim),
             torch.nn.Linear(self.encoder_dim, label_dim)
         )
+        self.pool_real_time_only = pool_real_time_only
         
     def forward(self, x, task=None, cluster=None, mask_patch=None):
-        # x is [B, T_frames, F_bins]
-        x_mono = x.transpose(1, 2).unsqueeze(1) # [B, 1, F, T]
-        x_4ch = x_mono.repeat(1, 4, 1, 1).to(x.device)
-        
-        # Ensure dimensions match expected (256, 1024) for the pre-trained positional embeddings
-        if x_4ch.shape[-2] != 256 or x_4ch.shape[-1] != 1024:
-            x_4ch = torch.nn.functional.interpolate(x_4ch, size=(256, 1024), mode='bilinear', align_corners=False)
-        
-        h = self.spectral_encoder._encode_with_mamba(x_4ch)
+        # x is [B, 4, 256, 1024] 4-channel complex STFT directly
+        h = self.spectral_encoder._encode_with_mamba(x)
         
         if task == 'ft_avgtok':
-            h = h[:, 1:, :] # Skip the CLS token
-            h_pool = h.mean(dim=1)
+            h_tokens = h[:, 1:, :] # Skip the CLS token -> [B, 1024, D]
+            if self.pool_real_time_only:
+                # Patch grid: 16 frequency x 64 time patches.
+                # Average only over time frames that hold real audio.
+                x_time_energy = x.abs().sum(dim=(1, 2)) # [B, 1024]
+                patch_energy = x_time_energy.view(x.size(0), 64, 16).sum(dim=-1) # [B, 64]
+                time_mask = (patch_energy > 0).float() # [B, 64]
+                zero_mask = (time_mask.sum(dim=-1, keepdim=True) == 0)
+                time_mask = torch.where(zero_mask, torch.ones_like(time_mask), time_mask)
+                h_grid = h_tokens.reshape(x.size(0), 16, 64, -1) # [B, 16, 64, D]
+                h_masked = h_grid * time_mask.unsqueeze(1).unsqueeze(-1)
+                h_pool = h_masked.sum(dim=(1, 2)) / (16.0 * time_mask.sum(dim=-1, keepdim=True))
+            else:
+                h_pool = h_tokens.mean(dim=1)
         elif task == 'ft_cls':
             h_pool = h[:, 0, :]
         else:
@@ -67,7 +75,7 @@ class BinauralSACClassifier(torch.nn.Module):
         return self.mlp_head(h_pool)
 
 
-print("I am process %s, running on %s: starting (%s)" % (os.getpid(), os.uname()[1], time.asctime()))
+
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--data-train", type=str, default=None, help="training data json")
@@ -163,173 +171,167 @@ parser.add_argument('--if_cls_token', type=str, choices=['true', 'false'], defau
 parser.add_argument('--if_devide_out', type=str, choices=['true', 'false'], default='false')
 parser.add_argument('--use_double_cls_token', type=str, choices=['true', 'false'], default='false')
 parser.add_argument('--use_middle_cls_token', type=str, choices=['true', 'false'], default='false')
+parser.add_argument('--pool_real_time_only', help='if average only over real audio time frames for binaural_sac', type=ast.literal_eval, default='False')
 
 
-args = parser.parse_args()
-if args.use_wandb:
-    project_name = "SSAMBA"  # default project name
-    if args.dataset == "esc50":
-        project_name = "amba_esc"
-    elif args.dataset == "audioset":
-        project_name = "amba_as"
-    elif args.dataset == "speechcommands":
-        project_name = "amba_sc"
-    
-    if args.wandb_id:
-        wandb.init(project=project_name, config=args, id=args.wandb_id, resume="must")
+
+def main():
+    print("I am process %s, running on %s: starting (%s)" % (os.getpid(), os.uname()[1], time.asctime()))
+    args = parser.parse_args()
+    if args.use_wandb and wandb is not None:
+        project_name = "SSAMBA"  # default project name
+        if args.dataset == "esc50":
+            project_name = "amba_esc"
+        elif args.dataset == "audioset":
+            project_name = "amba_as"
+        elif args.dataset == "speechcommands":
+            project_name = "amba_sc"
+        
+        if args.wandb_id:
+            wandb.init(project=project_name, config=args, id=args.wandb_id, resume="must")
+        else:
+            wandb.init(project=project_name, config=args)
+
+    args.rms_norm = args.rms_norm == 'true'
+    args.residual_in_fp32 = args.residual_in_fp32 == 'true'
+    args.fused_add_norm = args.fused_add_norm == 'true'
+    args.if_rope = args.if_rope == 'true'
+    args.if_rope_residual = args.if_rope_residual == 'true'
+    args.if_bidirectional = args.if_bidirectional == 'true'
+    args.if_abs_pos_embed = args.if_abs_pos_embed == 'true'
+    args.if_bimamba = args.if_bimamba == 'true'
+    args.if_cls_token = args.if_cls_token == 'true'
+    args.if_devide_out = args.if_devide_out == 'true'
+    args.use_double_cls_token = args.use_double_cls_token == 'true'
+    args.use_middle_cls_token = args.use_middle_cls_token == 'true'
+
+    audio_conf = {'num_mel_bins': args.num_mel_bins, 'target_length': args.target_length, 'freqm': args.freqm, 'timem': args.timem, 'mixup': args.mixup, 'dataset': args.dataset,
+                  'mode':'train', 'mean':args.dataset_mean, 'std':args.dataset_std, 'noise':args.noise}
+
+    val_audio_conf = {'num_mel_bins': args.num_mel_bins, 'target_length': args.target_length, 'freqm': 0, 'timem': 0, 'mixup': 0, 'dataset': args.dataset,
+                      'mode': 'evaluation', 'mean': args.dataset_mean, 'std': args.dataset_std, 'noise': False}
+
+    dataset_class = dataloader.BinauralSTFTClassificationDataset if args.model_size == 'binaural_sac' else dataloader.AudioDataset
+
+    if args.bal == 'bal':
+        print('balanced sampler is being used')
+        samples_weight = np.loadtxt(args.data_train[:-5]+'_weight.csv', delimiter=',')
+        sampler = WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
+
+        train_loader = torch.utils.data.DataLoader(
+            dataset_class(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf),
+            batch_size=args.batch_size, sampler=sampler, num_workers=args.num_workers, pin_memory=False, drop_last=True)
     else:
-        wandb.init(project=project_name, config=args)
-    
+        print('balanced sampler is not used')
+        train_loader = torch.utils.data.DataLoader(
+            dataset_class(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf),
+            batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False, drop_last=True)
+        
+    dataset = dataset_class(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf)
+    print(f"Dataset size: {len(dataset)}")
+    print(f"Number of batches: {len(train_loader)}")
 
-args.rms_norm = args.rms_norm == 'true'
-args.residual_in_fp32 = args.residual_in_fp32 == 'true'
-args.fused_add_norm = args.fused_add_norm == 'true'
-args.if_rope = args.if_rope == 'true'
-args.if_rope_residual = args.if_rope_residual == 'true'
-args.if_bidirectional = args.if_bidirectional == 'true'
-args.if_abs_pos_embed = args.if_abs_pos_embed == 'true'
-args.if_bimamba = args.if_bimamba == 'true'
-args.if_cls_token = args.if_cls_token == 'true'
-args.if_devide_out = args.if_devide_out == 'true'
-args.use_double_cls_token = args.use_double_cls_token == 'true'
-args.use_middle_cls_token = args.use_middle_cls_token == 'true'
+    val_loader = torch.utils.data.DataLoader(
+        dataset_class(args.data_val, label_csv=args.label_csv, audio_conf=val_audio_conf),
+        batch_size=args.batch_size * 2, shuffle=False, num_workers=args.num_workers, pin_memory=False)
 
-# # dataset spectrogram mean and std, used to normalize the input
-# norm_stats = {'librispeech':[-4.2677393, 4.5689974], 'howto100m':[-4.2677393, 4.5689974], 'audioset':[-4.2677393, 4.5689974], 'esc50':[-6.6268077, 5.358466], 'speechcommands':[-6.845978, 5.5654526]}
-# target_length = {'librispeech': 1024, 'howto100m':1024, 'audioset':1024, 'esc50':512, 'speechcommands':128}
-# # if add noise for data augmentation, only use for speech commands
-# noise = {'librispeech': False, 'howto100m': False, 'audioset': False, 'esc50': False, 'speechcommands':True}
+    print('Now train with {:s} with {:d} training samples, evaluate with {:d} samples'.format(args.dataset, len(train_loader.dataset), len(val_loader.dataset)))
 
-audio_conf = {'num_mel_bins': args.num_mel_bins, 'target_length': args.target_length, 'freqm': args.freqm, 'timem': args.timem, 'mixup': args.mixup, 'dataset': args.dataset,
-              'mode':'train', 'mean':args.dataset_mean, 'std':args.dataset_std, 'noise':args.noise}
+    vision_mamba_config = {
+        'img_size': (args.num_mel_bins, args.target_length),
+        'patch_size': args.patch_size,
+        'stride': args.stride,
+        'embed_dim': args.embed_dim,
+        'depth': args.depth,
+        'channels': args.channels,
+        'num_classes': args.num_classes,
+        'drop_rate': args.drop_rate,
+        'drop_path_rate': args.drop_path_rate,
+        'norm_epsilon': args.norm_epsilon,
+        'rms_norm': args.rms_norm,
+        'residual_in_fp32': args.residual_in_fp32,
+        'fused_add_norm': args.fused_add_norm,
+        'if_rope': args.if_rope,
+        'if_rope_residual': args.if_rope_residual,
+        'bimamba_type': args.bimamba_type,
+        'if_bidirectional': args.if_bidirectional,
+        'final_pool_type': args.final_pool_type,
+        'if_abs_pos_embed': args.if_abs_pos_embed,
+        'if_bimamba': args.if_bimamba,
+        'if_cls_token': args.if_cls_token,
+        'if_devide_out': args.if_devide_out,
+        'use_double_cls_token': args.use_double_cls_token,
+        'use_middle_cls_token': args.use_middle_cls_token,
+    }
 
-val_audio_conf = {'num_mel_bins': args.num_mel_bins, 'target_length': args.target_length, 'freqm': 0, 'timem': 0, 'mixup': 0, 'dataset': args.dataset,
-                  'mode': 'evaluation', 'mean': args.dataset_mean, 'std': args.dataset_std, 'noise': False}
-
-# if use balanced sampling, note - self-supervised pretraining should not use balance sampling as it implicitly leverages the label information.
-if args.bal == 'bal':
-    print('balanced sampler is being used')
-    samples_weight = np.loadtxt(args.data_train[:-5]+'_weight.csv', delimiter=',')
-    sampler = WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
-
-    train_loader = torch.utils.data.DataLoader(
-        dataloader.AudioDataset(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf),
-        batch_size=args.batch_size, sampler=sampler, num_workers=args.num_workers, pin_memory=False, drop_last=True)
-else:
-    print('balanced sampler is not used')
-    train_loader = torch.utils.data.DataLoader(
-        dataloader.AudioDataset(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf),
-        batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False, drop_last=True)
-    
-dataset = dataloader.AudioDataset(args.data_train, label_csv=args.label_csv, audio_conf=audio_conf)
-print(f"Dataset size: {len(dataset)}")
-print(f"Number of batches: {len(train_loader)}")
-
-val_loader = torch.utils.data.DataLoader(
-    dataloader.AudioDataset(args.data_val, label_csv=args.label_csv, audio_conf=val_audio_conf),
-    batch_size=args.batch_size * 2, shuffle=False, num_workers=args.num_workers, pin_memory=False)
-
-print('Now train with {:s} with {:d} training samples, evaluate with {:d} samples'.format(args.dataset, len(train_loader.dataset), len(val_loader.dataset)))
-
-vision_mamba_config = {
-    'img_size': (args.num_mel_bins, args.target_length),
-    'patch_size': args.patch_size,
-    'stride': args.stride,
-    'embed_dim': args.embed_dim,
-    'depth': args.depth,
-    'channels': args.channels,
-    'num_classes': args.num_classes,
-    'drop_rate': args.drop_rate,
-    'drop_path_rate': args.drop_path_rate,
-    'norm_epsilon': args.norm_epsilon,
-    'rms_norm': args.rms_norm,
-    'residual_in_fp32': args.residual_in_fp32,
-    'fused_add_norm': args.fused_add_norm,
-    'if_rope': args.if_rope,
-    'if_rope_residual': args.if_rope_residual,
-    'bimamba_type': args.bimamba_type,
-    'if_bidirectional': args.if_bidirectional,
-    'final_pool_type': args.final_pool_type,
-    'if_abs_pos_embed': args.if_abs_pos_embed,
-    'if_bimamba': args.if_bimamba,
-    'if_cls_token': args.if_cls_token,
-    'if_devide_out': args.if_devide_out,
-    'use_double_cls_token': args.use_double_cls_token,
-    'use_middle_cls_token': args.use_middle_cls_token,
-}
-
-#print("vision_mamba_config.size",vision_mamba_config["img_size"])
-# in the pretraining stage
-if 'pretrain' in args.task:
-    cluster = (args.num_mel_bins != args.fshape)
-    if cluster == True:
-        print('The num_mel_bins {:d} and fshape {:d} are different, not masking a typical time frame, using cluster masking.'.format(args.num_mel_bins, args.fshape))
+    if 'pretrain' in args.task:
+        cluster = (args.num_mel_bins != args.fshape)
+        if cluster == True:
+            print('The num_mel_bins {:d} and fshape {:d} are different, not masking a typical time frame, using cluster masking.'.format(args.num_mel_bins, args.fshape))
+        else:
+            print('The num_mel_bins {:d} and fshape {:d} are same, masking a typical time frame, not using cluster masking.'.format(args.num_mel_bins, args.fshape))
+        audio_model = AMBAModel(fshape=args.fshape, tshape=args.tshape, fstride=args.fshape, tstride=args.tshape,
+                           input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=True, vision_mamba_config=vision_mamba_config)
     else:
-        print('The num_mel_bins {:d} and fshape {:d} are same, masking a typical time frame, not using cluster masking.'.format(args.num_mel_bins, args.fshape))
-    # no label dimension needed as it is self-supervised, fshape=fstride and tshape=tstride
-    audio_model = AMBAModel(fshape=args.fshape, tshape=args.tshape, fstride=args.fshape, tstride=args.tshape,
-                       input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=True, vision_mamba_config=vision_mamba_config)
-# in the fine-tuning stage
-else:
-    if args.model_size == 'binaural_sac':
-        audio_model = BinauralSACClassifier(args.pretrained_mdl_path, args.n_class)
-    else:
-        audio_model = AMBAModel(label_dim=args.n_class, fshape=args.fshape, tshape=args.tshape, fstride=args.fstride, tstride=args.tstride,
-                           input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=False,
-                           load_pretrained_mdl_path=args.pretrained_mdl_path, vision_mamba_config=vision_mamba_config)
+        if args.model_size == 'binaural_sac':
+            pool_real_time_only = getattr(args, 'pool_real_time_only', False)
+            audio_model = BinauralSACClassifier(args.pretrained_mdl_path, args.n_class, pool_real_time_only=pool_real_time_only)
+        else:
+            audio_model = AMBAModel(label_dim=args.n_class, fshape=args.fshape, tshape=args.tshape, fstride=args.fstride, tstride=args.tstride,
+                               input_fdim=args.num_mel_bins, input_tdim=args.target_length, model_size=args.model_size, pretrain_stage=False,
+                               load_pretrained_mdl_path=args.pretrained_mdl_path, vision_mamba_config=vision_mamba_config)
 
-if args.freeze_base:
-    print('Freezing base encoder parameters for linear probing...')
-    for name, p in audio_model.named_parameters():
-        if 'mlp_head' not in name:
-            p.requires_grad = False
+    if args.freeze_base:
+        print('Freezing base encoder parameters for linear probing...')
+        for name, p in audio_model.named_parameters():
+            if 'mlp_head' not in name:
+                p.requires_grad = False
 
-if not isinstance(audio_model, torch.nn.DataParallel):
-    audio_model = torch.nn.DataParallel(audio_model)
-
-print("\nCreating experiment directory: %s" % args.exp_dir)
-if os.path.exists("%s/models" % args.exp_dir) == False:
-    os.makedirs("%s/models" % args.exp_dir)
-with open("%s/args.pkl" % args.exp_dir, "wb") as f:
-    pickle.dump(args, f)
-
-if 'pretrain' not in args.task:
-    print('Now starting fine-tuning for {:d} epochs'.format(args.n_epochs))
-    train(audio_model, train_loader, val_loader, args)
-else:
-    print('Now starting self-supervised pretraining for {:d} epochs'.format(args.n_epochs))
-    trainmask(audio_model, train_loader, val_loader, args)
-
-# if the dataset has a seperate evaluation set (e.g., speechcommands), then select the model using the validation set and eval on the evaluation set.
-# this is only for fine-tuning
-if args.data_eval != None:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    sd = torch.load(args.exp_dir + '/models/best_audio_model.pth', map_location=device)
     if not isinstance(audio_model, torch.nn.DataParallel):
         audio_model = torch.nn.DataParallel(audio_model)
-    audio_model.load_state_dict(sd, strict=False)
 
-    # best models on the validation set
-    args.loss_fn = torch.nn.BCEWithLogitsLoss()
-    stats, _ = validate(audio_model, val_loader, args, 'valid_set')
-    # note it is NOT mean of class-wise accuracy
-    val_acc = stats[0]['acc']
-    val_mAUC = np.mean([stat['auc'] for stat in stats])
-    print('---------------evaluate on the validation set---------------')
-    print("Accuracy: {:.6f}".format(val_acc))
-    print("AUC: {:.6f}".format(val_mAUC))
+    print("\nCreating experiment directory: %s" % args.exp_dir)
+    if os.path.exists("%s/models" % args.exp_dir) == False:
+        os.makedirs("%s/models" % args.exp_dir)
+    with open("%s/args.pkl" % args.exp_dir, "wb") as f:
+        pickle.dump(args, f)
 
-    # test the models on the evaluation set
-    eval_loader = torch.utils.data.DataLoader(
-        dataloader.AudioDataset(args.data_eval, label_csv=args.label_csv, audio_conf=val_audio_conf),
-        batch_size=args.batch_size*2, shuffle=False, num_workers=args.num_workers, pin_memory=True)
-    stats, _ = validate(audio_model, eval_loader, args, 'eval_set')
-    eval_acc = stats[0]['acc']
-    eval_mAUC = np.mean([stat['auc'] for stat in stats])
-    print('---------------evaluate on the test set---------------')
-    print("Accuracy: {:.6f}".format(eval_acc))
-    print("AUC: {:.6f}".format(eval_mAUC))
-    if args.use_wandb:
-        wandb.log({"val_accuracy": val_acc, "val_mAUC": val_mAUC})
-    np.savetxt(args.exp_dir + '/eval_result.csv', [val_acc, val_mAUC, eval_acc, eval_mAUC])
+    if 'pretrain' not in args.task:
+        print('Now starting fine-tuning for {:d} epochs'.format(args.n_epochs))
+        train(audio_model, train_loader, val_loader, args)
+    else:
+        print('Now starting self-supervised pretraining for {:d} epochs'.format(args.n_epochs))
+        trainmask(audio_model, train_loader, val_loader, args)
+
+    if args.data_eval != None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        sd = torch.load(args.exp_dir + '/models/best_audio_model.pth', map_location=device)
+        if not isinstance(audio_model, torch.nn.DataParallel):
+            audio_model = torch.nn.DataParallel(audio_model)
+        audio_model.load_state_dict(sd, strict=False)
+
+        args.loss_fn = torch.nn.BCEWithLogitsLoss()
+        stats, _ = validate(audio_model, val_loader, args, 'valid_set')
+        val_acc = stats[0]['acc']
+        val_mAUC = np.mean([stat['auc'] for stat in stats])
+        print('---------------evaluate on the validation set---------------')
+        print("Accuracy: {:.6f}".format(val_acc))
+        print("AUC: {:.6f}".format(val_mAUC))
+
+        eval_loader = torch.utils.data.DataLoader(
+            dataset_class(args.data_eval, label_csv=args.label_csv, audio_conf=val_audio_conf),
+            batch_size=args.batch_size*2, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+        stats, _ = validate(audio_model, eval_loader, args, 'eval_set')
+        eval_acc = stats[0]['acc']
+        eval_mAUC = np.mean([stat['auc'] for stat in stats])
+        print('---------------evaluate on the test set---------------')
+        print("Accuracy: {:.6f}".format(eval_acc))
+        print("AUC: {:.6f}".format(eval_mAUC))
+        if args.use_wandb and wandb is not None:
+            wandb.log({"val_accuracy": val_acc, "val_mAUC": val_mAUC})
+        np.savetxt(args.exp_dir + '/eval_result.csv', [val_acc, val_mAUC, eval_acc, eval_mAUC])
+
+
+if __name__ == '__main__':
+    main()
 

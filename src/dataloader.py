@@ -15,9 +15,17 @@ import torch
 import torch.nn.functional
 from torch.utils.data import Dataset
 import random
+import os
+import sys
 import logging
 
 logging.basicConfig(filename='audio_loading.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+
+try:
+    from binaural_dual_stream_sac.binaural_dataloader import wav2stft
+except ImportError:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
+    from binaural_dual_stream_sac.binaural_dataloader import wav2stft
 
 
 def make_index_dict(label_csv):
@@ -216,6 +224,110 @@ class AudioDataset(Dataset):
 
         # the output fbank shape is [time_frame_num, frequency_bins], e.g., [1024, 128]
         return fbank, label_indices
+
+    def __len__(self):
+        return len(self.data)
+
+
+class BinauralSTFTClassificationDataset(Dataset):
+    """
+    Dataset for binaural audio classification returning 4-channel complex STFT:
+    (x_4ch [4, 256, 1024], label_vector)
+    Matches pretraining input representation without log, mel, or dataset_mean/std normalization.
+    """
+    def __init__(self, dataset_json_file, audio_conf=None, label_csv=None):
+        if isinstance(audio_conf, str) and (label_csv is None or isinstance(label_csv, dict)):
+            # Handle swapped positional arguments (dataset_json_file, label_csv, audio_conf)
+            label_csv, audio_conf = audio_conf, label_csv
+
+        self.datapath = dataset_json_file
+        with open(dataset_json_file, 'r') as fp:
+            data_json = json.load(fp)
+        self.data = data_json['data']
+        self.audio_conf = audio_conf if audio_conf is not None else {}
+        
+        self.target_length = self.audio_conf.get('target_length', 1024)
+        if self.target_length is None or self.target_length < 256:
+            self.target_length = 1024
+        self.target_freq_bins = self.audio_conf.get('target_freq_bins', 256)
+        self.n_fft = self.audio_conf.get('n_fft', 512)
+        self.hop_length = self.audio_conf.get('hop_length', 160)
+        self.mode = self.audio_conf.get('mode', 'train')
+        self.mixup = self.audio_conf.get('mixup', 0.0)
+
+        self.index_dict = make_index_dict(label_csv) if label_csv else {}
+        self.label_num = len(self.index_dict)
+        print(f'BinauralSTFTClassificationDataset: {len(self.data)} samples, {self.label_num} classes, mode={self.mode}, mixup={self.mixup}')
+
+    def _get_label_vector(self, datum):
+        label_indices = np.zeros(self.label_num, dtype=np.float32)
+        if 'labels' in datum and datum['labels']:
+            for label_str in str(datum['labels']).split(','):
+                label_str = label_str.strip()
+                if label_str in self.index_dict:
+                    label_indices[int(self.index_dict[label_str])] = 1.0
+        elif 'label' in datum and datum['label'] is not None:
+            lbl = int(datum['label'])
+            if 0 <= lbl < self.label_num:
+                label_indices[lbl] = 1.0
+        return label_indices
+
+    def __getitem__(self, index):
+        datum = self.data[index]
+        
+        # Mixup on raw waveforms before STFT if enabled during training
+        if self.mode == 'train' and self.mixup > 0 and random.random() < self.mixup:
+            mix_idx = random.randint(0, len(self.data) - 1)
+            mix_datum = self.data[mix_idx]
+            
+            w1, sr1 = torchaudio.load(datum['wav'])
+            w2, sr2 = torchaudio.load(mix_datum['wav'])
+            
+            if w1.shape[0] == 1:
+                logging.warning("Mono waveform encountered in mixup w1; duplicating to 2 channels.")
+                w1 = w1.repeat(2, 1)
+            if w2.shape[0] == 1:
+                logging.warning("Mono waveform encountered in mixup w2; duplicating to 2 channels.")
+                w2 = w2.repeat(2, 1)
+            w1 = w1[:2, :]
+            w2 = w2[:2, :]
+            
+            # Align lengths
+            if w1.shape[1] > w2.shape[1]:
+                temp = torch.zeros(2, w1.shape[1], dtype=w1.dtype)
+                temp[:, :w2.shape[1]] = w2
+                w2 = temp
+            elif w1.shape[1] < w2.shape[1]:
+                temp = torch.zeros(2, w2.shape[1], dtype=w2.dtype)
+                temp[:, :w1.shape[1]] = w1
+                w1 = temp
+                
+            mix_lambda = float(np.random.beta(10, 10))
+            mix_w = mix_lambda * w1 + (1.0 - mix_lambda) * w2
+            
+            stft_4ch = wav2stft(
+                mix_w,
+                n_fft=self.n_fft,
+                hop_length=self.hop_length,
+                target_freq_bins=self.target_freq_bins,
+                target_length=self.target_length
+            )
+            
+            lbl1 = self._get_label_vector(datum)
+            lbl2 = self._get_label_vector(mix_datum)
+            label_vector = torch.tensor(mix_lambda * lbl1 + (1.0 - mix_lambda) * lbl2, dtype=torch.float32)
+            return stft_4ch, label_vector
+        else:
+            w, sr = torchaudio.load(datum['wav'])
+            stft_4ch = wav2stft(
+                w,
+                n_fft=self.n_fft,
+                hop_length=self.hop_length,
+                target_freq_bins=self.target_freq_bins,
+                target_length=self.target_length
+            )
+            label_vector = torch.tensor(self._get_label_vector(datum), dtype=torch.float32)
+            return stft_4ch, label_vector
 
     def __len__(self):
         return len(self.data)

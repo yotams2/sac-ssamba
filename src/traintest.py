@@ -12,8 +12,11 @@ import torch
 from torch import nn
 import numpy as np
 import pickle
-from torch.cuda.amp import autocast,GradScaler
-import wandb
+from torch.cuda.amp import autocast, GradScaler
+try:
+    import wandb
+except ImportError:
+    wandb = None
 
 def train(audio_model, train_loader, test_loader, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -179,7 +182,7 @@ def train(audio_model, train_loader, test_loader, args):
                     np.savetxt(exp_dir + '/labels.csv', labels.cpu().detach().numpy(), delimiter=',')
                     print('audio output and label saved for debugging.')
                     #return
-                if args.use_wandb:
+                if args.use_wandb and wandb is not None:
                     wandb.log({
                         "Epoch": epoch,
                         "Train Loss": loss_meter.avg,
@@ -222,7 +225,7 @@ def train(audio_model, train_loader, test_loader, args):
         print("train_loss: {:.6f}".format(loss_meter.avg))
         print("valid_loss: {:.6f}".format(valid_loss))
         
-        if args.use_wandb:
+        if args.use_wandb and wandb is not None:
             # Assuming stats is a dictionary with all your validation metrics
             wandb.log({
                 "Epoch": epoch,

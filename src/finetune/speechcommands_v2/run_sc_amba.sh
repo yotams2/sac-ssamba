@@ -5,16 +5,16 @@
 #SBATCH --mem=32G                # Amount of memory
 #SBATCH --output=job_%j.out      # Standard output and error log
 
-set -x
-export TORCH_HOME=../../pretrained_models
-mkdir exp
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export TORCH_HOME="${SCRIPT_DIR}/../../pretrained_models"
+mkdir -p "${SCRIPT_DIR}/exp"
 
 # prep speechcommands dataset and download the pretrained model
-if [ -e data/datafiles ]
+if [ -e "${SCRIPT_DIR}/data/datafiles" ]
 then
     echo "speechcommands already downloaded and processed."
 else
-    python prep_sc.py
+    (cd "${SCRIPT_DIR}" && python prep_sc.py)
 fi
 
 # source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
@@ -99,8 +99,12 @@ if_devide_out='true'
 use_double_cls_token='false'
 use_middle_cls_token='false'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "${SCRIPT_DIR}/exp"
+
 task=ft_avgtok
 model_size=base
+pool_real_time_only=${POOL_REAL_TIME_ONLY:-false}
 if [[ $pretrain_model == *"tiny"* ]]; then
   model_size="tiny"
   embed_dim=192
@@ -113,6 +117,13 @@ elif [[ $pretrain_model == *"binaural"* ]] || [[ $pretrain_model == *"sac"* ]]; 
   tr_data=/storage/yotam/ssamba/data/speechcommands_spatial_pretrain.json
   val_data=/storage/yotam/ssamba/data/speechcommands_spatial_preval.json
   eval_data=/storage/yotam/ssamba/data/speechcommands_spatial_pretest.json
+  noise=False
+  freqm=0
+  timem=0
+  mixup=0
+  dataset_mean=0
+  dataset_std=1
+  target_length=1024
 else
   model_size="base"
   embed_dim=768
@@ -120,22 +131,22 @@ fi
 
 head_lr=1
 
-base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${exp_task_name}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}
+base_exp_dir="${SCRIPT_DIR}/exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${exp_task_name}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}"
 
-exp_dir=./exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}
+exp_dir="${SCRIPT_DIR}/exp/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}"
 
 PYTHON_BIN=${PYTHON:-/storage/yotam/venvs/ssamba_ide/bin/python}
 if [ ! -f "$PYTHON_BIN" ]; then
     PYTHON_BIN="python"
 fi
 
-CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \
+CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore "${SCRIPT_DIR}/../../run_amba.py" --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${val_data} --data-eval ${eval_data} --exp-dir $exp_dir \
---label-csv ./data/speechcommands_class_labels_indices.csv --n_class 35 \
+--label-csv "${SCRIPT_DIR}/data/speechcommands_class_labels_indices.csv" --n_class 35 \
 --lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
 --freqm $freqm --timem $timem --mixup ${mixup} --bal ${bal} --embed_dim ${embed_dim} \
 --tstride $tstride --fstride $fstride --fshape ${fshape} --tshape ${tshape} --warmup True --task ${task} \
---model_size ${model_size} --adaptschedule False \
+--model_size ${model_size} --adaptschedule False --pool_real_time_only ${pool_real_time_only} \
 --pretrained_mdl_path ${pretrain_path} --if_cls_token 'true' --final_pool_type 'mean' --if_abs_pos_embed 'true' --if_devide_out 'true' --use_middle_cls_token 'true' \
 --dataset_mean ${dataset_mean} --dataset_std ${dataset_std} --target_length ${target_length} \
 --num_mel_bins 128 --head_lr ${head_lr} --noise ${noise} \

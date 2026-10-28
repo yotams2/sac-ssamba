@@ -8,8 +8,10 @@ from utilities import *
 import time
 import torch
 import numpy as np
-import pickle
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 
 def trainmask(audio_model, train_loader, test_loader, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
