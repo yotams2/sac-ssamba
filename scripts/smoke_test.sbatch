@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=01:00:00
-#SBATCH --output=%x_%j.out
+#SBATCH --output=logs/%x_%j.out
 
 # GPU check of the shared venv: GRAM-T wrapper vs the official HF representation (gramt_wrapper/smoke_test.py).
 # Submit from the sac-ssamba root after setup_env.sbatch:  sbatch scripts/smoke_test.sbatch [model_id]

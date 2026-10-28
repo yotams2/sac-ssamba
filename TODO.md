@@ -7,12 +7,13 @@ Cluster paths and the shared venv are set in [env.sh](env.sh); heavy files go on
 
 ## Now: GRAM-T baseline on the 3 downstream tasks
 
-Submit every command from the `sac-ssamba` root.
+Submit every command from the `sac-ssamba` root. Logs go to `logs/<job-name>_<jobid>.out`. Slurm does not create
+the folder, so it is kept in git as `logs/.gitkeep`. Once a run is done, copy its numbers (with the job id) into the results below.
 
 - [ ] **Environment** builds `/scratch200/yotams2/venvs/sac`, clones Vim, downloads `labhamlet/gramt-binaural-frame`.
-  `sbatch scripts/setup_env.sbatch`. It is done when the log `sac_env_setup_<jobid>.out` ends with `done:`.
+  `sbatch scripts/setup_env.sbatch`. It is done when the log `logs/sac_env_setup_<jobid>.out` ends with `done:`.
   The empty `/scratch200/yotams2/venvs/gramt` from an earlier attempt can then be deleted.
-- [ ] **GPU smoke test**: `sbatch scripts/smoke_test.sbatch`. The log `gramt_smoke_<jobid>.out` must end with `OK`.
+- [ ] **GPU smoke test**: `sbatch scripts/smoke_test.sbatch`. The log `logs/gramt_smoke_<jobid>.out` must end with `OK`.
 - [ ] **Speech Commands v2** (frozen probe, run_amba.py):
   `sbatch src/finetune/speechcommands_v2/run_gramt.sh labhamlet/gramt-binaural-frame 2.5e-4 true`
 - [ ] **IEMOCAP ER** (frozen, s3prl, fold1 only):
@@ -20,6 +21,13 @@ Submit every command from the `sac-ssamba` root.
 - [ ] **VoxCeleb1 SID** (frozen, s3prl):
   `sbatch src/finetune/voxceleb1/run_gramt.sh gramt_binaural 1e-4 true`
 - [ ] Collect the results in a table next to the SAC numbers.
+
+## Results
+
+| Model | SC2 acc | IEMOCAP acc (fold1) | VoxCeleb1 acc | Job ids / notes |
+|---|---|---|---|---|
+| GRAM-T binaural-frame (frozen) | | | | |
+| Binaural SAC (frozen) | | | | |
 
 ## Open issues / to check
 

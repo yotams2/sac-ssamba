@@ -6,7 +6,7 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --cpus-per-task=12        # Number of CPUs
 #SBATCH --mem=32G                # Amount of memory
-#SBATCH --output=job_%j.out      # Standard output and error log
+#SBATCH --output=logs/%x_%j.out  # relative to the submit dir: submit from the sac-ssamba root
 
 # GRAM-T baseline on binaural VoxCeleb1 SID (s3prl), for comparison with run_binaural_sac_frozen.sh
 # Usage: run_gramt.sh [upstream=gramt_binaural|gramt_binaural_time|gramt_mono] [lr=1e-4] [frozen=true]

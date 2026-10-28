@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=04:00:00
-#SBATCH --output=%x_%j.out
+#SBATCH --output=logs/%x_%j.out
 
 # Builds the single venv shared by SAC-SSAMBA, the GRAM-T baseline and sac-s3prl ($SAC_VENV),
 # clones Vim ($VIM_ROOT) and downloads the default GRAM-T weights ($HF_HOME); paths come from env.sh.

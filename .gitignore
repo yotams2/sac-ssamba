@@ -23,7 +23,6 @@ Vim/
 
 
 
-# Slurm logs
-job_*.out
-sac_env_setup_*.out
-gramt_smoke_*.out
+# Slurm logs: every sbatch script writes to logs/%x_%j.out (submit from the repo root)
+logs/*
+!logs/.gitkeep
