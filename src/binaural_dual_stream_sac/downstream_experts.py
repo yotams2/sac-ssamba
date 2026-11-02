@@ -7,6 +7,35 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from binaural_dual_stream_sac.binaural_sac_model import BinauralSSAMBASACModel
 
 
+def load_binaural_checkpoint(model, ckpt_path, required_prefix):
+    """Load pretrained weights into a BinauralSSAMBASACModel, failing loudly.
+
+    The old loader skipped a missing path and used strict=False, so a wrong path or
+    renamed keys silently left a randomly initialised encoder.
+    ckpt_path 'random' (or None) keeps the random init on purpose (probe sanity baseline).
+    """
+    if ckpt_path is None or ckpt_path == 'random':
+        print('[binaural ckpt] WARNING: no checkpoint, the encoder stays RANDOMLY INITIALISED', flush=True)
+        return
+    if not os.path.isfile(ckpt_path):
+        raise FileNotFoundError(f'[binaural ckpt] checkpoint not found: {ckpt_path}')
+    sd = torch.load(ckpt_path, map_location='cpu')
+    new_sd = {}
+    for k, v in sd.items():
+        if k.startswith('dp.module.'):
+            continue  # duplicate copy from BinauralSSAMBASACModelParallel
+        new_sd[k[len('module.'):] if k.startswith('module.') else k] = v
+    result = model.load_state_dict(new_sd, strict=False)
+    missing_required = [k for k in result.missing_keys if k.startswith(required_prefix)]
+    print(f'[binaural ckpt] loaded {ckpt_path}: {len(new_sd)} tensors, '
+          f'{len(result.missing_keys)} missing, {len(result.unexpected_keys)} unexpected', flush=True)
+    if result.unexpected_keys:
+        print(f'[binaural ckpt] unexpected (first 10): {result.unexpected_keys[:10]}', flush=True)
+    if missing_required:
+        raise RuntimeError(f'[binaural ckpt] {len(missing_required)} {required_prefix}* weights missing from '
+                           f'{ckpt_path} (first 10: {missing_required[:10]})')
+
+
 class MonauralSpectralUpstreamExpert(nn.Module):
     """
     S3PRL Upstream Expert wrapper for monaural downstream tasks (VoxCeleb SID, IEMOCAP ER).
@@ -18,18 +47,7 @@ class MonauralSpectralUpstreamExpert(nn.Module):
             model_config = {}
 
         self.binaural_model = BinauralSSAMBASACModel(**model_config)
-        
-        if model_checkpoint_path is not None and os.path.exists(model_checkpoint_path):
-            sd = torch.load(model_checkpoint_path, map_location='cpu')
-            new_sd = {}
-            for k, v in sd.items():
-                if k.startswith('dp.module.'):
-                    continue # skip duplicates from DataParallel wrapper
-                elif k.startswith('module.'):
-                    new_sd[k.replace('module.', '', 1)] = v
-                else:
-                    new_sd[k] = v
-            self.binaural_model.load_state_dict(new_sd, strict=False)
+        load_binaural_checkpoint(self.binaural_model, model_checkpoint_path, 'dual_encoder.spectral_encoder.')
 
         # Keep spectral encoder trainable for end-to-end downstream fine-tuning (-f)
         # Freeze non-spectral parameters (spatial encoder, decoder, SAC projection heads)
@@ -80,18 +98,7 @@ class SpatialBinauralUpstreamExpert(nn.Module):
             model_config = {}
 
         self.binaural_model = BinauralSSAMBASACModel(**model_config)
-        
-        if model_checkpoint_path is not None and os.path.exists(model_checkpoint_path):
-            sd = torch.load(model_checkpoint_path, map_location='cpu')
-            new_sd = {}
-            for k, v in sd.items():
-                if k.startswith('dp.module.'):
-                    continue
-                elif k.startswith('module.'):
-                    new_sd[k.replace('module.', '', 1)] = v
-                else:
-                    new_sd[k] = v
-            self.binaural_model.load_state_dict(new_sd, strict=False)
+        load_binaural_checkpoint(self.binaural_model, model_checkpoint_path, 'dual_encoder.spatial_encoder.')
 
         self.spatial_encoder = self.binaural_model.dual_encoder.spatial_encoder
         self.spatial_encoder.eval()
