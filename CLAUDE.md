@@ -1,0 +1,78 @@
+# sac-ssamba
+
+SSAMBA (self-supervised audio Mamba, fork of SiavashShams/ssamba) extended with the **Soft Acoustic Contrastive (SAC)**
+loss and a **binaural dual-stream SAC** model. The current work evaluates binaural SAC against a **GRAM-T** baseline on
+three binaural (simulated) downstream tasks: Speech Commands v2, IEMOCAP ER, and VoxCeleb1 SID.
+
+- Research background: [project_context.md](project_context.md), [ssamba_project_summary.md](ssamba_project_summary.md),
+  [exp_session_1.md](exp_session_1.md), and the binaural design docs in [docs/](docs/).
+- **Current status, open issues and results table: [TODO.md](TODO.md).** Read it first and keep it up to date
+  (job ids, numbers, what's blocked).
+
+## History: two machines
+
+The project started on an **external RunAI server** (paths like `/storage/yotam/...`, `/storage/data/...`, L40 GPUs).
+It is being moved to the **TAU power cluster** (Slurm). Some scripts, json manifests and checkpoint paths still point at
+`/storage/...`. When you touch one, port it to `env.sh` (see "Porting a script" below) rather than hardcoding new paths.
+Jobs that need gpuRIR or the original datasets (e.g. `data_generation/regen_iemocap.sh`) still have to run on RunAI.
+
+## Storage on this cluster
+
+| Location | What | Notes |
+|---|---|---|
+| `~/sac-ssamba` (home) | this git repo (code only) | home quota is ~2 GB: no data, checkpoints or venvs here |
+| `/scratch200/yotams2/` | working copy of everything heavy: `sac-ssamba/data`, `sac-ssamba/exp`, `venvs/sac`, `hf`, `code/Vim` | reachable from all nodes, large, but **scratch: may be wiped, not long-term storage**. Also slow: avoid recursive scans/`du`/`tar t` |
+| `/moshe-data/blaufer-data/yotams2/` | long-term copy of what came over from RunAI (e.g. `data/` with LibriSpeech, VoxCeleb1, SC2 archives; see [transfer_datasets.sh](transfer_datasets.sh)) | **not mounted on all nodes** (not on the Jupyter node). Don't point jobs at it; treat it as the backup |
+
+`/scratch200/yotams2/sac-ssamba/src/` holds files copied from RunAI's `src/` tree (old experiment outputs, metrics), not code to edit.
+
+Consequences:
+- Anything that only exists on `/scratch200` (new results, checkpoints, regenerated data) should be copied to
+  `/moshe-data` (from a node that mounts it) or kept in git (small results/metrics) if it matters.
+- If `/scratch200` gets wiped, restore data from `/moshe-data` and rebuild the venv with `scripts/setup_env.sbatch`.
+
+## Environment
+
+- `source env.sh` sets everything: `SAC_VENV`, `PYTHON`, `HF_HOME`, `VIM_ROOT`, `SAC_DATA_ROOT`
+  (`/scratch200/yotams2/sac-ssamba/data`), `SAC_EXP_ROOT` (`/scratch200/yotams2/sac-ssamba/exp`). The `run_*.sh`
+  scripts source it themselves.
+- One shared venv for SAC, GRAM-T and s3prl: `/scratch200/yotams2/venvs/sac` (torch 2.2.2+cu121, mamba kernels),
+  built by `sbatch scripts/setup_env.sbatch`. Install with `--no-cache-dir`. wandb is not installed.
+- `src/data_paths.py` remaps the old `/storage/yotam/ssamba/data` paths inside the json manifests to `SAC_DATA_ROOT`.
+
+## Running jobs
+
+- The interactive (Jupyter) node has 1 GB RAM and no GPU: `import torch` gets OOM-killed. Locally only do static
+  checks (`python -m py_compile`, `bash -n`). Everything else goes through `sbatch`.
+- **Submit from the repo root**: scripts write to `logs/%x_%j.out` (relative to the submit dir; `logs/` is gitignored
+  except `.gitkeep`).
+- Slurm account `public-blaufer_v2`. GPU jobs: `--partition=gpu-general-pool` only (queue can be days long).
+  CPU jobs: `power-general-shared-pool` (rejects GPU requests).
+- Always keep `#SBATCH --exclude=compute-0-18` on GPU jobs: it's a Blackwell (sm_120) node with no kernels in this torch.
+- `gpu-general-pool` is **preemptible** (`PreemptMode=REQUEUE`): jobs get killed and requeued. Make runs resumable
+  (s3prl: pass `-a` and keep `save_step` reasonable) and add `#SBATCH --open-mode=append`, otherwise the requeued job
+  truncates its log (`JobFileAppend=0` here).
+- Check jobs: `squeue -u $USER`, `sacct -u $USER -S <date> --format=JobID,JobName%20,State,Elapsed,NodeList`.
+
+## Code map
+
+- `src/run_amba.py`, `src/traintest*.py`, `src/models/`: SSAMBA pretrain/finetune (also the SC2 path for GRAM-T).
+- `src/sac/`: single-channel SAC model (`SSAMBASACModel`, factorized SAC loss, acoustic features).
+- `src/binaural_dual_stream_sac/`: binaural dual-stream SAC model, dataloader, spatial features.
+- `src/gramt_wrapper/`: GRAM-T encoder wrapper (+ `smoke_test.py`, run via `scripts/smoke_test.sbatch`).
+- `src/finetune/<task>/`: per-task launch scripts. The ported ones are `run_gramt.sh` (SC2, IEMOCAP, VoxCeleb1);
+  `run_binaural_sac_frozen.sh`, `run_er.sh`, `run_sid.sh`, `run_sc_amba.sh` still use RunAI paths.
+- `data_generation/`: gpuRIR binaural simulation of the downstream sets and manifest generation (runs on RunAI).
+- IEMOCAP and VoxCeleb1 run through **s3prl**: the sibling repo `../sac-s3prl` (github yotams2/sac-s3prl) has the
+  `gramt_*` and SAC upstreams and the binaural loaders. Changes often span both repos.
+- `../GRAM-T`: upstream GRAM-T code, reference only.
+
+## Porting a script to this cluster
+
+Follow `src/finetune/voxceleb1/run_gramt.sh`: `#SBATCH` header (partition, exclude, `--output=logs/%x_%j.out`),
+sbatch-safe `SCRIPT_DIR` (resolve via `scontrol show job` when `BASH_SOURCE` is `slurm_script`), `source env.sh`,
+use `$PYTHON`, `$SAC_DATA_ROOT`, `$SAC_EXP_ROOT` instead of absolute paths.
+
+## Git
+
+Remote `git@github.com:yotams2/sac-ssamba.git`. Push over SSH (HTTPS fails through the VS Code credential helper).
