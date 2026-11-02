@@ -35,11 +35,14 @@ The thesis question is what adding SAC changes, compared with the same model pre
 - [ ] **Debug the frozen probe** (frozen SAC: SC2 13.5%, VoxCeleb1 14.5%; GRAM-T: 89.6%, 76.9%).
   - [x] `downstream_experts.py` used to skip a missing checkpoint path and load with `strict=False`, so a wrong path
     silently gave a random encoder. It now raises on a missing path or missing encoder weights, and prints what it loaded.
-  - [ ] Run `sbatch scripts/probe_diagnostic.sbatch <ckpt>` (needs the SAC checkpoint on TAU, or run the same script on RunAI).
-    It compares pretrained vs random init, and mean pooling over all 1024 frames vs only the frames with audio
-    (a 1 s SC2 clip fills ~7 of 64 time patches; the default `POOL_REAL_TIME_ONLY=false` averages in the padding).
-  - [ ] If real-frame pooling helps, re-run the SC2 probe with `POOL_REAL_TIME_ONLY=true`, and check how the s3prl
-    path (VoxCeleb1, IEMOCAP) pools over padding.
+  - [x] Pooling over padding is ruled out (checked on RunAI 2026-11-02): both SC2 SAC runs (frozen and fine-tuned)
+    had `pool_real_time_only=True`, and the s3prl path (VoxCeleb1, IEMOCAP) trims hidden states to each utterance's
+    length (`upstream/ssamba/expert.py`, `Featurizer.tolist` uses `wav.shape[-1]`) and pools with a length mask.
+  - [ ] Run `sbatch scripts/probe_diagnostic.sbatch <ckpt>` (needs the SAC checkpoint on TAU, or run the same script on
+    RunAI). It tests the remaining suspects: pretrained vs random encoder; the 1 s clip zero-padded to 10.24 s (~90%
+    zeros, as in the runs) vs tiled to fill the window; and input level (raw STFT, no log/normalisation) of SC2 vs the
+    pretraining set. If pretrained ~= random, look at the pretraining objective (raw Re/Im reconstruction is
+    phase-dominated) rather than the probe.
 - [ ] **SAC vs no-SAC on all 3 tasks**, with 3 seeds each, so gains of 1-2 points can be told from noise
   (VoxCeleb1 fine-tuned: SAC 41.46% vs CCSR-only 40.25%, one run each).
 - [ ] **Fine-tune GRAM-T** too, for a fine-tuned vs fine-tuned comparison. The runners already support it:
