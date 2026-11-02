@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=gramt_smoke
 #SBATCH --partition=gpu-general-pool
+#SBATCH --exclude=compute-0-18     # RTX PRO 6000 Blackwell (sm_120): torch 2.2.2+cu121 has no kernels for it
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
