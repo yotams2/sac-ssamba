@@ -20,7 +20,7 @@ Checkpoints and experiment outputs go to `$SAC_EXP_ROOT/<task>/<experiment>` (`/
 - [x] **Speech Commands v2** (frozen probe, run_amba.py), job 23244879, done 2026-10-28 (30 epochs, ~3.5 min/epoch):
   `sbatch src/finetune/speechcommands_v2/run_gramt.sh labhamlet/gramt-binaural-frame 2.5e-4 true`
   Output moved to `/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/gramt-speechcommands-b128-lr2.5e-4-ft_avgtok-frozen-gramt-binaural-frame`.
-- [ ] **IEMOCAP ER** (frozen, s3prl, fold1 only). Blocked until binaural IEMOCAP is regenerated (see below):
+- [ ] **IEMOCAP ER** (frozen, s3prl, fold1 only). Unblocked: regenerated binaural IEMOCAP (v2) is in place on TAU (2026-11-02):
   `sbatch src/finetune/iemocap/run_gramt.sh gramt_binaural 1e-4 true`
 - [x] **VoxCeleb1 SID** (frozen, s3prl), job 23305339, done 2026-11-02 (50k steps; 23305273 failed on the Blackwell node, see below) (output in `$SAC_EXP_ROOT/voxceleb1/sid_gramt_binaural_frozen_1e-4`):
   `sbatch src/finetune/voxceleb1/run_gramt.sh gramt_binaural 1e-4 true`
@@ -43,6 +43,17 @@ The thesis question is what adding SAC changes, compared with the same model pre
     zeros, as in the runs) vs tiled to fill the window; and input level (raw STFT, no log/normalisation) of SC2 vs the
     pretraining set. If pretrained ~= random, look at the pretraining objective (raw Re/Im reconstruction is
     phase-dominated) rather than the probe.
+- [ ] **Frozen probes during pretraining** (`src/binaural_dual_stream_sac/pretrain_probe.py`): SC2 k-NN / class-mean /
+  linear, VoxCeleb1 SID class-mean / linear / EER, IEMOCAP fold1 k-NN / class-mean / linear UA (v2 manifests in
+  `IEMOCAP/simu_v2/manifests`) on fixed ~6.6k-clip subsets, spectral encoder pooled as downstream.
+  On by default in `run_binaural_sac.sh` (step 0 + every `epoch_iter`, `PROBE_EVERY=0` disables) -> `<exp>/probe_metrics.jsonl`.
+  Calibrated with job 23317158 (2026-11-02; `<RunAI run exp>/probe_metrics_offline.jsonl`). Linear probe, SC2 acc / SID acc / IEMOCAP UA:
+  random 3.7 / 1.9 / 39.0, GRAM-T 71.2 / 62.4 / 62.9, SAC run at 4k / 8k / 12k / final steps
+  11.4 / 16.1 / 48.4, 12.6 / 16.4 / 47.3, 11.6 / 15.6 / 47.8, 11.1 / 16.0 / 47.3.
+  The ordering matches downstream and the SAC values are close to the real frozen SC2 13.5 / SID 14.5, so the proxy works.
+  **The SAC encoder plateaus before step 4k**: later checkpoints change nothing (within ~1 pt noise). Look at the
+  objective, not the training length. ~56 s per probe (vs ~10 h per 4000 steps), 167 s one-off data loading.
+  Rerun: `sbatch scripts/pretrain_probe.sbatch <out.jsonl> random gramt '<exp>/models/audio_model.*.pth'`.
 - [ ] **SAC vs no-SAC on all 3 tasks**, with 3 seeds each, so gains of 1-2 points can be told from noise
   (VoxCeleb1 fine-tuned: SAC 41.46% vs CCSR-only 40.25%, one run each).
 - [ ] **Fine-tune GRAM-T** too, for a fine-tuned vs fine-tuned comparison. The runners already support it:
@@ -71,7 +82,7 @@ IEMOCAP: the binaural setting did not exist yet, so the SAC model got mono audio
   - VoxCeleb1 and SC2 run, but on the reduced, duplicated splits: fine for comparing SAC with GRAM-T, not the standard test sets.
   - The first IEMOCAP release also cut or zero-padded every utterance to 6 s before simulating (and computed the SNR over
     the padding), unlike the full-length mono IEMOCAP.
-  - [ ] **IEMOCAP: fixed in the generator, needs regenerating.** `gen_simu_iemocap.py` now simulates every utterance once
+  - [x] **IEMOCAP: regenerated (v2), copied to TAU 2026-11-02** (`IEMOCAP/simu_v2/`, jsons in `$SAC_DATA_ROOT`, old ones as `*.json.v1`; 5,531 utterances, no duplicates, fold1 fully covered; length check vs the original IEMOCAP not run here). `gen_simu_iemocap.py` now simulates every utterance once
     (`sequential_src`), at full length (container `T` = longest utterance, padding cut off before the noise is mixed in).
     `regen_iemocap.sh` runs the 3 splits, builds the manifests, checks them with `verify_binaural_iemocap.py` (every fold
     utterance exactly once, right label, original length), and only then replaces `iemocap_spatial_*.json` (old ones kept

@@ -201,6 +201,19 @@ def validate_binaural_sac(model, val_loader, device):
     }
 
 
+def run_probe(probe, model, step, exp_dir, use_wandb):
+    """Frozen SC2/SID probes on the spectral encoder; logs to stdout, probe_metrics.jsonl and wandb."""
+    from binaural_dual_stream_sac.pretrain_probe import format_metrics
+    core = model.module if isinstance(model, BinauralSSAMBASACModelParallel) else model
+    res = probe.evaluate_sac(core.dual_encoder.spectral_encoder)
+    print(f'---- Step {step} probe: {format_metrics(res)}', flush=True)
+    with open(os.path.join(exp_dir, 'probe_metrics.jsonl'), 'a') as f:
+        f.write(json.dumps({'step': step, **res}) + '\n')
+    if use_wandb:
+        import wandb
+        wandb.log({**{f'probe/{k}': v for k, v in res.items()}, 'step': step})
+
+
 def main():
     parser = argparse.ArgumentParser(description="Binaural SSAMBA Dual-Branch SAC Pretraining Runner")
     parser.add_argument('--data_train', type=str, default=None, help="Path to training dataset JSON file")
@@ -240,6 +253,11 @@ def main():
     parser.add_argument('--verify_synthetic', action='store_true', default=False, help="Run synthetic batch verification and exit")
     parser.add_argument('--use_checkpointing', action='store_true', help="Enable gradient checkpointing to save memory at the cost of training speed")
     parser.add_argument('--disable_sac_spec', action='store_true', help="Disable spectral SAC loss for ablation")
+
+    # Frozen-embedding downstream probes (pretrain_probe.py)
+    parser.add_argument('--probe_every', type=int, default=0, help="Run the SC2/SID/IEMOCAP frozen probes every N steps (and at step 0); 0 disables")
+    parser.add_argument('--probe_data_root', type=str, default=None, help="Downstream json root (default: $SAC_DATA_ROOT, else /storage/yotam/ssamba/data)")
+    parser.add_argument('--probe_tasks', type=str, default='sc2,sid,iemocap', help="Comma-separated probe tasks (sc2, sid, iemocap)")
 
     args = parser.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -367,6 +385,14 @@ def main():
     grad_norms_buffer = deque(maxlen=20)
     consecutive_nan_events = 0
     consecutive_nan_loss_events = 0
+
+    probe = None
+    if args.probe_every > 0:
+        from binaural_dual_stream_sac.pretrain_probe import PretrainProbe, format_metrics
+        probe = PretrainProbe(args.probe_data_root, tasks=tuple(args.probe_tasks.split(',')), device=device)
+        print(f'[probe] chance: {format_metrics(probe.chance())}', flush=True)
+        if global_step == 0:  # random-init baseline for this run
+            run_probe(probe, model, 0, args.exp_dir, args.use_wandb)
 
     print(f"\nStarting Binaural SSAMBA Dual-Branch Pretraining ({args.epochs} epochs)...")
     for epoch in range(start_epoch, args.epochs + 1):
@@ -622,6 +648,9 @@ def main():
                 spec_meter.reset()
                 spat_meter.reset()
                 model.train()
+
+            if probe is not None and global_step % args.probe_every == 0:
+                run_probe(probe, model, global_step, args.exp_dir, args.use_wandb)
 
     # Final checkpoint saving
     final_path = os.path.join(args.exp_dir, 'models', 'audio_model.final.pth')

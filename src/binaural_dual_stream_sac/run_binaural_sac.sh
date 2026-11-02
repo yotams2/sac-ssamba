@@ -24,6 +24,10 @@ epochs=10
 epoch_iter=4000
 time_mask_ratio=0.5
 
+# Frozen SC2/SID/IEMOCAP probes on the spectral encoder (pretrain_probe.py), at step 0 and every probe_every steps; 0 disables.
+# ~6.6k clips loaded once into RAM; results in ${exp_dir}/probe_metrics.jsonl
+probe_every=${PROBE_EVERY:-${epoch_iter}}
+
 # Loss Lambdas
 sac_spec_lambda=1.0
 sac_spat_lambda=1.0
@@ -75,4 +79,5 @@ python3 run_binaural_amba.py \
   --spat_sac_temperature ${spat_sac_temperature} \
   --local_sigma_mode ${local_sigma_mode} \
   --time_mask_ratio ${time_mask_ratio} \
+  --probe_every ${probe_every} \
   --use_checkpointing
