@@ -17,21 +17,41 @@ Checkpoints and experiment outputs go to `$SAC_EXP_ROOT/<task>/<experiment>` (`/
 - [x] **Smoke test** (passed on CPU, job 23244826): `sbatch scripts/smoke_test.sbatch`. The log `logs/gramt_smoke_<jobid>.out` must end with `OK`.
   GPU jobs must use `gpu-general-pool`; `power-general-shared-pool` rejects GPU requests. The GPU queue can be days long,
   and the test also runs on CPU: `sbatch -p power-general-shared-pool --gres=none scripts/smoke_test.sbatch`.
-- [ ] **Speech Commands v2** (frozen probe, run_amba.py), running as job 23244879 (about 4 h):
+- [x] **Speech Commands v2** (frozen probe, run_amba.py), job 23244879, done 2026-10-28 (30 epochs, ~3.5 min/epoch):
   `sbatch src/finetune/speechcommands_v2/run_gramt.sh labhamlet/gramt-binaural-frame 2.5e-4 true`
-  This run started before the move to `SAC_EXP_ROOT` and writes to the home folder. When it is done, move it:
-  `mkdir -p /scratch200/yotams2/sac-ssamba/exp/speechcommands_v2 && mv src/finetune/speechcommands_v2/exp/gramt-* /scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/`
+  Output moved to `/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/gramt-speechcommands-b128-lr2.5e-4-ft_avgtok-frozen-gramt-binaural-frame`.
 - [ ] **IEMOCAP ER** (frozen, s3prl, fold1 only). Blocked until binaural IEMOCAP is regenerated (see below):
   `sbatch src/finetune/iemocap/run_gramt.sh gramt_binaural 1e-4 true`
-- [ ] **VoxCeleb1 SID** (frozen, s3prl):
+- [x] **VoxCeleb1 SID** (frozen, s3prl), job 23305339, done 2026-11-02 (50k steps; 23305273 failed on the Blackwell node, see below) (output in `$SAC_EXP_ROOT/voxceleb1/sid_gramt_binaural_frozen_1e-4`):
   `sbatch src/finetune/voxceleb1/run_gramt.sh gramt_binaural 1e-4 true`
 - [ ] Collect the results in a table next to the SAC numbers.
+
+## Next: the effect of SAC (main question)
+
+The thesis question is what adding SAC changes, compared with the same model pretrained without SAC
+(same data, same compute). GRAM-T is a large-scale reference point, not the target: it saw about 31M samples
+(325k steps x 96, AudioSet) vs about 1.3M for binaural SAC (40k steps x 32, 50k simulated LibriSpeech clips).
+
+- [ ] **Debug the frozen probe** (frozen SAC: SC2 13.5%, VoxCeleb1 14.5%; GRAM-T: 89.6%, 76.9%).
+  - [x] `downstream_experts.py` used to skip a missing checkpoint path and load with `strict=False`, so a wrong path
+    silently gave a random encoder. It now raises on a missing path or missing encoder weights, and prints what it loaded.
+  - [ ] Run `sbatch scripts/probe_diagnostic.sbatch <ckpt>` (needs the SAC checkpoint on TAU, or run the same script on RunAI).
+    It compares pretrained vs random init, and mean pooling over all 1024 frames vs only the frames with audio
+    (a 1 s SC2 clip fills ~7 of 64 time patches; the default `POOL_REAL_TIME_ONLY=false` averages in the padding).
+  - [ ] If real-frame pooling helps, re-run the SC2 probe with `POOL_REAL_TIME_ONLY=true`, and check how the s3prl
+    path (VoxCeleb1, IEMOCAP) pools over padding.
+- [ ] **SAC vs no-SAC on all 3 tasks**, with 3 seeds each, so gains of 1-2 points can be told from noise
+  (VoxCeleb1 fine-tuned: SAC 41.46% vs CCSR-only 40.25%, one run each).
+- [ ] **Fine-tune GRAM-T** too, for a fine-tuned vs fine-tuned comparison. The runners already support it:
+  pass `false` as the 3rd argument (`run_gramt.sh <model> <lr> false`); SC2 drops `--freeze_base`, s3prl adds `-f`.
+  Training the whole encoder needs more GPU memory and possibly a lower lr than the frozen runs.
+- [ ] Optional, if there is compute: pretrain SAC longer or on more data and plot downstream accuracy vs samples seen.
 
 ## Results
 
 | Model | SC2 acc | IEMOCAP acc (fold1) | VoxCeleb1 acc | Job ids / notes |
 |---|---|---|---|---|
-| GRAM-T binaural-frame (frozen) | | | | |
+| GRAM-T binaural-frame (frozen) | 89.59 (val 90.83) | | 76.88 (dev 76.97, best dev at step 45k) | SC2: job 23244879, lr 2.5e-4, AUC 0.9941; VoxCeleb1: job 23305339, lr 1e-4 |
 | Binaural SAC (frozen) | | | | |
 
 All IEMOCAP numbers from before the regeneration (including the RunAI "binaural IEMOCAP" runs) were on **mono**
@@ -60,6 +80,9 @@ IEMOCAP: the binaural setting did not exist yet, so the SAC model got mono audio
   - [ ] VoxCeleb1 and SC2: their generators still sample with replacement. Pass `sequential_src=True` there too and
     regenerate if the standard test sets are needed.
   - The s3prl IEMOCAP loader refuses the old release (missing or duplicated utterances), so it cannot be used by mistake.
+- [x] **The venv cannot run on compute-0-18** (RTX PRO 6000 Blackwell, sm_120): torch 2.2.2+cu121 has no kernels for it
+  (`CUDA error: no kernel image is available`). The GPU scripts now have `#SBATCH --exclude=compute-0-18`. Upgrading torch
+  would also mean new mamba / causal-conv1d wheels, so keep the exclude unless that node is needed.
 - [ ] **wandb is not installed** in the shared venv (to save space). `--use_wandb` is then silently skipped.
   If you want it, run `$PYTHON -m pip install --no-cache-dir wandb` and `wandb login` once.
 - [ ] **IEMOCAP runs only fold1** (`run_gramt.sh`, `run_er.sh`). Run all 5 folds for the final numbers.
