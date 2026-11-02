@@ -9,7 +9,7 @@
 #SBATCH --open-mode=append
 #SBATCH --output=logs/%x_%j.out
 
-# Frozen binaural-SAC probe sanity check on SC2: pretrained vs random encoder, all-frame vs real-frame pooling.
+# Frozen binaural-SAC probe sanity check on SC2: pretrained vs random encoder, zero-padded vs tiled input, input level.
 # Submit from the sac-ssamba root:  sbatch scripts/probe_diagnostic.sbatch <ckpt.pth> [extra args]
 set -euo pipefail
 REPO_ROOT=${SLURM_SUBMIT_DIR:-$(pwd)}
