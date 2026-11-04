@@ -2,8 +2,8 @@
 Step 1: Single-Channel Acoustic Feature Extraction for SAC Loss.
 
 Features extracted per clip:
-    - f0_mean / f0_var
-    - hnr
+    - f0_mean / f0_var: median and interquartile range of F0 over voiced frames, in semitones above 100 Hz
+    - hnr: mean over voiced frames, in dB
     - centroid
     - flux
     - zcr_mean / zcr_var
@@ -17,66 +17,82 @@ import torch
 import torch.nn.functional as F
 import math
 
+# Pitch tracking, used by F0 and HNR
+PITCH_FMIN = 70.0
+PITCH_FMAX = 500.0
+PITCH_FRAME_SEC = 0.04            # at least two periods at PITCH_FMIN
+PITCH_HOP_SEC = 0.01
+PITCH_VOICING_THRESHOLD = 0.45    # Praat's default
+PITCH_SILENCE_RATIO = 0.03        # frame RMS relative to the loudest frame of the clip
+PITCH_OCTAVE_COST = 0.01          # Praat's default
+F0_NO_VOICE_SEMITONES = 10.0      # about 178 Hz
+
 def _safe_log(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
     return torch.log(x.clamp(min=eps))
 
-def _compute_f0_stats(waveform: torch.Tensor, sample_rate: int, fmin: float = 80.0, fmax: float = 600.0, hop_length: int = 512) -> tuple:
-    B, T = waveform.shape
-    device = waveform.device
-    min_lag = int(sample_rate / fmax)
-    max_lag = int(sample_rate / fmin)
-    
-    pad_len = max_lag
-    padded = F.pad(waveform, (pad_len, pad_len))
-    
-    frames = padded.unfold(-1, max_lag * 2 + 1, hop_length)
-    frames = frames * torch.hann_window(frames.shape[-1], device=device)
-    
-    fft_size = int(2 ** math.ceil(math.log2(frames.shape[-1] * 2)))
-    S = torch.fft.rfft(frames, n=fft_size, dim=-1)
-    power = torch.abs(S) ** 2
-    auto_corr = torch.fft.irfft(power, n=fft_size, dim=-1)
-    
-    auto_corr = auto_corr[..., :max_lag + 1]
-    auto_corr = auto_corr[..., min_lag:]
-    
-    val, idx = torch.max(auto_corr, dim=-1)
-    lags = idx + min_lag
-    f0 = sample_rate / lags.float()
-    
-    # Simple unvoiced masking (if autocorrelation peak is very small)
-    max_corr_val = auto_corr[..., 0] if auto_corr.shape[-1] > 0 else 1.0
-    voiced_mask = val > (0.2 * max_corr_val.clamp(min=1e-6))
-    f0 = f0 * voiced_mask.float()
-    
-    # We want mean and var, but ignore exactly 0 (unvoiced) frames
-    f0_sum = f0.sum(dim=-1)
-    f0_count = voiced_mask.float().sum(dim=-1).clamp(min=1.0)
-    mean_f0 = f0_sum / f0_count
-    
-    # Var
-    diff_sq = ((f0 - mean_f0.unsqueeze(-1)) ** 2) * voiced_mask.float()
-    var_f0 = diff_sq.sum(dim=-1) / f0_count
-    
-    return mean_f0, var_f0
+def _pitch_track(waveform: torch.Tensor, sample_rate: int) -> tuple:
+    """
+    Frame-level pitch by normalised autocorrelation (Boersma 1993, the method in Praat).
 
-def _compute_hnr(waveform: torch.Tensor, sample_rate: int, fmin: float = 80.0) -> torch.Tensor:
+    Dividing by the window's own autocorrelation removes the bias towards short lags. Among the autocorrelation peaks in
+    the pitch range, a small octave cost prefers the shortest period, so that 2T doesn't beat T.
+
+    Returns: f0 [B, N] in Hz, strength [B, N] (autocorrelation at the chosen lag, 1 = periodic), voiced [B, N] bool.
+    """
     B, T = waveform.shape
-    device = waveform.device
-    max_lag = int(sample_rate / fmin)
-    if T <= max_lag: return torch.zeros(B, device=device)
-    
-    fft_size = int(2 ** math.ceil(math.log2(T * 2)))
-    S = torch.fft.rfft(waveform, n=fft_size, dim=-1)
-    power = torch.abs(S) ** 2
-    auto_corr = torch.fft.irfft(power, n=fft_size, dim=-1)
-    auto_corr = auto_corr[..., :max_lag + 1]
-    
-    R0 = auto_corr[:, 0].clamp(min=1e-8)
-    R_max, _ = torch.max(auto_corr[:, int(sample_rate / 600.0):], dim=-1)
-    
-    hnr = R_max / (R0 - R_max).clamp(min=1e-8)
-    return 10.0 * torch.log10(hnr.clamp(min=1e-5))
+    device, dtype = waveform.device, waveform.dtype
+    win_length = int(sample_rate * PITCH_FRAME_SEC)
+    hop_length = int(sample_rate * PITCH_HOP_SEC)
+    if T < win_length:
+        waveform = F.pad(waveform, (0, win_length - T))
+
+    frames = waveform.unfold(-1, win_length, hop_length)
+    frames = frames - frames.mean(dim=-1, keepdim=True)
+    rms = frames.pow(2).mean(dim=-1).sqrt()
+    loud = rms > PITCH_SILENCE_RATIO * rms.amax(dim=-1, keepdim=True)
+
+    window = torch.hann_window(win_length, device=device, dtype=dtype)
+    n_fft = int(2 ** math.ceil(math.log2(win_length * 2)))
+
+    def autocorr(x):
+        return torch.fft.irfft(torch.fft.rfft(x, n=n_fft, dim=-1).abs() ** 2, n=n_fft, dim=-1)
+
+    frame_ac = autocorr(frames * window)
+    window_ac = autocorr(window)
+    r = (frame_ac / frame_ac[..., :1].clamp(min=1e-10)) * (window_ac[0] / window_ac.clamp(min=1e-10))
+
+    min_lag = int(sample_rate / PITCH_FMAX)
+    max_lag = int(sample_rate / PITCH_FMIN)
+    r = r[..., min_lag - 1:max_lag + 2]  # one neighbour on each side, for the peak test
+    centre = r[..., 1:-1]
+    is_peak = (centre > r[..., :-2]) & (centre >= r[..., 2:])
+
+    lags = torch.arange(min_lag, max_lag + 1, device=device, dtype=dtype)
+    score = centre - PITCH_OCTAVE_COST * torch.log2(PITCH_FMIN * lags / sample_rate)
+    score = score.masked_fill(~is_peak, float('-inf'))
+    best_score, best_idx = score.max(dim=-1)
+
+    strength = centre.gather(-1, best_idx.unsqueeze(-1)).squeeze(-1)
+    voiced = loud & torch.isfinite(best_score) & (strength > PITCH_VOICING_THRESHOLD)
+    return sample_rate / lags[best_idx], strength, voiced
+
+
+def _compute_f0_stats(waveform: torch.Tensor, sample_rate: int, track: tuple = None) -> tuple:
+    """Clip-level pitch over voiced frames: median and interquartile range of F0, in semitones above 100 Hz."""
+    f0, _, voiced = track if track is not None else _pitch_track(waveform, sample_rate)
+    semitones = (12.0 * torch.log2(f0 / 100.0)).masked_fill(~voiced, float('nan'))
+    q25, median, q75 = torch.nanquantile(semitones, torch.tensor([0.25, 0.5, 0.75], device=f0.device, dtype=f0.dtype), dim=-1)
+    # Clips with no voiced frame get a mid-range pitch rather than NaN
+    return torch.nan_to_num(median, nan=F0_NO_VOICE_SEMITONES), torch.nan_to_num(q75 - q25, nan=0.0)
+
+
+def _compute_hnr(waveform: torch.Tensor, sample_rate: int, track: tuple = None) -> torch.Tensor:
+    """Mean harmonics-to-noise ratio over voiced frames, in dB, from each frame's periodicity (Boersma 1993)."""
+    _, strength, voiced = track if track is not None else _pitch_track(waveform, sample_rate)
+    r = strength.clamp(1e-3, 0.999)
+    hnr = 10.0 * torch.log10(r / (1.0 - r))
+    voiced = voiced.to(hnr.dtype)
+    return (hnr * voiced).sum(dim=-1) / voiced.sum(dim=-1).clamp(min=1.0)
 
 def _compute_spectral_centroid(waveform: torch.Tensor, sample_rate: int, n_fft: int = 1024, hop_length: int = 512) -> torch.Tensor:
     B, T = waveform.shape
@@ -245,8 +261,11 @@ def extract_acoustic_features(
     computed_feats = []
     
     with torch.no_grad():
+        track = None
+        if any(f in selected for f in ['f0', 'f0_mean', 'f0_var', 'hnr']):
+            track = _pitch_track(audio_tensor, sample_rate)
         if any(f in selected for f in ['f0', 'f0_mean', 'f0_var']):
-            m_f0, v_f0 = _compute_f0_stats(audio_tensor, sample_rate)
+            m_f0, v_f0 = _compute_f0_stats(audio_tensor, sample_rate, track)
         if any(f in selected for f in ['zcr', 'zcr_mean', 'zcr_var', 'rhythm']):
             m_zcr, v_zcr = _compute_zcr_stats(audio_tensor)
         if any(f in selected for f in ['formants', 'f1', 'f2', 'f3']):
@@ -255,7 +274,7 @@ def extract_acoustic_features(
         for f in selected:
             if f == 'f0' or f == 'f0_mean': computed_feats.append(m_f0)
             elif f == 'f0_var': computed_feats.append(v_f0)
-            elif f == 'hnr': computed_feats.append(_compute_hnr(audio_tensor, sample_rate))
+            elif f == 'hnr': computed_feats.append(_compute_hnr(audio_tensor, sample_rate, track))
             elif f == 'centroid': computed_feats.append(_compute_spectral_centroid(audio_tensor, sample_rate))
             elif f == 'flux' or f == 'flux_var': computed_feats.append(_compute_spectral_flux_var(audio_tensor, sample_rate))
             elif f == 'zcr' or f == 'zcr_mean': computed_feats.append(m_zcr)
