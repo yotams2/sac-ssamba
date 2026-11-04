@@ -1,0 +1,46 @@
+{
+  "task": "iemocap",
+  "experiment": "emotion_binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac_1e-5",
+  "job_id": "runai",
+  "status": "incomplete",
+  "date": "2026-10-26T09:16:01+02:00",
+  "collected_at": "2026-11-04T13:38:18+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac_1e-5",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac_1e-5",
+  "model": "binaural_sac_local",
+  "pretrained": "/storage/yotam/ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 1e-05,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 2000,
+          "acc": 0.5089887380599976
+        },
+        "test_at_best_dev": {
+          "step": 2000,
+          "acc": 0.4801843464374542
+        },
+        "test_final": {
+          "step": 4000,
+          "acc": 0.4921658933162689
+        },
+        "last_step": 4000,
+        "total_steps": 30000,
+        "complete": false
+      }
+    },
+    "complete": false,
+    "test_at_best_dev": {
+      "acc": 0.4801843464374542,
+      "n_folds": 1
+    }
+  }
+}

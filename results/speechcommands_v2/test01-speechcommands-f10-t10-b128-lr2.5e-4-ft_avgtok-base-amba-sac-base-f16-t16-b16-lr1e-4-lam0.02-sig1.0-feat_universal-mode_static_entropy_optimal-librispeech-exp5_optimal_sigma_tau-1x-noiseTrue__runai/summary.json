@@ -1,0 +1,37 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4-ft_avgtok-base-amba-sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_static_entropy_optimal-librispeech-exp5_optimal_sigma_tau-1x-noiseTrue",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-07-10T15:01:29+03:00",
+  "collected_at": "2026-11-04T13:38:28+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/speechcommands_v2/exp/test01-speechcommands-f10-t10-b128-lr2.5e-4-ft_avgtok-base-amba-sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_static_entropy_optimal-librispeech-exp5_optimal_sigma_tau-1x-noiseTrue",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/speechcommands_v2/exp/test01-speechcommands-f10-t10-b128-lr2.5e-4-ft_avgtok-base-amba-sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_static_entropy_optimal-librispeech-exp5_optimal_sigma_tau-1x-noiseTrue",
+  "model": "base",
+  "pretrained": "/storage/yotam/ssamba/src/sac/exp/sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_static_entropy_optimal-librispeech-exp5_optimal_sigma_tau/models/best_audio_model.pth",
+  "seed": null,
+  "lr": 0.00025,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 29,
+      "acc": 0.975152790301573,
+      "auc": 0.9995105710734937
+    },
+    "epochs_done": 30,
+    "test_at_best_dev": {
+      "acc": 0.9771921853702862,
+      "auc": 0.999706198564512
+    },
+    "dev_of_best_model": {
+      "acc": 0.975152790301573,
+      "auc": 0.9995105710734937
+    },
+    "complete": true
+  }
+}

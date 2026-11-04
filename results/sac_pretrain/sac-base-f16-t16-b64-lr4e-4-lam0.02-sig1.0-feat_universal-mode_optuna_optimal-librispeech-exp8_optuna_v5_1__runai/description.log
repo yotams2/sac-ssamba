@@ -1,0 +1,1 @@
+Experiment 8: Optuna-Calibrated Factorized SAC (Dual Loss: recon_lambda=1.0, classif_lambda=0.0, sac_lambda=0.02, tau=0.8502, mode=optuna_optimal v5_1, BS64 LR 4e-4)

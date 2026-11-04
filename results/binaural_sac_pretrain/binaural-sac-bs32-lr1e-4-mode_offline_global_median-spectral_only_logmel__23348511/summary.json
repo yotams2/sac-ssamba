@@ -1,0 +1,32 @@
+{
+  "task": "binaural_sac_pretrain",
+  "experiment": "binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel",
+  "job_id": "23348511",
+  "status": "running",
+  "date": "2026-11-04T13:14:27+02:00",
+  "collected_at": "2026-11-04T13:38:17+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel/models",
+  "model": "binaural_sac_spectral_only",
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.0001,
+  "frozen": null,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain",
+    "probes": [
+      {
+        "sc2/linear_acc": 0.05047618970274925,
+        "sid/linear_acc": 0.39124998450279236,
+        "sid/eer": 0.26936662197113037,
+        "emo/linear_ua": 0.496734619140625,
+        "step": 0
+      }
+    ]
+  },
+  "log": "/a/home/cc/students/enginer/yotams2/sac-ssamba/logs/sac_spec_logmel_23348511.out"
+}

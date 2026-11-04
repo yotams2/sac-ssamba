@@ -1,0 +1,38 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "gramt-speechcommands-b128-lr2.5e-4-ft_avgtok-frozen-gramt-binaural-frame",
+  "job_id": "23244879",
+  "status": "done",
+  "date": "2026-10-28T16:44:47+02:00",
+  "collected_at": "2026-11-04T13:38:14+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/gramt-speechcommands-b128-lr2.5e-4-ft_avgtok-frozen-gramt-binaural-frame",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/gramt-speechcommands-b128-lr2.5e-4-ft_avgtok-frozen-gramt-binaural-frame/models",
+  "model": "labhamlet/gramt-binaural-frame",
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.00025,
+  "frozen": true,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 28,
+      "acc": 0.9083258190562068,
+      "auc": 0.9949790881544132
+    },
+    "epochs_done": 30,
+    "test_at_best_dev": {
+      "acc": 0.8958655156746933,
+      "auc": 0.9940675733921764
+    },
+    "dev_of_best_model": {
+      "acc": 0.9083258190562068,
+      "auc": 0.9949790881544132
+    },
+    "complete": true
+  },
+  "log": "/a/home/cc/students/enginer/yotams2/sac-ssamba/logs/gramt_sc_23244879.out"
+}

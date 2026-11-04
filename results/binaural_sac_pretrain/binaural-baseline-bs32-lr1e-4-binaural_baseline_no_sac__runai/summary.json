@@ -1,0 +1,29 @@
+{
+  "task": "binaural_sac_pretrain",
+  "experiment": "binaural-baseline-bs32-lr1e-4-binaural_baseline_no_sac",
+  "job_id": "runai",
+  "status": "unknown",
+  "date": "2026-10-19T16:04:32+03:00",
+  "collected_at": "2026-11-04T13:38:39+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-baseline-bs32-lr1e-4-binaural_baseline_no_sac",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-baseline-bs32-lr1e-4-binaural_baseline_no_sac",
+  "model": "binaural_sac",
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.0001,
+  "frozen": null,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain",
+    "last_progress": [
+      8,
+      12000,
+      4,
+      76209.51556658745,
+      0.1814512506723404
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+16719/17296 [22:48<00:39, 14.55it/s]
+test acc: 0.768773078918457
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/dev-best.ckpt
+2. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/states-45000.ckpt
+train acc: 0.9558125138282776
+train acc: 0.9546250104904175
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/states-46000.ckpt
+train acc: 0.9589999914169312
+train acc: 0.9583749771118164
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/states-47000.ckpt
+train acc: 0.9552500247955322
+train acc: 0.9546250104904175
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/states-48000.ckpt
+train acc: 0.9523749947547913
+train acc: 0.9548749923706055
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/states-49000.ckpt
+train acc: 0.9750624895095825
+dev acc: 0.7517499923706055
+test acc: 0.7556421756744385
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4/states-50000.ckpt

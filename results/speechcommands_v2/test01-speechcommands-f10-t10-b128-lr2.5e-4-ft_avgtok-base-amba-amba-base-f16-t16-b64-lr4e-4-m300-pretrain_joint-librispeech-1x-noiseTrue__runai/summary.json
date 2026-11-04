@@ -1,0 +1,37 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4-ft_avgtok-base-amba-amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech-1x-noiseTrue",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-07-22T10:53:12+03:00",
+  "collected_at": "2026-11-04T13:38:26+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/speechcommands_v2/exp/test01-speechcommands-f10-t10-b128-lr2.5e-4-ft_avgtok-base-amba-amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech-1x-noiseTrue",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/speechcommands_v2/exp/test01-speechcommands-f10-t10-b128-lr2.5e-4-ft_avgtok-base-amba-amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech-1x-noiseTrue",
+  "model": "base",
+  "pretrained": "/storage/yotam/ssamba/src/pretrain/exp/amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech/models/best_audio_model.pth",
+  "seed": null,
+  "lr": 0.00025,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 30,
+      "acc": 0.9737501252379521,
+      "auc": 0.9995550986181282
+    },
+    "epochs_done": 30,
+    "test_at_best_dev": {
+      "acc": 0.9733757383007724,
+      "auc": 0.9996495537803353
+    },
+    "dev_of_best_model": {
+      "acc": 0.9737501252379521,
+      "auc": 0.9995550986181282
+    },
+    "complete": true
+  }
+}

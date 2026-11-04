@@ -1,0 +1,1 @@
+Experiment 9: Tri-Objective Pretraining (recon_lambda=1.0, classif_lambda=0.1, sac_lambda=0.02, mode=optuna_optimal, BS64 LR 4e-4)

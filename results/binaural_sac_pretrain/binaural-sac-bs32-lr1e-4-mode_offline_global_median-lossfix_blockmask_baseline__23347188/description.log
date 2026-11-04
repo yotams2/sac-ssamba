@@ -1,0 +1,1 @@
+Binaural SSAMBA CCSR pretraining with dual SAC branches (Spectral CA + Spatial Projection Head with BatchNorm1d and Standardized Spatial SAC), offline_global_median sigma.

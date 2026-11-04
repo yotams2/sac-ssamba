@@ -1,0 +1,37 @@
+{
+  "task": "voxceleb1",
+  "experiment": "sid_ssamba_sac_feat_universal_1e-4",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-06-11T15:41:39+03:00",
+  "collected_at": "2026-11-04T13:38:37+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_ssamba_sac_feat_universal_1e-4",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_ssamba_sac_feat_universal_1e-4",
+  "model": "ssamba_sac_feat_universal",
+  "pretrained": null,
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 45000,
+      "acc": 0.6122537851333618
+    },
+    "test_at_best_dev": {
+      "step": 45000,
+      "acc": 0.6006544828414917
+    },
+    "test_final": {
+      "step": 50000,
+      "acc": 0.5873227715492249
+    },
+    "last_step": 50000,
+    "total_steps": 50000,
+    "complete": true
+  }
+}

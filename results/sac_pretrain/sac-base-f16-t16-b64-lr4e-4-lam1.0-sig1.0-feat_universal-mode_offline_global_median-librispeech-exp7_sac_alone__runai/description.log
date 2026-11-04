@@ -1,0 +1,1 @@
+Experiment 7: Pure SAC Loss Alone (recon_lambda=0, sac_lambda=1.0, BS64 LR 4e-4)

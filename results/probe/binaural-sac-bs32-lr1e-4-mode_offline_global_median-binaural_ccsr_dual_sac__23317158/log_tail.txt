@@ -1,0 +1,60 @@
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+[binaural ckpt] loaded /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.2.pth: 876 tensors, 4 missing, 0 unexpected
+[probe] /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.2.pth: sc2/knn20_acc 6.29 | sc2/ncm_acc 6.00 | sc2/linear_acc 11.43 | sid/ncm_acc 8.62 | sid/linear_acc 16.12 | sid/eer 28.25 | emo/knn20_ua 42.34 | emo/ncm_ua 39.12 | emo/linear_ua 48.38 | emo/linear_acc 44.98 | probe_sec 56
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+[binaural ckpt] loaded /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.3.pth: 876 tensors, 4 missing, 0 unexpected
+[probe] /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.3.pth: sc2/knn20_acc 6.86 | sc2/ncm_acc 7.05 | sc2/linear_acc 12.57 | sid/ncm_acc 9.38 | sid/linear_acc 16.37 | sid/eer 28.58 | emo/knn20_ua 41.39 | emo/ncm_ua 38.98 | emo/linear_ua 47.34 | emo/linear_acc 43.32 | probe_sec 56
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+[binaural ckpt] loaded /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.4.pth: 876 tensors, 4 missing, 0 unexpected
+[probe] /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.4.pth: sc2/knn20_acc 6.86 | sc2/ncm_acc 6.67 | sc2/linear_acc 11.62 | sid/ncm_acc 7.87 | sid/linear_acc 15.62 | sid/eer 29.15 | emo/knn20_ua 40.18 | emo/ncm_ua 39.02 | emo/linear_ua 47.82 | emo/linear_acc 43.50 | probe_sec 56
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+Vision Mamba Config: {}
+combined_vision_mamba_config {'img_size': (256, 1024), 'patch_size': 16, 'stride': 8, 'embed_dim': 768, 'depth': 24, 'rms_norm': True, 'residual_in_fp32': True, 'fused_add_norm': True, 'final_pool_type': 'mean', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': True}
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=16, time=64
+pretraining number of patches=1024
+[binaural ckpt] loaded /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.final.pth: 876 tensors, 4 missing, 0 unexpected
+[probe] /scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/audio_model.final.pth: sc2/knn20_acc 7.14 | sc2/ncm_acc 7.14 | sc2/linear_acc 11.05 | sid/ncm_acc 8.87 | sid/linear_acc 16.00 | sid/eer 28.65 | emo/knn20_ua 41.03 | emo/ncm_ua 39.26 | emo/linear_ua 47.31 | emo/linear_acc 43.13 | probe_sec 56
+sc2/knn20_acc     sc2/ncm_acc  sc2/linear_acc     sid/ncm_acc  sid/linear_acc         sid/eer    emo/knn20_ua      emo/ncm_ua   emo/linear_ua  emo/linear_acc  model
+4.19            4.76            3.71            2.25            1.87           40.17           28.02           32.91           38.95           36.22  random
+41.71           48.57           71.24           45.50           62.37           13.92           57.74           56.67           62.93           58.34  gramt
+6.29            6.00           11.43            8.62           16.12           28.25           42.34           39.12           48.38           44.98  audio_model.2.pth
+6.86            7.05           12.57            9.38           16.37           28.58           41.39           38.98           47.34           43.32  audio_model.3.pth
+6.86            6.67           11.62            7.87           15.62           29.15           40.18           39.02           47.82           43.50  audio_model.4.pth
+7.14            7.14           11.05            8.87           16.00           28.65           41.03           39.26           47.31           43.13  audio_model.final.pth

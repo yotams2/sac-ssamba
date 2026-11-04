@@ -1,0 +1,46 @@
+{
+  "task": "iemocap",
+  "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone_1e-5",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-07-29T19:30:52+03:00",
+  "collected_at": "2026-11-04T13:38:22+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone_1e-5",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone_1e-5",
+  "model": "ssamba_local",
+  "pretrained": "/storage/yotam/ssamba/src/sac/exp/sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 25000,
+          "acc": 0.6370786428451538
+        },
+        "test_at_best_dev": {
+          "step": 25000,
+          "acc": 0.5253456234931946
+        },
+        "test_final": {
+          "step": 30000,
+          "acc": 0.5336405634880066
+        },
+        "last_step": 30000,
+        "total_steps": 30000,
+        "complete": true
+      }
+    },
+    "complete": true,
+    "test_at_best_dev": {
+      "acc": 0.5253456234931946,
+      "n_folds": 1
+    }
+  }
+}

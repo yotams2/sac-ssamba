@@ -1,0 +1,46 @@
+{
+  "task": "iemocap",
+  "experiment": "emotion_ssamba_sac_feat_universal_fixed_1e-5",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-06-18T02:04:39+03:00",
+  "collected_at": "2026-11-04T13:38:23+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_ssamba_sac_feat_universal_fixed_1e-5",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_ssamba_sac_feat_universal_fixed_1e-5",
+  "model": "ssamba_sac_feat_universal_fixed_emo",
+  "pretrained": null,
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 5000,
+          "acc": 0.6719101071357727
+        },
+        "test_at_best_dev": {
+          "step": 5000,
+          "acc": 0.5317972302436829
+        },
+        "test_final": {
+          "step": 30000,
+          "acc": 0.5548387169837952
+        },
+        "last_step": 30000,
+        "total_steps": 30000,
+        "complete": true
+      }
+    },
+    "complete": true,
+    "test_at_best_dev": {
+      "acc": 0.5317972302436829,
+      "n_folds": 1
+    }
+  }
+}

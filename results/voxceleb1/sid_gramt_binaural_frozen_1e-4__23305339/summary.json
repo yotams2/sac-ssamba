@@ -1,0 +1,38 @@
+{
+  "task": "voxceleb1",
+  "experiment": "sid_gramt_binaural_frozen_1e-4",
+  "job_id": "23305339",
+  "status": "done",
+  "date": "2026-11-02T08:50:16+02:00",
+  "collected_at": "2026-11-04T13:38:15+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_gramt_binaural_frozen_1e-4",
+  "model": "gramt_binaural",
+  "pretrained": null,
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": true,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 45000,
+      "acc": 0.7697499990463257
+    },
+    "test_at_best_dev": {
+      "step": 45000,
+      "acc": 0.768773078918457
+    },
+    "test_final": {
+      "step": 50000,
+      "acc": 0.7556421756744385
+    },
+    "last_step": 50000,
+    "total_steps": 50000,
+    "complete": true
+  },
+  "log": "/a/home/cc/students/enginer/yotams2/sac-ssamba/logs/gramt_sid_23305339.out"
+}

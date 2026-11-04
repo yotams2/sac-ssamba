@@ -1,0 +1,46 @@
+{
+  "task": "iemocap",
+  "experiment": "emotion_sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-new_LPC_1e-5",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-07-05T02:27:24+03:00",
+  "collected_at": "2026-11-04T13:38:19+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-new_LPC_1e-5",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/iemocap/exp/emotion_sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-new_LPC_1e-5",
+  "model": "ssamba_local",
+  "pretrained": "/storage/yotam/ssamba/src/sac/exp/sac-base-f16-t16-b16-lr1e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-new_LPC//models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 2000,
+          "acc": 0.6786516904830933
+        },
+        "test_at_best_dev": {
+          "step": 2000,
+          "acc": 0.5778802037239075
+        },
+        "test_final": {
+          "step": 30000,
+          "acc": 0.5548387169837952
+        },
+        "last_step": 30000,
+        "total_steps": 30000,
+        "complete": true
+      }
+    },
+    "complete": true,
+    "test_at_best_dev": {
+      "acc": 0.5778802037239075,
+      "n_folds": 1
+    }
+  }
+}

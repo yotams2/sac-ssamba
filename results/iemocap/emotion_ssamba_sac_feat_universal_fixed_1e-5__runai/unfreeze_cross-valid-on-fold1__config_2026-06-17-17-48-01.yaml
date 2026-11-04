@@ -1,0 +1,37 @@
+downstream_expert:
+  datarc:
+    eval_batch_size: 4
+    meta_data: /storage/yotam/s3prl/s3prl/downstream/emotion/meta_data
+    num_workers: 6
+    pre_load: true
+    root: /storage/data/IEMOCAP_audio_only/IEMOCAP_full_release
+    test_fold: fold1
+    train_batch_size: 4
+    valid_ratio: 0.2
+  modelrc:
+    DeepModel:
+      dropout: 0.4
+      hidden_dim: 80
+      kernel_size: 5
+      model_type: CNNSelfAttention
+      padding: 2
+      pooling: 5
+    UtteranceLevel:
+      pooling: MeanPooling
+    projector_dim: 256
+    select: UtteranceLevel
+optimizer:
+  lr: 0.0001
+  name: TorchOptim
+  torch_optim_name: Adam
+runner:
+  eval_dataloaders:
+  - dev
+  - test
+  eval_step: 1000
+  gradient_accumulate_steps: 8
+  gradient_clipping: 1
+  log_step: 500
+  max_keep: 1
+  save_step: 1000
+  total_steps: 30000

@@ -1,0 +1,31 @@
+{
+  "task": "ssamba_pretrain",
+  "experiment": "amba-base-f16-t16-b16-lr1e-4-m300-pretrain_joint-librispeech",
+  "job_id": "runai",
+  "status": "unknown",
+  "date": "2026-05-31T06:24:30+03:00",
+  "collected_at": "2026-11-04T13:38:40+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/pretrain/exp/amba-base-f16-t16-b16-lr1e-4-m300-pretrain_joint-librispeech",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/pretrain/exp/amba-base-f16-t16-b16-lr1e-4-m300-pretrain_joint-librispeech",
+  "model": "base",
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.0001,
+  "frozen": null,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "run_amba_pretrain",
+    "epochs_done": 20,
+    "last_epoch": {
+      "train_acc": 0.5710843369737267,
+      "train_nce": 2.5631123073399067,
+      "eval_acc": 0.27015990018844604,
+      "eval_nce": 0.051306433975696564,
+      "lr": 0.0001
+    },
+    "complete": null
+  }
+}

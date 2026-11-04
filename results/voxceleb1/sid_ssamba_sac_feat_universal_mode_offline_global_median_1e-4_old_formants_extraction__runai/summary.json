@@ -1,0 +1,37 @@
+{
+  "task": "voxceleb1",
+  "experiment": "sid_ssamba_sac_feat_universal_mode_offline_global_median_1e-4_old_formants_extraction",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-06-17T20:59:56+03:00",
+  "collected_at": "2026-11-04T13:38:38+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_ssamba_sac_feat_universal_mode_offline_global_median_1e-4_old_formants_extraction",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_ssamba_sac_feat_universal_mode_offline_global_median_1e-4_old_formants_extraction",
+  "model": "ssamba_sac_feat_universal_mode_offline_global_median",
+  "pretrained": null,
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 50000,
+      "acc": 0.6081981658935547
+    },
+    "test_at_best_dev": {
+      "step": 50000,
+      "acc": 0.5928978323936462
+    },
+    "test_final": {
+      "step": 50000,
+      "acc": 0.5928978323936462
+    },
+    "last_step": 50000,
+    "total_steps": 50000,
+    "complete": true
+  }
+}

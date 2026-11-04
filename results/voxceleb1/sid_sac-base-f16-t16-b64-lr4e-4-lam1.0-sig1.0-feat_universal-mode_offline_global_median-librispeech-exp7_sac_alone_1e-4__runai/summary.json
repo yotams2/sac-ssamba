@@ -1,0 +1,37 @@
+{
+  "task": "voxceleb1",
+  "experiment": "sid_sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone_1e-4",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-07-29T06:47:25+03:00",
+  "collected_at": "2026-11-04T13:38:35+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone_1e-4",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone_1e-4",
+  "model": "ssamba_local",
+  "pretrained": "/storage/yotam/ssamba/src/sac/exp/sac-base-f16-t16-b64-lr4e-4-lam1.0-sig1.0-feat_universal-mode_offline_global_median-librispeech-exp7_sac_alone/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 45000,
+      "acc": 0.5367902517318726
+    },
+    "test_at_best_dev": {
+      "step": 45000,
+      "acc": 0.5272088050842285
+    },
+    "test_final": {
+      "step": 50000,
+      "acc": 0.5255120396614075
+    },
+    "last_step": 50000,
+    "total_steps": 50000,
+    "complete": true
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--frozen-binaural_sac-amba-binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac-1x-noiseTrue",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-10-25T00:24:18+03:00",
+  "collected_at": "2026-11-04T13:38:24+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/speechcommands_v2/exp/test01-speechcommands-f10-t10-b128-lr2.5e-4--frozen-binaural_sac-amba-binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac-1x-noiseTrue",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/speechcommands_v2/exp/test01-speechcommands-f10-t10-b128-lr2.5e-4--frozen-binaural_sac-amba-binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac-1x-noiseTrue",
+  "model": "binaural_sac",
+  "pretrained": "/storage/yotam/ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac/models/best_audio_model.pth",
+  "seed": null,
+  "lr": 0.00025,
+  "frozen": true,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 11,
+      "acc": 0.05500450856627592,
+      "auc": 0.6313579762957484
+    },
+    "epochs_done": 30,
+    "test_at_best_dev": {
+      "acc": 0.05751930940481599,
+      "auc": 0.6330210858431295
+    },
+    "dev_of_best_model": {
+      "acc": 0.05500450856627592,
+      "auc": 0.6313579762957484
+    },
+    "complete": true
+  }
+}

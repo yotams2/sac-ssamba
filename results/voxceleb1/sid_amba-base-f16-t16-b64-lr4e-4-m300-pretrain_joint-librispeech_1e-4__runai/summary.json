@@ -1,0 +1,37 @@
+{
+  "task": "voxceleb1",
+  "experiment": "sid_amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech_1e-4",
+  "job_id": "runai",
+  "status": "done",
+  "date": "2026-07-21T17:11:17+03:00",
+  "collected_at": "2026-11-04T13:38:31+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech_1e-4",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/finetune/voxceleb1/exp/sid_amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech_1e-4",
+  "model": "ssamba_local",
+  "pretrained": "/storage/yotam/ssamba/src/pretrain/exp/amba-base-f16-t16-b64-lr4e-4-m300-pretrain_joint-librispeech/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 45000,
+      "acc": 0.6216685771942139
+    },
+    "test_at_best_dev": {
+      "step": 45000,
+      "acc": 0.6050176024436951
+    },
+    "test_final": {
+      "step": 50000,
+      "acc": 0.5952005982398987
+    },
+    "last_step": 50000,
+    "total_steps": 50000,
+    "complete": true
+  }
+}

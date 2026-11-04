@@ -1,0 +1,29 @@
+{
+  "task": "binaural_sac_pretrain",
+  "experiment": "binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac_bn_standardized_spatial",
+  "job_id": "runai",
+  "status": "unknown",
+  "date": "2026-10-24T05:08:09+03:00",
+  "collected_at": "2026-11-04T13:38:40+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac_bn_standardized_spatial",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/binaural_dual_stream_sac/exp/binaural-sac-bs32-lr1e-4-mode_offline_global_median-binaural_ccsr_dual_sac_bn_standardized_spatial",
+  "model": "binaural_sac",
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.0001,
+  "frozen": null,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain",
+    "last_progress": [
+      8,
+      12000,
+      4,
+      111573.96271014214,
+      6.771282382965088
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "task": "sac_pretrain",
+  "experiment": "sac-base-f16-t16-b16-lr1e-4-lam0.02-sig2.0-feat_emo-librispeech",
+  "job_id": "runai",
+  "status": "unknown",
+  "date": "2026-06-04T13:38:57+03:00",
+  "collected_at": "2026-11-04T13:38:44+02:00",
+  "host": "compute-0-25.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/src/sac/exp/sac-base-f16-t16-b16-lr1e-4-lam0.02-sig2.0-feat_emo-librispeech",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/src/sac/exp/sac-base-f16-t16-b16-lr1e-4-lam0.02-sig2.0-feat_emo-librispeech",
+  "model": "binaural_sac",
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.0001,
+  "frozen": null,
+  "git_commit": null,
+  "git_dirty": null,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain"
+  }
+}
