@@ -10,3 +10,11 @@
 ++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
 + results_hook smoke_test /scratch200/yotams2/tmp/smoke/run_term
 + '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
+[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/smoke_test/run_term__23351226: status running
+[sync_results] pushed fd2f6f4
++ return 0
++ echo 'payload term'
+payload term
++ case $MODE in
++ sleep 500
+[2026-11-04T13:46:57.356] error: *** JOB 23351226 ON compute-0-36 CANCELLED AT 2026-11-04T13:46:57 DUE to SIGNAL Terminated ***
