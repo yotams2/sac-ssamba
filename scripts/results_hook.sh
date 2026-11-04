@@ -2,8 +2,10 @@
 #
 #   source <repo>/scripts/results_hook.sh && results_hook <task> <exp_dir> [probe_file]
 #
-# It records the run as `running` right away, then done / failed / interrupted when the script exits. The start record
-# also catches what no trap can: a node failure, or a SIGKILL 30 s after a preemption (Slurm's KillWait).
+# It records the run as `running` right away, and an EXIT trap records done or failed when the script ends by itself.
+# Traps can't report preemption, time limits or scancel: Slurm's SIGTERM reaches only the batch shell, which can't run a
+# trap until its foreground command ends, and SIGKILL follows 30 s later. So it also submits scripts/collect_after.sbatch
+# to run after the job, which closes the record from Slurm's final state, and catches node failures too.
 # Does nothing without the worktree (RunAI), and never changes the job's exit code.
 
 _RH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,7 +30,7 @@ _rh_exit() {
     { set +x; set +e; } 2>/dev/null
     trap '' TERM
     if [ -n "${_RH_SIGNALLED:-}" ] || [ "$rc" = 143 ]; then
-        # About 30 s before the SIGKILL. A sync killed halfway is cleaned up by the next one.
+        # Only reached if the shell was between commands. A sync killed halfway is cleaned up by the next one.
         _rh_record interrupted 12 143
     elif [ "$rc" = 0 ]; then
         _rh_record done 200 0
@@ -51,7 +53,11 @@ results_hook() {
     _RH_LOG=""
     [ -n "${SLURM_JOB_ID:-}" ] && _RH_LOG=$(scontrol show job "$SLURM_JOB_ID" 2>/dev/null | sed -n 's/^ *StdOut=//p' | head -1)
     _rh_record running 60
-    # Without a TERM trap bash still runs the EXIT trap on SIGTERM, but with $?=0: a preempted job would count as done
+    if [ -n "${SLURM_JOB_ID:-}" ]; then
+        (cd "${_RH_DIR}/.." && sbatch --quiet --output=/dev/null --dependency="afterany:${SLURM_JOB_ID}" \
+            scripts/collect_after.sbatch "$_RH_TASK" "$_RH_EXP" "$_RH_JOB" "$_RH_LOG" "$_RH_COMMIT" "$_RH_S3PRL" "$_RH_PROBE") || true
+    fi
+    # Without a TERM trap bash still runs the EXIT trap on SIGTERM, but with $?=0: the run would count as done
     trap '_RH_SIGNALLED=1; exit 143' TERM
     trap _rh_exit EXIT
     case "$xtrace" in *x*) set -x ;; esac

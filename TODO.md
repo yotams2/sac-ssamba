@@ -94,6 +94,11 @@ IEMOCAP: the binaural setting did not exist yet, so the SAC model got mono audio
 
 ## Open issues / to check
 
+- [ ] **Frozen SAC on SC2: 13.5% or 5.75%?** This file and the frozen-probe debugging above quote 13.5%, but the only frozen SC2 run on this
+  cluster (`--frozen-binaural_sac-...binaural_ccsr_dual_sac`, copied from RunAI) has test 5.75% and best validation 5.50% in `eval_result.csv`
+  and `result.csv`. Find out which run gave 13.5%, then correct whichever is wrong. VoxCeleb1 frozen agrees (14.5% quoted, 14.81% at best dev).
+- [ ] **No seed in `run_amba.py` or `run_binaural_amba.py`**, so the SC2 and pretraining summaries have `seed: null`. Add a `--seed` before the
+  3-seed SAC vs no-SAC runs. s3prl always uses 1337 unless told otherwise, so pass a different one per run there.
 - [ ] **Binaural downstream sets were sampled with replacement.** In `data_generation/utils_simu_rir_sig.py`,
   `generate_microphone_signal` picks `src_idx = np.random.randint(0, len(srcdataset))` instead of `src_idx = idx`.
   So each simulated split covers only ~63% of its source utterances, and the rest of its clips are repeats in other rooms
@@ -132,6 +137,9 @@ IEMOCAP: the binaural setting did not exist yet, so the SAC model got mono audio
 - [ ] **Optional GRAM-T variants**: `gramt_binaural_time`, `gramt_mono` (weights download on first use, ~0.4 GB each).
 
 ## Done
+
+- [x] Results sync (2026-11-04): every launch script reports to the `results` branch, see "Results sync" in [CLAUDE.md](CLAUDE.md). Backfilled:
+  the finished TAU runs and 74 RunAI runs. Jobs 23347188, 23348510, 23348511 were started before the hook; `collect_after.sbatch` jobs report them when they end.
 
 - [x] Frozen GRAM-T dropout: not an issue. `encoder_dropout` and `encoder_attention_dropout` are 0.0 in the HF config, so
   `train()` putting the frozen encoder in train mode changes nothing.

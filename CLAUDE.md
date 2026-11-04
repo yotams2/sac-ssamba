@@ -74,6 +74,35 @@ Follow `src/finetune/voxceleb1/run_gramt.sh`: `#SBATCH` header (partition, exclu
 sbatch-safe `SCRIPT_DIR` (resolve via `scontrol show job` when `BASH_SOURCE` is `slurm_script`), `source env.sh`,
 use `$PYTHON`, `$SAC_DATA_ROOT`, `$SAC_EXP_ROOT` instead of absolute paths.
 
+## Results sync and the cloud Claude
+
+I also work with Claude in the claude.ai app ("cloud Claude"). It cannot reach this cluster. It reads this repo from
+GitHub (code on `main`, results on the `results` branch) and the Notion thesis archive. Anything not pushed is
+invisible to it.
+
+- **Results**: launch scripts source `scripts/results_hook.sh` and call `results_hook <task> <exp_dir>`. It records the
+  run as `running` at start and `done` or `failed` at exit (EXIT trap), through `scripts/collect_result.py` and
+  `scripts/sync_results.sh`. Traps can't catch preemption, time limits or scancel here: Slurm signals only the batch
+  shell, which can't run a trap during a foreground command. So the hook also submits `scripts/collect_after.sbatch`
+  with `--dependency=afterany`, which closes the record from Slurm's final state (`interrupted`). Each run is `results/<task>/<exp>__<jobid>/summary.json` plus small raw files, in the
+  worktree `~/sac-ssamba-results` (branch `results`), and compute nodes push directly. Never commit results to `main`.
+  Format and status meanings: `README.md` on that branch. Report `metrics.test_at_best_dev`.
+- **New launch scripts**: add the hook, after the experiment dir is known and before the training command. Pipelines
+  that only call other launch scripts don't need it.
+- **Changing a launch script**: replace the file (`sed -i`, or write + rename), don't edit it in place, if a job may be
+  running it from the repo. Bash reads a script as it goes, and `scripts/spectral_only.sbatch` runs
+  `run_binaural_sac.sh` from the repo, not from Slurm's copy. A job already running doesn't get a new hook: report it
+  with `sbatch --dependency=afterany:<job id> scripts/collect_after.sbatch <task> <exp dir> <job id> <log>`.
+- **Start of every session**: run `scripts/sync_results.sh` (it pushes anything a job couldn't; `scrontab` is disabled
+  here, so nothing else would), `git pull` on main, and read the Notion page "Agent Handoff" (under SAC Loss) for
+  requests from the cloud Claude.
+- **End of every session**: run `scripts/sync_results.sh`, update `TODO.md` (status, job ids, numbers in the results
+  table), commit with a descriptive message, and **push `main`**. Unpushed work doesn't exist for the cloud Claude.
+- **Notion** (only if the Notion tools are available here): selective updates, no new page per exchange or minor fix.
+  Add or update a row in the Experiments Log only when an experiment is finished and has a verdict (check for an
+  existing row first). Tick items in Global TODO when they're done. To ask the cloud Claude something, add a dated line
+  to "Agent Handoff". Delete lines from that page once they're handled; it's an inbox, not an archive.
+
 ## Git
 
 Remote `git@github.com:yotams2/sac-ssamba.git`. Push over SSH (HTTPS fails through the VS Code credential helper).
