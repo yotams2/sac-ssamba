@@ -1,0 +1,38 @@
+{
+  "task": "smoke_test",
+  "experiment": "run_term",
+  "job_id": "23351226",
+  "status": "running",
+  "date": "2026-11-04T13:45:51+02:00",
+  "collected_at": "2026-11-04T13:45:53+02:00",
+  "host": "compute-0-36.powerslurm",
+  "exp_dir": "/scratch200/yotams2/tmp/smoke/run_term",
+  "ckpt_dir": "/scratch200/yotams2/tmp/smoke/run_term",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": 0.001,
+  "frozen": null,
+  "git_commit": "750fda009d59a05d73f9af26874ee269000208ae",
+  "git_dirty": true,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 100,
+      "acc": 0.5
+    },
+    "test_at_best_dev": {
+      "step": 100,
+      "acc": 0.4
+    },
+    "test_final": {
+      "step": 100,
+      "acc": 0.4
+    },
+    "last_step": 100,
+    "total_steps": 100,
+    "complete": true
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/smoke_results_23351226.out"
+}
