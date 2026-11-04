@@ -2,9 +2,9 @@
   "task": "smoke_test",
   "experiment": "run_fail",
   "job_id": "23351020",
-  "status": "running",
+  "status": "failed",
   "date": "2026-11-04T13:40:03+02:00",
-  "collected_at": "2026-11-04T13:40:06+02:00",
+  "collected_at": "2026-11-04T13:40:43+02:00",
   "host": "compute-0-273.powerslurm",
   "exp_dir": "/scratch200/yotams2/tmp/smoke/run_fail",
   "ckpt_dir": "/scratch200/yotams2/tmp/smoke/run_fail",
@@ -34,5 +34,6 @@
     "total_steps": 100,
     "complete": true
   },
+  "exit_code": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/smoke_results_23351020.out"
 }
