@@ -1,4 +1,0 @@
-runner:
-  total_steps: 100
-optimizer:
-  lr: 0.001

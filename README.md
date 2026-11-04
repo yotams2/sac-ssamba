@@ -8,9 +8,9 @@ Written by jobs on the TAU cluster, not by hand. Code lives on `main`. One folde
       args.json / args_*.yaml / config_*.yaml / config.json   resolved configuration
       log.log, result.csv, eval_result.csv, probe_metrics*.jsonl   raw metrics, when they exist
 
-`status`: `running` (job started, or was killed so hard that nothing else could be written), `done`, `failed`,
-`interrupted` (preempted, time limit or scancel; a requeued job overwrites its folder), `incomplete` (backfilled run that
-stopped early), `unknown` (backfilled pretraining run that has no completion marker).
+`status`: `running` (job in progress), `done`, `failed`, `interrupted` (preempted, time limit, scancel or node failure; a
+post-job step sets this, and a requeued job overwrites its folder), `incomplete` (backfilled run that stopped early),
+`unknown` (backfilled pretraining run that has no completion marker).
 
 `job_id` is the Slurm job id. `runai` marks runs from the old RunAI server, copied to this cluster and backfilled here:
 they have no job id and no git commit. They also predate fixes described in `TODO.md` on `main`, so read those notes
