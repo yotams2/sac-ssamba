@@ -68,6 +68,20 @@ def wav2stft(waveform, n_fft=512, hop_length=160, target_freq_bins=256, target_l
     return stft_4ch
 
 
+def wav2fbank(waveform, norm_mean, norm_std, num_mel_bins=128, target_length=1024, sr=16000):
+    """
+    Two-ear log-mel [2, num_mel_bins, target_length] from a [2, N] waveform, with the settings of the
+    mono SSAMBA dataloader (dataloader.py): DC removed, kaldi fbank, frames zero-padded before normalising.
+    """
+    ears = []
+    for wav in waveform[:2]:
+        fbank = torchaudio.compliance.kaldi.fbank((wav - wav.mean()).unsqueeze(0), htk_compat=True, sample_frequency=sr,
+                                                  use_energy=False, window_type='hanning', num_mel_bins=num_mel_bins,
+                                                  dither=0.0, frame_shift=10)  # [T, F]
+        ears.append(F.pad(fbank, (0, 0, 0, max(0, target_length - fbank.shape[0])))[:target_length].t())
+    return (torch.stack(ears) - norm_mean) / (2.0 * norm_std)
+
+
 class BinauralAudioDataset(Dataset):
     """
     Dataset for loading 2-channel binaural audio, extracting 4-channel Complex STFT,
@@ -86,6 +100,7 @@ class BinauralAudioDataset(Dataset):
         self.hop_length = self.audio_conf.get('hop_length', 160)
         self.mask_ratio = self.audio_conf.get('mask_ratio', 0.5)
         self.mask_block = self.audio_conf.get('mask_block', 16)
+        self.input_repr = self.audio_conf.get('input_repr', 'stft')  # 'stft' or 'logmel'
         self.target_freq_bins = self.audio_conf.get('target_freq_bins', 256)
 
     def _wav2stft(self, filename):
@@ -107,6 +122,9 @@ class BinauralAudioDataset(Dataset):
         wav_path = datum['wav']
 
         stft_4ch, waveform, sr = self._wav2stft(wav_path)
+        if self.input_repr == 'logmel':  # replaces the STFT: W, c_mono and c_spatial below are unchanged
+            stft_4ch = wav2fbank(waveform, self.audio_conf['fbank_mean'], self.audio_conf['fbank_std'],
+                                 target_length=self.target_length, sr=sr)
         T = stft_4ch.shape[2]
         W = generate_ccsr_time_mask(T, mask_ratio=self.mask_ratio, block=self.mask_block)
 

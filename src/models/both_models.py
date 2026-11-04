@@ -134,7 +134,7 @@ class AMBAModel(nn.Module):
             # this is a trick to make state_dict to track pretraining input_fdim and input_tdim and save them by using torch.save
             self.p_input_fdim, self.p_input_tdim = nn.Parameter(torch.tensor(input_fdim), requires_grad=False), nn.Parameter(torch.tensor(input_tdim), requires_grad=False)
 
-            self.cpredlayer = nn.Sequential(nn.Linear(self.original_embedding_dim, self.original_embedding_dim), nn.ReLU(), nn.Linear(self.original_embedding_dim, 256))
+            self.cpredlayer = nn.Sequential(nn.Linear(self.original_embedding_dim, self.original_embedding_dim), nn.ReLU(), nn.Linear(self.original_embedding_dim, in_chans * fshape * tshape))
             # masked patch reconstruction (generative objective) layer
             self.gpredlayer = nn.Sequential(nn.Linear(self.original_embedding_dim, self.original_embedding_dim), nn.ReLU(), nn.Linear(self.original_embedding_dim, in_chans * fshape * tshape))
             self.unfold = torch.nn.Unfold(kernel_size=(fshape, tshape), stride=(fstride, tstride))
@@ -539,7 +539,8 @@ class AMBAModel(nn.Module):
 
         # encode the patch
         # size 12(batch_size) * 100(#mask_patch) * 768(hidden_dim), prepare to save the true values of masked samples
-        encode_samples = torch.empty((B, mask_patch, 256), device=x.device, requires_grad=False).float()
+        patch_dim = input.shape[-1]  # in_chans * fshape * tshape
+        encode_samples = torch.empty((B, mask_patch, patch_dim), device=x.device, requires_grad=False).float()
         # size 12(batch_size) * 100(#mask_patch), index of masked patches
         mask_index = torch.empty((B, mask_patch), device=x.device, requires_grad=False).long()
         # size 12(batch_size) * 512(sequence_len) * 768(hidden_dim)
@@ -604,7 +605,7 @@ class AMBAModel(nn.Module):
         
         
    
-        pred = torch.empty((B, mask_patch, 256), device=x.device).float()  # e.g. size 12*100*768
+        pred = torch.empty((B, mask_patch, patch_dim), device=x.device).float()  # e.g. size 12*100*768
         for i in range(B):
             #  +2 for indexes because skipping the cls and dis token
             # we map the output of transformer (768-dim for base models) to 256-dim patch input space, and then dot product with flattened patch input (also 256-dim) to calculate loss.
@@ -617,7 +618,8 @@ class AMBAModel(nn.Module):
         for i in np.arange(0, B):
             # negative samples are from the same batch
             # 8/12/2022: has a difference with equation (1) in the ssast paper but (likely) performance-wise similar, see https://github.com/YuanGongND/ssast/issues/13
-            total = torch.mm(encode_samples[i], torch.transpose(pred[i], 0, 1))  # e.g. size 100*100
+            with torch.cuda.amp.autocast(enabled=False):  # fp32: raw STFT patches can overflow fp16 here
+                total = torch.mm(encode_samples[i], torch.transpose(pred[i], 0, 1))  # e.g. size 100*100
             correct += torch.sum(torch.eq(torch.argmax(self.softmax(total), dim=0), torch.arange(0, mask_patch, device=x.device)))  # correct is a tensor
             nce += torch.sum(torch.diag(self.lsoftmax(total)))  # nce is a tensor
         acc = 1. * correct / (B * mask_patch)
@@ -715,8 +717,8 @@ class AMBAModel(nn.Module):
         
         x = self.v.norm_f(hidden_states)
         
-        pred = torch.empty((B, mask_patch, self.fshape * self.tshape), device=x.device).float()  # e.g. size 12*100*256
-        target = torch.empty((B, mask_patch, self.fshape * self.tshape), device=x.device).float() # e.g. size 12*100*256
+        pred = torch.empty((B, mask_patch, input.shape[-1]), device=x.device).float()  # e.g. size 12*100*256
+        target = torch.empty((B, mask_patch, input.shape[-1]), device=x.device).float() # e.g. size 12*100*256
 
         for i in range(B):
             #  +2 for indexes because cls and dis token

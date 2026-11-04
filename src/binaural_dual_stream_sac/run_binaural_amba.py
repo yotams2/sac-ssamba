@@ -267,6 +267,11 @@ def main():
     parser.add_argument('--share_encoder_weights', action='store_true', default=False, help="Share weights between encoders")
     parser.add_argument('--time_mask_ratio', type=float, default=0.5, help="CCSR time-frame mask ratio")
     parser.add_argument('--mask_block', type=int, default=16, help="Mask whole blocks of this many frames (16 = one patch width, 1 = single frames)")
+    parser.add_argument('--spectral_only', action='store_true', help="One encoder, no CCSR: SSAMBA mpg/mpc + spectral SAC (docs/spectral_only_experiment.md)")
+    parser.add_argument('--input_repr', type=str, default='stft', choices=['stft', 'logmel'], help="Encoder input; logmel needs --spectral_only")
+    parser.add_argument('--mask_patch', type=int, default=600, help="Masked patches per clip for --spectral_only")
+    parser.add_argument('--fbank_mean', type=float, default=None, help="Log-mel normalisation mean (--input_repr logmel)")
+    parser.add_argument('--fbank_std', type=float, default=None, help="Log-mel normalisation std (--input_repr logmel)")
     parser.add_argument('--latest_every', type=int, default=0, help="Save the full training state to models/latest.pth every N steps; 0 disables")
     parser.add_argument('--resume', type=str, default='', help="Path to checkpoint (.pth) to resume training")
     parser.add_argument('--verify_synthetic', action='store_true', default=False, help="Run synthetic batch verification and exit")
@@ -279,6 +284,8 @@ def main():
     parser.add_argument('--probe_tasks', type=str, default='sc2,sid,iemocap', help="Comma-separated probe tasks (sc2, sid, iemocap)")
 
     args = parser.parse_args()
+    if args.input_repr == 'logmel' and (not args.spectral_only or args.fbank_mean is None or args.fbank_std is None):
+        parser.error('--input_repr logmel needs --spectral_only, --fbank_mean and --fbank_std')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if args.disable_sac_spec:
@@ -317,6 +324,9 @@ def main():
         'target_freq_bins': 256,
         'mask_ratio': args.time_mask_ratio,
         'mask_block': args.mask_block,
+        'input_repr': args.input_repr,
+        'fbank_mean': args.fbank_mean,
+        'fbank_std': args.fbank_std,
         'coh_freq_bands': (1000.0, 4000.0),
     }
     train_dataset = BinauralAudioDataset(args.data_train, audio_conf=audio_conf)
@@ -331,8 +341,12 @@ def main():
         val_loader = None
 
     # 5. Build Model
+    logmel = args.input_repr == 'logmel'
     model = BinauralSSAMBASACModel(
-        input_fdim=256, input_tdim=1024,
+        input_fdim=128 if logmel else 256, input_tdim=1024,
+        in_chans=2 if logmel else 4,
+        spectral_only=args.spectral_only,
+        mask_patch=args.mask_patch,
         fshape=16, tshape=16,
         sac_spec_lambda=args.sac_spec_lambda,
         sac_spat_lambda=args.sac_spat_lambda,
@@ -419,7 +433,8 @@ def main():
     probe = None
     if args.probe_every > 0:
         from binaural_dual_stream_sac.pretrain_probe import PretrainProbe, format_metrics
-        probe = PretrainProbe(args.probe_data_root, tasks=tuple(args.probe_tasks.split(',')), device=device)
+        probe = PretrainProbe(args.probe_data_root, tasks=tuple(args.probe_tasks.split(',')), device=device,
+                              input_repr=args.input_repr, fbank_mean=args.fbank_mean, fbank_std=args.fbank_std)
         print(f'[probe] chance: {format_metrics(probe.chance())}', flush=True)
         if global_step == 0:  # random-init baseline for this run
             run_probe(probe, model, 0, args.exp_dir, args.use_wandb)

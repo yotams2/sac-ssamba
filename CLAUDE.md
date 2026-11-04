@@ -58,7 +58,8 @@ Consequences:
 
 - `src/run_amba.py`, `src/traintest*.py`, `src/models/`: SSAMBA pretrain/finetune (also the SC2 path for GRAM-T).
 - `src/sac/`: single-channel SAC model (`SSAMBASACModel`, factorized SAC loss, acoustic features).
-- `src/binaural_dual_stream_sac/`: binaural dual-stream SAC model, dataloader, spatial features.
+- `src/binaural_dual_stream_sac/`: binaural dual-stream SAC model, dataloader, spatial features. `run_binaural_sac.sh` is the pretraining
+  entry point (`--spectral_only` for one encoder without CCSR), `pretrain_probe.py` the frozen downstream probes.
 - `src/gramt_wrapper/`: GRAM-T encoder wrapper (+ `smoke_test.py`, run via `scripts/smoke_test.sbatch`).
 - `src/finetune/<task>/`: per-task launch scripts. The ported ones are `run_gramt.sh` (SC2, IEMOCAP, VoxCeleb1);
   `run_binaural_sac_frozen.sh`, `run_er.sh`, `run_sid.sh`, `run_sc_amba.sh` still use RunAI paths.

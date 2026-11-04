@@ -69,8 +69,11 @@ The thesis question is what adding SAC changes, compared with the same model pre
   Old run for comparison: SC2 linear ~12, SID linear ~16, EER ~29, IEMOCAP linear UA ~47, flat from step 4k.
   Check the speed: first step took ~22 s, and 2 days only fit ~18 s/step. After a time-limit kill, resubmit the same command: it resumes from
   `models/latest.pth` (saved every 1000 steps; automatic on preemption requeue).
+- [ ] **Spectral-only runs** (one encoder, no CCSR; raw STFT vs log-mel, nothing else differs): reasoning, reading guide and limits in
+  [docs/spectral_only_experiment.md](docs/spectral_only_experiment.md). `sbatch --job-name=sac_spec_stft scripts/spectral_only.sbatch stft`, same with `logmel`.
+  Jobs: 23348510 (stft), 23348511 (logmel), submitted 2026-11-04.
 - [ ] **Ablations against that baseline**, ~4k+ steps each, scored with the probes: no SAC; same mask on both ears in the spectral stream;
-  compressed input and log-magnitude target. Only if a run clearly beats the baseline: the 3 real downstream runs. Profile the step time first.
+  compressed input and log-magnitude target. Revisit after the spectral-only runs, which may replace them. Only if a run clearly beats the baseline: the 3 real downstream runs. Profile the step time first.
   Nothing measures the spatial encoder yet.
 - [ ] **SAC vs no-SAC on all 3 tasks**, with 3 seeds each, so gains of 1-2 points can be told from noise
   (VoxCeleb1 fine-tuned: SAC 41.46% vs CCSR-only 40.25%, one run each).

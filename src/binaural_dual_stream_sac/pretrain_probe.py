@@ -55,7 +55,7 @@ import torchaudio
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SRC)
 from data_paths import remap_wav_path  # noqa: E402
-from binaural_dual_stream_sac.binaural_dataloader import wav2stft  # noqa: E402
+from binaural_dual_stream_sac.binaural_dataloader import wav2fbank, wav2stft  # noqa: E402
 
 SAMPLE_RATE = 16000
 HOP = 160
@@ -215,10 +215,12 @@ class PretrainProbe:
     def __init__(self, data_root=None, label_csv=DEFAULT_LABEL_CSV, tasks=DEFAULT_TASKS,
                  sc2_per_class=30, sid_speakers=200, sid_ref=8, sid_query=4,
                  iemocap_manifest_dir=None, iemocap_meta_dir=DEFAULT_IEMOCAP_META, iemocap_fold=1, emo_ref_per_class=250,
-                 batch_size=32, seed=0, device='cuda', num_threads=8):
+                 batch_size=32, seed=0, device='cuda', num_threads=8,
+                 input_repr='stft', fbank_mean=None, fbank_std=None):
         data_root = data_root or os.environ.get('SAC_DATA_ROOT', DEFAULT_DATA_ROOT)
         self.device = device
         self.batch_size = batch_size
+        self.input_repr, self.fbank_mean, self.fbank_std = input_repr, fbank_mean, fbank_std
         self.sets = {}
         t0 = time.time()
         rng = random.Random(seed)
@@ -262,6 +264,9 @@ class PretrainProbe:
         for w in wavs:
             w = w.to(self.device).float()
             lengths.append(w.shape[-1])
+            if self.input_repr == 'logmel':  # frames zero-padded to 1024 for every task, as in the mono dataloader
+                xs.append(wav2fbank(w.cpu(), self.fbank_mean, self.fbank_std).to(self.device))
+                continue
             if task != 'sc2':  # s3prl (SID, ER) pads the waveform, then takes the STFT
                 w = F.pad(w, (0, CHUNK_SAMPLES - w.shape[-1]))
             xs.append(wav2stft(w))  # SC2 dataset: STFT of the clip, frames zero-padded to 1024
@@ -269,12 +274,16 @@ class PretrainProbe:
         B = x.shape[0]
         with torch.cuda.amp.autocast(enabled=self.device != 'cpu'):
             h = encoder._encode_with_mamba(x)[:, 1:, :]
-        h = h.float().reshape(B, F_PATCHES, T_PATCHES, -1)  # token order: frequency-major
+        h = h.float().reshape(B, -1, T_PATCHES, h.shape[-1])  # token order: frequency-major (16 rows for STFT, 8 for log-mel)
         if task == 'sc2':
-            patch_energy = x.abs().sum(dim=(1, 2)).view(B, T_PATCHES, PATCH_T).sum(-1)
-            t_mask = (patch_energy > 0).float()
+            if self.input_repr == 'logmel':  # padded frames are not 0 after normalising, so use the clip length
+                n_frames = torch.tensor([(n - 400) // HOP + 1 for n in lengths], device=self.device)
+                t_mask = (torch.arange(T_PATCHES, device=self.device)[None] * PATCH_T < n_frames[:, None]).float()
+            else:
+                patch_energy = x.abs().sum(dim=(1, 2)).view(B, T_PATCHES, PATCH_T).sum(-1)
+                t_mask = (patch_energy > 0).float()
             t_mask[t_mask.sum(-1) == 0] = 1.0
-            return (h * t_mask[:, None, :, None]).sum(dim=(1, 2)) / (F_PATCHES * t_mask.sum(-1, keepdim=True))
+            return (h * t_mask[:, None, :, None]).sum(dim=(1, 2)) / (h.shape[1] * t_mask.sum(-1, keepdim=True))
         n_t = torch.tensor([min(T_PATCHES, max(1, round(n / SID_DOWNSAMPLE))) for n in lengths], device=self.device)
         t_mask = (torch.arange(T_PATCHES, device=self.device)[None] < n_t[:, None]).float()
         h = h.permute(0, 2, 1, 3).reshape(B, T_PATCHES, -1)  # [B, 64, 16 * D]
@@ -390,6 +399,9 @@ def main():
     p.add_argument('--iemocap_fold', type=int, default=1)
     p.add_argument('--emo_ref_per_class', type=int, default=250)
     p.add_argument('--batch_size', type=int, default=32)
+    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel'], help='input of the SAC checkpoints; logmel needs --fbank_mean/--fbank_std')
+    p.add_argument('--fbank_mean', type=float, default=None)
+    p.add_argument('--fbank_std', type=float, default=None)
     args = p.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -397,7 +409,8 @@ def main():
                           sid_speakers=args.sid_speakers, sid_ref=args.sid_ref, sid_query=args.sid_query,
                           iemocap_manifest_dir=args.iemocap_manifest_dir, iemocap_meta_dir=args.iemocap_meta_dir,
                           iemocap_fold=args.iemocap_fold, emo_ref_per_class=args.emo_ref_per_class,
-                          batch_size=args.batch_size, device=device)
+                          batch_size=args.batch_size, device=device,
+                          input_repr=args.input_repr, fbank_mean=args.fbank_mean, fbank_std=args.fbank_std)
     print(f'[probe] chance: {format_metrics(probe.chance())}', flush=True)
 
     rows = []
@@ -412,7 +425,9 @@ def main():
             from binaural_dual_stream_sac.binaural_sac_model import BinauralSSAMBASACModel
             from binaural_dual_stream_sac.downstream_experts import load_binaural_checkpoint
             torch.manual_seed(0)
-            model = BinauralSSAMBASACModel(use_checkpointing=False)
+            logmel = args.input_repr == 'logmel'
+            model = BinauralSSAMBASACModel(use_checkpointing=False, spectral_only=logmel,
+                                           input_fdim=128 if logmel else 256, in_chans=2 if logmel else 4)
             load_binaural_checkpoint(model, spec, 'dual_encoder.spectral_encoder.')
             enc = model.dual_encoder.spectral_encoder.to(device)
             m = re.search(r'audio_model\.(\d+)\.pth$', spec)

@@ -39,9 +39,9 @@ class BinauralAMBAEncoder(nn.Module):
         super().__init__()
         self.share_weights = share_weights
         
-        # Ensure 4 channels for complex STFT input (Re_L, Im_L, Re_R, Im_R)
+        # 4 channels for complex STFT input (Re_L, Im_L, Re_R, Im_R), unless the config says otherwise
         cfg = dict(encoder_config)
-        cfg['in_chans'] = 4
+        cfg.setdefault('in_chans', 4)
         
         self.spatial_encoder = AMBAModel(**cfg)
         if share_weights:

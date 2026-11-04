@@ -54,13 +54,18 @@ class BinauralSSAMBASACModel(nn.Module):
         num_queries_per_group=4,
         use_cross_attention_spat=False, # Default False: single vector projection for spatial stream
         use_checkpointing=True, # Default True to save memory during double forward pass
+        spectral_only=False, # One encoder, no CCSR: SSAMBA's own mpg/mpc losses + spectral SAC (docs/spectral_only_experiment.md)
+        in_chans=4,          # 4 = complex STFT, 2 = two-ear log-mel (spectral_only)
+        mask_patch=600,      # masked patches per clip, spectral_only
     ):
         super(BinauralSSAMBASACModel, self).__init__()
         self.spec_sac_temperature = spec_sac_temperature
         self.spat_sac_temperature = spat_sac_temperature
         self.sac_sigma = sac_sigma
         self.sac_spec_lambda = sac_spec_lambda
-        self.sac_spat_lambda = sac_spat_lambda
+        self.sac_spat_lambda = 0.0 if spectral_only else sac_spat_lambda
+        self.spectral_only = spectral_only
+        self.mask_patch = mask_patch
         self.recon_lambda = recon_lambda
         self.classif_lambda = classif_lambda
         self.use_checkpointing = use_checkpointing
@@ -82,12 +87,14 @@ class BinauralSSAMBASACModel(nn.Module):
             'fstride': fshape, 'tstride': tshape,
             'input_fdim': input_fdim, 'input_tdim': input_tdim,
             'model_size': model_size,
-            'in_chans': 4,
+            'in_chans': in_chans,
             'pretrain_stage': True,
             'vision_mamba_config': vision_mamba_config,
         }
 
         # Dual Encoder (Spatial + Spectral Mamba streams)
+        # spectral_only: shared weights build a single encoder, reachable as dual_encoder.spectral_encoder
+        share_encoder_weights = share_encoder_weights or spectral_only
         self.dual_encoder = BinauralAMBAEncoder(encoder_config, share_weights=share_encoder_weights)
         
         self.dual_encoder.spatial_encoder.use_checkpointing = use_checkpointing
@@ -422,26 +429,36 @@ class BinauralSSAMBASACModel(nn.Module):
         """
         B = X.shape[0]
         
-        # 1. Dual Encoder Pass (Masked, for Reconstruction)
-        h_spat_masked, h_spec_masked = self.dual_encoder(X, W)
-        
-        # 2. Reconstruction Loss (CCSR Eq. 6)
-        if self.recon_lambda > 0:
-            loss_recon = self._reconstruct(h_spat_masked, h_spec_masked, X, W)
+        loss_recon = torch.tensor(0.0, device=X.device)
+        loss_classif = torch.tensor(0.0, device=X.device)
+        acc_classif = torch.tensor(0.0, device=X.device)
+
+        if self.spectral_only:
+            # SSAMBA pretraining: each loss masks its own random patches (W is not used)
+            encoder = self.dual_encoder.spectral_encoder
+            if self.recon_lambda > 0:
+                loss_recon = encoder.mpg(X, mask_patch=self.mask_patch, cluster=True)
+            if self.classif_lambda > 0:
+                acc_classif, loss_classif = encoder.mpc(X, mask_patch=self.mask_patch, cluster=True)
         else:
-            loss_recon = torch.tensor(0.0, device=X.device)
-            
-        # 2.1 Masked Patch Classification Loss (MPC)
-        if self.classif_lambda > 0:
-            loss_classif, acc_classif = self._compute_classification_loss(h_spec_masked, X, W)
-        else:
-            loss_classif = torch.tensor(0.0, device=X.device)
-            acc_classif = torch.tensor(0.0, device=X.device)
+            # 1. Dual Encoder Pass (Masked, for Reconstruction)
+            h_spat_masked, h_spec_masked = self.dual_encoder(X, W)
+
+            # 2. Reconstruction Loss (CCSR Eq. 6)
+            if self.recon_lambda > 0:
+                loss_recon = self._reconstruct(h_spat_masked, h_spec_masked, X, W)
+
+            # 2.1 Masked Patch Classification Loss (MPC)
+            if self.classif_lambda > 0:
+                loss_classif, acc_classif = self._compute_classification_loss(h_spec_masked, X, W)
             
         # 2.5. Dual Encoder Pass (Unmasked, for SAC)
         if (self.sac_spec_lambda > 0 and c_mono is not None) or (self.sac_spat_lambda > 0 and c_spatial is not None):
             with torch.no_grad() if not self.training else torch.enable_grad():
-                h_spat_unmasked, h_spec_unmasked = self.dual_encoder(X, W=None)
+                if self.spectral_only:
+                    h_spat_unmasked, h_spec_unmasked = None, self.dual_encoder.spectral_encoder._encode_with_mamba(X)
+                else:
+                    h_spat_unmasked, h_spec_unmasked = self.dual_encoder(X, W=None)
         else:
             h_spat_unmasked, h_spec_unmasked = None, None
         

@@ -61,7 +61,7 @@ local_sigma_mode="offline_global_median"
 use_wandb=${USE_WANDB:-false}  # not installed in the shared venv
 wandb_project="SSAMBA-Binaural"
 exp_name_suffix="${EXP_NAME_SUFFIX:--binaural_ccsr_dual_sac_bn_standardized_spatial}"
-exp_description="Binaural SSAMBA CCSR pretraining with dual SAC branches (Spectral CA + Spatial Projection Head with BatchNorm1d and Standardized Spatial SAC), offline_global_median sigma."
+exp_description="${EXP_DESCRIPTION:-Binaural SSAMBA CCSR pretraining with dual SAC branches (Spectral CA + Spatial Projection Head with BatchNorm1d and Standardized Spatial SAC), offline_global_median sigma.}"
 
 exp_name="binaural-sac-bs${batch_size}-lr${lr}-mode_${local_sigma_mode}${exp_name_suffix}"
 exp_dir="${SAC_EXP_ROOT:+${SAC_EXP_ROOT}/binaural_sac_pretrain}"  # set by env.sh; unset: ./exp
@@ -100,4 +100,5 @@ ${PYTHON} run_binaural_amba.py \
   --latest_every ${latest_every} \
   --resume "${exp_dir}/models/latest.pth" \
   --probe_every ${probe_every} \
+  ${EXTRA_ARGS:-} \
   --use_checkpointing
