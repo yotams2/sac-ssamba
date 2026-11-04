@@ -10,3 +10,13 @@
 ++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
 + results_hook smoke_test /scratch200/yotams2/tmp/smoke/run_ok
 + '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
+[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/smoke_test/run_ok__23351019: status running
+[sync_results] pushed c7b37de
++ return 0
++ echo 'payload ok'
+payload ok
++ case $MODE in
++ sleep 5
++ exit 0
++ _rh_exit
++ local rc=0
