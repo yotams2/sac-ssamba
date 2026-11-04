@@ -1,0 +1,12 @@
++ MODE=ok
++ EXP=/scratch200/yotams2/tmp/smoke/run_ok
++ mkdir -p /scratch200/yotams2/tmp/smoke/run_ok
++ printf 'dev at step 100: 0.5\nNew best on dev at step 100: 0.5\ntest at step 100: 0.4\n'
++ printf 'runner:\n  total_steps: 100\noptimizer:\n  lr: 0.001\n'
++ source /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts/results_hook.sh
+++++ dirname /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts/results_hook.sh
++++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
++++ pwd
+++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
++ results_hook smoke_test /scratch200/yotams2/tmp/smoke/run_ok
++ '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
