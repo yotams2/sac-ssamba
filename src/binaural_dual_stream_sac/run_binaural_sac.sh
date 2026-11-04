@@ -1,4 +1,13 @@
 #!/bin/bash
+#SBATCH --job-name=sac_pretrain
+#SBATCH --partition=gpu-general-pool
+#SBATCH --exclude=compute-0-18     # RTX PRO 6000 Blackwell (sm_120): torch 2.2.2+cu121 has no kernels for it
+#SBATCH --gres=gpu:1
+#SBATCH --time=2-00:00:00
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --open-mode=append
+#SBATCH --output=logs/%x_%j.out    # relative to the submit dir: submit from the sac-ssamba root
 # ==============================================================================
 # Binaural Dual-Stream SSAMBA + Dual-Branch SAC Pretraining Script (Exp A + B)
 # Exp A: projection_head_spat uses BatchNorm1d
@@ -6,7 +15,13 @@
 # ==============================================================================
 
 # Change directory to the script's directory so exp/ is saved here
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_PATH=${BASH_SOURCE[0]}
+# under sbatch BASH_SOURCE is slurm's spooled copy, so take the submitted script path instead
+if [ "$(basename "$SCRIPT_PATH")" = "slurm_script" ]; then
+    SCRIPT_PATH=$(scontrol show job "$SLURM_JOB_ID" | sed -n 's/^ *Command=\([^ ]*\).*/\1/p')
+fi
+SCRIPT_DIR="$( cd "$( dirname "$SCRIPT_PATH" )" &> /dev/null && pwd )"
+source "${SCRIPT_DIR}/../../env.sh"
 cd "${SCRIPT_DIR}"
 
 # CUDA / GPU environment
@@ -14,15 +29,17 @@ export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-"0"}
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 
 # Datasets (absolute paths)
-data_train="${DATA_TRAIN:-/storage/yotam/ssamba/data/binaural_train.json}"
-data_val="${DATA_VAL:-/storage/yotam/ssamba/data/binaural_val.json}"
+data_train="${DATA_TRAIN:-${SAC_DATA_ROOT}/binaural_train.json}"
+data_val="${DATA_VAL:-${SAC_DATA_ROOT}/binaural_val.json}"
 
 # Training Hyperparameters
 batch_size=32
 lr=1e-4
-epochs=10
+epochs=${EPOCHS:-10}
 epoch_iter=4000
 time_mask_ratio=0.5
+mask_block=${MASK_BLOCK:-16}  # frames; 16 = one patch width, so masked tokens are fully hidden
+latest_every=1000             # rolling models/latest.pth; the run resumes from it after preemption
 
 # Frozen SC2/SID/IEMOCAP probes on the spectral encoder (pretrain_probe.py), at step 0 and every probe_every steps; 0 disables.
 # ~6.6k clips loaded once into RAM; results in ${exp_dir}/probe_metrics.jsonl
@@ -41,7 +58,7 @@ spat_sac_temperature=0.15
 local_sigma_mode="offline_global_median"
 
 # WandB Experiment Tracking
-use_wandb=true
+use_wandb=${USE_WANDB:-false}  # not installed in the shared venv
 wandb_project="SSAMBA-Binaural"
 exp_name_suffix="${EXP_NAME_SUFFIX:--binaural_ccsr_dual_sac_bn_standardized_spatial}"
 exp_description="Binaural SSAMBA CCSR pretraining with dual SAC branches (Spectral CA + Spatial Projection Head with BatchNorm1d and Standardized Spatial SAC), offline_global_median sigma."
@@ -60,7 +77,7 @@ echo "  Script Directory:     ${SCRIPT_DIR}"
 echo "  Experiment Directory: ${exp_dir}"
 echo "  Local Sigma Mode:     ${local_sigma_mode}"
 
-python3 run_binaural_amba.py \
+${PYTHON} run_binaural_amba.py \
   --data_train ${data_train} \
   --data_val ${data_val} \
   --exp_dir ${exp_dir} \
@@ -79,5 +96,8 @@ python3 run_binaural_amba.py \
   --spat_sac_temperature ${spat_sac_temperature} \
   --local_sigma_mode ${local_sigma_mode} \
   --time_mask_ratio ${time_mask_ratio} \
+  --mask_block ${mask_block} \
+  --latest_every ${latest_every} \
+  --resume "${exp_dir}/models/latest.pth" \
   --probe_every ${probe_every} \
   --use_checkpointing

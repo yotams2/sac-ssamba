@@ -54,6 +54,24 @@ The thesis question is what adding SAC changes, compared with the same model pre
   **The SAC encoder plateaus before step 4k**: later checkpoints change nothing (within ~1 pt noise). Look at the
   objective, not the training length. ~56 s per probe (vs ~10 h per 4000 steps), 167 s one-off data loading.
   Rerun: `sbatch scripts/pretrain_probe.sbatch <out.jsonl> random gramt '<exp>/models/audio_model.*.pth'`.
+- [x] **Fix the reconstruction objective**, found with the shortcut test (job 23318585, RunAI final checkpoint; temporary script, not kept).
+  - `_reconstruct` and the MPC loss weight patches with `adaptive_avg_pool1d(1 - W, 1024)`: 1024 frames -> 1024 patches is an identity, so
+    patch p (frequency-major order) gets the mask of frame p. Correlation with the patch's real masked fraction: 0.000. In the code since 71028e7,
+    so every run so far has it. The loss is half on visible frames.
+  - W masks single frames, patches are 16 frames wide: patches are ~50% visible on average (almost no token is fully hidden), and 32 ms frames at a 10 ms hop overlap.
+  - MSE / MSE of predicting zeros, on masked | visible frames: model 0.113 | 0.019; no right ear in the spectral input 0.402 | 0.100;
+    spatial input zeroed 0.340 | 0.288; raw copy of the right ear 0.557 | 0.554. Zeroed inputs are out of distribution, so read these as rough.
+  - Fixed: the recon and MPC losses use per-element weights on masked frames, W masks whole 16-frame blocks (`--mask_block`, 1 = old
+    single-frame mask). All checkpoints and downstream numbers from before this fix are pre-fix: don't compare their recon losses.
+- [ ] **New baseline with the fixed objective**: job 23347188, started 2026-11-04 (6 epochs, ~9.4k steps, probes every 1000):
+  `sbatch --export=ALL,EPOCHS=6,PROBE_EVERY=1000,EXP_NAME_SUFFIX=-lossfix_blockmask_baseline src/binaural_dual_stream_sac/run_binaural_sac.sh`
+  Output in `$SAC_EXP_ROOT/binaural_sac_pretrain/...-lossfix_blockmask_baseline` (`probe_metrics.jsonl`). Step 0 matches the random encoder.
+  Old run for comparison: SC2 linear ~12, SID linear ~16, EER ~29, IEMOCAP linear UA ~47, flat from step 4k.
+  Check the speed: first step took ~22 s, and 2 days only fit ~18 s/step. After a time-limit kill, resubmit the same command: it resumes from
+  `models/latest.pth` (saved every 1000 steps; automatic on preemption requeue).
+- [ ] **Ablations against that baseline**, ~4k+ steps each, scored with the probes: no SAC; same mask on both ears in the spectral stream;
+  compressed input and log-magnitude target. Only if a run clearly beats the baseline: the 3 real downstream runs. Profile the step time first.
+  Nothing measures the spatial encoder yet.
 - [ ] **SAC vs no-SAC on all 3 tasks**, with 3 seeds each, so gains of 1-2 points can be told from noise
   (VoxCeleb1 fine-tuned: SAC 41.46% vs CCSR-only 40.25%, one run each).
 - [ ] **Fine-tune GRAM-T** too, for a fine-tuned vs fine-tuned comparison. The runners already support it:

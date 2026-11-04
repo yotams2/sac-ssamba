@@ -214,6 +214,23 @@ def run_probe(probe, model, step, exp_dir, use_wandb):
         wandb.log({**{f'probe/{k}': v for k, v in res.items()}, 'step': step})
 
 
+def save_latest(path, core_model, optimizer, scheduler, scaler, global_step, epoch, best_val_loss):
+    """Rolling full training state, so a preempted job continues instead of restarting. Atomic: a kill
+    while writing leaves the previous file."""
+    tmp = path + '.tmp'
+    torch.save({
+        'state_dict': core_model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'scheduler': scheduler.state_dict(),
+        'scaler': scaler.state_dict(),
+        'feature_stats': core_model.feature_stats,
+        'global_step': global_step,
+        'epoch': epoch,
+        'best_val_loss': best_val_loss,
+    }, tmp)
+    os.replace(tmp, path)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Binaural SSAMBA Dual-Branch SAC Pretraining Runner")
     parser.add_argument('--data_train', type=str, default=None, help="Path to training dataset JSON file")
@@ -249,6 +266,8 @@ def main():
     parser.add_argument('--spectral_features', type=str, default='f0,hnr,centroid,flux,zcr', help="Spectral features list")
     parser.add_argument('--share_encoder_weights', action='store_true', default=False, help="Share weights between encoders")
     parser.add_argument('--time_mask_ratio', type=float, default=0.5, help="CCSR time-frame mask ratio")
+    parser.add_argument('--mask_block', type=int, default=16, help="Mask whole blocks of this many frames (16 = one patch width, 1 = single frames)")
+    parser.add_argument('--latest_every', type=int, default=0, help="Save the full training state to models/latest.pth every N steps; 0 disables")
     parser.add_argument('--resume', type=str, default='', help="Path to checkpoint (.pth) to resume training")
     parser.add_argument('--verify_synthetic', action='store_true', default=False, help="Run synthetic batch verification and exit")
     parser.add_argument('--use_checkpointing', action='store_true', help="Enable gradient checkpointing to save memory at the cost of training speed")
@@ -297,6 +316,7 @@ def main():
         'target_length': 1024,
         'target_freq_bins': 256,
         'mask_ratio': args.time_mask_ratio,
+        'mask_block': args.mask_block,
         'coh_freq_bands': (1000.0, 4000.0),
     }
     train_dataset = BinauralAudioDataset(args.data_train, audio_conf=audio_conf)
@@ -372,6 +392,16 @@ def main():
                     print(f"=> Resumed from epoch {start_epoch}, step {global_step}, best_val_loss {best_val_loss:.4f}")
             except Exception as e:
                 print(f"Warning: could not load progress.pkl: {e}")
+
+        if 'optimizer' in checkpoint:  # full state from save_latest: continue from its step, redoing that epoch's data
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['scheduler'])
+            scaler.load_state_dict(checkpoint['scaler'])
+            core_model.feature_stats = checkpoint['feature_stats']
+            global_step = checkpoint['global_step']
+            start_epoch = checkpoint['epoch']
+            best_val_loss = checkpoint['best_val_loss']
+            print(f"=> Resumed full training state: epoch {start_epoch}, step {global_step}")
 
     # 9. Training Loop
     start_time = time.time()
@@ -651,6 +681,11 @@ def main():
 
             if probe is not None and global_step % args.probe_every == 0:
                 run_probe(probe, model, global_step, args.exp_dir, args.use_wandb)
+
+            if args.latest_every > 0 and global_step % args.latest_every == 0:
+                core_model = model.module if isinstance(model, BinauralSSAMBASACModelParallel) else model
+                save_latest(os.path.join(args.exp_dir, 'models', 'latest.pth'), core_model, optimizer, scheduler, scaler,
+                            global_step, epoch, best_val_loss)
 
     # Final checkpoint saving
     final_path = os.path.join(args.exp_dir, 'models', 'audio_model.final.pth')

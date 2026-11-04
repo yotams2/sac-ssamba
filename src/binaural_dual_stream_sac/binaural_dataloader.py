@@ -5,17 +5,23 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 import numpy as np
 from binaural_dual_stream_sac.spatial_features import extract_spatial_features
+from data_paths import remap_wav_path
 
 
-def generate_ccsr_time_mask(T, mask_ratio=0.5):
+def generate_ccsr_time_mask(T, mask_ratio=0.5, block=16):
     """
     Generates a binary time-frame mask W of shape [1, 1, T].
     1 = unmasked, 0 = masked.
+
+    Whole blocks of `block` frames are masked. With block = the patch width (16), a masked token is
+    fully hidden in the masked ear; block=1 masks single frames, which leaves every 16-frame patch
+    about half visible and lets the overlapping STFT frames fill the gaps.
     """
-    num_mask = int(T * mask_ratio)
+    n_blocks = T // block
+    num_mask = int(n_blocks * mask_ratio)
     W = torch.ones(T, dtype=torch.float32)
-    mask_indices = torch.randperm(T)[:num_mask]
-    W[mask_indices] = 0.0
+    for b in torch.randperm(n_blocks)[:num_mask].tolist():
+        W[b * block:(b + 1) * block] = 0.0
     return W.view(1, 1, T)
 
 
@@ -79,13 +85,14 @@ class BinauralAudioDataset(Dataset):
         self.n_fft = self.audio_conf.get('n_fft', 512)
         self.hop_length = self.audio_conf.get('hop_length', 160)
         self.mask_ratio = self.audio_conf.get('mask_ratio', 0.5)
+        self.mask_block = self.audio_conf.get('mask_block', 16)
         self.target_freq_bins = self.audio_conf.get('target_freq_bins', 256)
 
     def _wav2stft(self, filename):
         """
         Loads WAV audio and extracts 4-channel Complex STFT: [4, F, T].
         """
-        waveform, sr = torchaudio.load(filename)
+        waveform, sr = torchaudio.load(remap_wav_path(filename))
         stft_4ch = wav2stft(
             waveform,
             n_fft=self.n_fft,
@@ -101,7 +108,7 @@ class BinauralAudioDataset(Dataset):
 
         stft_4ch, waveform, sr = self._wav2stft(wav_path)
         T = stft_4ch.shape[2]
-        W = generate_ccsr_time_mask(T, mask_ratio=self.mask_ratio)
+        W = generate_ccsr_time_mask(T, mask_ratio=self.mask_ratio, block=self.mask_block)
 
         coh_freq_bands = self.audio_conf.get('coh_freq_bands', (1000.0, 4000.0))
         

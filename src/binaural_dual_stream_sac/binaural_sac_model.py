@@ -154,6 +154,17 @@ class BinauralSSAMBASACModel(nn.Module):
 
         self.feature_stats = None
 
+    def _masked_element_weights(self, X, W):
+        """
+        1 for the elements of each Channel 1 patch on masked frames (W == 0), else 0: [B, num_patches, patch_dim].
+        Unfolded with the same layout as the targets, so the weights follow each patch's own time span
+        (patches are frequency-major: index = freq_row * n_time_cols + time_col).
+        """
+        B, _, F_bins, T_frames = X.shape
+        masked = (1.0 - W).to(X.dtype).expand(B, 2, F_bins, T_frames)
+        unfold = torch.nn.Unfold(kernel_size=(self.fshape, self.tshape), stride=(self.fshape, self.tshape))
+        return unfold(masked).transpose(1, 2)
+
     def _reconstruct(self, h_spat, h_spec, X, W):
         """
         CCSR Eq. 6 Reconstruction Loss: MSE over masked time-frames of Channel 1 (Re_L, Im_L).
@@ -172,14 +183,9 @@ class BinauralSSAMBASACModel(nn.Module):
         unfold = torch.nn.Unfold(kernel_size=(self.fshape, self.tshape), stride=(self.fshape, self.tshape))
         target_patches = unfold(X_ch1).transpose(1, 2) # [B, num_patches, 2 * fshape * tshape]
         
-        # Masked region weights (where W == 0)
-        masked_weights = (1.0 - W).squeeze(1).squeeze(1) # [B, T]
-        patch_w = F.adaptive_avg_pool1d(masked_weights.unsqueeze(1), pred_patches.shape[1]).transpose(1, 2) # [B, num_patches, 1]
-        
-        # Normalize by total masked element count (masked patches * patch_dim)
-        patch_dim = pred_patches.shape[-1]
-        denom = patch_w.sum() * patch_dim + 1e-8
-        loss_recon = torch.sum(patch_w * (pred_patches - target_patches) ** 2) / denom
+        # MSE over the elements on masked frames only (where W == 0)
+        weights = self._masked_element_weights(X, W)
+        loss_recon = torch.sum(weights * (pred_patches - target_patches) ** 2) / (weights.sum() + 1e-8)
         return loss_recon
 
     def _compute_classification_loss(self, h_spec, X, W):
@@ -197,11 +203,8 @@ class BinauralSSAMBASACModel(nn.Module):
         unfold = torch.nn.Unfold(kernel_size=(self.fshape, self.tshape), stride=(self.fshape, self.tshape))
         target_patches = unfold(X_ch1).transpose(1, 2) # [B, num_patches, patch_dim]
         
-        # Masked region weights (where W == 0)
-        masked_weights = (1.0 - W).squeeze(1).squeeze(1) # [B, T]
-        patch_w = F.adaptive_avg_pool1d(masked_weights.unsqueeze(1), pred_patches.shape[1]).transpose(1, 2) # [B, num_patches, 1]
-        
-        mask = (patch_w.squeeze(-1) > 0.5) # [B, num_patches]
+        # Patches that are mostly on masked frames
+        mask = self._masked_element_weights(X, W).mean(dim=-1) > 0.5 # [B, num_patches]
         counts = mask.sum(dim=1)
         
         if (counts == counts[0]).all() and counts[0] > 1:
