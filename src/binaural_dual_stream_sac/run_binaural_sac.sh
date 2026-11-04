@@ -72,6 +72,8 @@ mkdir -p ${exp_dir}/models
 # Save experiment description
 echo "${exp_description}" > ${exp_dir}/description.log
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${SCRIPT_DIR}/../../scripts/results_hook.sh" && results_hook binaural_sac_pretrain "${exp_dir}"
 echo "Starting Binaural SSAMBA Pretraining (BatchNorm1d + Standardized Spatial SAC)..."
 echo "  Script Directory:     ${SCRIPT_DIR}"
 echo "  Experiment Directory: ${exp_dir}"

@@ -91,6 +91,8 @@ tshape=16
 batch_size=24
 exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${task}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}-3
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook audioset "$exp_dir"
 CUDA_CACHE_DISABLE=1 python -W ignore ../../run_amba.py --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
 --label-csv ./data/class_labels_indices.csv --n_class 527 \

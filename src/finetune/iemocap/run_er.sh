@@ -72,6 +72,8 @@ export OMP_NUM_THREADS=1
 export SSAMBA_WINDOW_SECS=6.0
 
 #for test_fold in fold1 fold2 fold3 fold4 fold5;
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook iemocap "$expdir"
 for test_fold in fold1;
 do
   echo "running cross-validation on $test_fold"

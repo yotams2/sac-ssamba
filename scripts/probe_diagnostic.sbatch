@@ -17,4 +17,6 @@ source "${REPO_ROOT}/env.sh"
 CKPT=${1:?usage: sbatch scripts/probe_diagnostic.sbatch <path/to/best_audio_model.pth>}
 shift
 cd "${REPO_ROOT}/src"
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${REPO_ROOT}/scripts/results_hook.sh" && results_hook probe_diagnostic "$(dirname "$(dirname "${CKPT}")")"
 ${PYTHON} binaural_dual_stream_sac/probe_diagnostic.py --ckpt "${CKPT}" --workdir "${TMPDIR:-/tmp}" "$@"

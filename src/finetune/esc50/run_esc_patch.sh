@@ -48,6 +48,8 @@ head_lr=1
 
 base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${task}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook esc50 "$base_exp_dir"
 for((fold=1;fold<=5;fold++));
 do
   echo 'now process fold'${fold}

@@ -69,6 +69,8 @@ mixup=0
 
 exp_dir=./exp/amba-${model_size}-f${fshape}-t${tshape}-b$eff_batch_size-lr${lr}-m${mask_patch}-${task}-${dataset}
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook ssamba_pretrain "$exp_dir"
 CUDA_CACHE_DISABLE=1 python -W ignore ../run_amba.py --use_wandb  --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
 --label-csv /storage/yotam/ssamba/src/finetune/audioset/data/class_labels_indices.csv \

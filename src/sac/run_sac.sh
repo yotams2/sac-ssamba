@@ -121,6 +121,8 @@ mkdir -p ${exp_dir}/models
 echo "${exp_description}" > "${exp_dir}/description.log"
 
 # ---- Launch ----
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook sac_pretrain "${exp_dir}"
 CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 python -u -W ignore run_pretrain_sac.py \
     --sac-loss \
     --use_wandb \

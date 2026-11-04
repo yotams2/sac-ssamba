@@ -42,6 +42,8 @@ mixup=0
 
 exp_dir=./exp/ssast-${model_size}-f${fshape}-t${tshape}-b$batch_size-lr${lr}-m${mask_patch}-${task}-${dataset}
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook ssast_pretrain "$exp_dir"
 CUDA_CACHE_DISABLE=1 python -W ignore ../run.py --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
 --label-csv ../finetune/audioset/data/class_labels_indices.csv \

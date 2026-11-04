@@ -142,6 +142,8 @@ if [ ! -f "$PYTHON_BIN" ]; then
     PYTHON_BIN="python"
 fi
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${SCRIPT_DIR}/../../../scripts/results_hook.sh" && results_hook speechcommands_v2 "$exp_dir"
 CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore "${SCRIPT_DIR}/../../run_amba.py" --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${val_data} --data-eval ${eval_data} --exp-dir $exp_dir \
 --label-csv "${SCRIPT_DIR}/data/speechcommands_class_labels_indices.csv" --n_class 35 \

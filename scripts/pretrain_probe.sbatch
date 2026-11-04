@@ -19,4 +19,6 @@ OUT=${1:?usage: sbatch scripts/pretrain_probe.sbatch <out.jsonl> <model spec>...
 shift
 [ $# -gt 0 ] || { echo "no model specs given"; exit 1; }
 cd "${REPO_ROOT}/src"
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${REPO_ROOT}/scripts/results_hook.sh" && results_hook probe "$(dirname "${OUT}")" "${OUT}"
 ${PYTHON} binaural_dual_stream_sac/pretrain_probe.py --out "${OUT}" --models "$@"

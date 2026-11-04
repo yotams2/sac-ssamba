@@ -20,6 +20,8 @@ SSAMBA_ROOT="$( cd "$SCRIPT_DIR/../.." &> /dev/null && pwd )"
 
 export PYTHONPATH="${SSAMBA_ROOT}/src:${PYTHONPATH}"
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${SSAMBA_ROOT}/scripts/results_hook.sh" && results_hook spatial_downstream "$(dirname "$(dirname "${MODEL_PATH}")")"
 TASKS=("TDOA" "DRR" "T60" "C50" "ABS")
 
 echo "======================================================="

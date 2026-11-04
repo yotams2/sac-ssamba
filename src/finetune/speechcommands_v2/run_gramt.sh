@@ -43,6 +43,8 @@ mixup=0.6
 
 exp_dir=${SAC_EXP_ROOT}/speechcommands_v2/gramt-speechcommands-b${batch_size}-lr${lr}-${exp_task_name}-$(basename ${model_id})
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${SCRIPT_DIR}/../../../scripts/results_hook.sh" && results_hook speechcommands_v2 "$exp_dir"
 cd ${SCRIPT_DIR}
 CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore ../../run_amba.py --use_wandb --dataset speechcommands \
 --data-train ${tr_data} --data-val ${val_data} --data-eval ${eval_data} --exp-dir $exp_dir \

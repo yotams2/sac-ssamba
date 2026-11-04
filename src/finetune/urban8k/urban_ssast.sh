@@ -81,6 +81,8 @@ base_exp_dir=./exp/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}
 all_map=()
 all_acc=()
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook urban8k "$base_exp_dir"
 for val_fold in {1..10}; do
   echo 'Now validating on fold'${val_fold}
 

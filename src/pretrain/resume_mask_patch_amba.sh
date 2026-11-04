@@ -75,6 +75,8 @@ if [[ -f $model_path && -f $optimizer_path ]]; then
     resume_args="--resume-model $model_path --resume-optimizer $optimizer_path"
 fi
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook ssamba_pretrain "$exp_dir"
 CUDA_CACHE_DISABLE=1 python -W ignore ../resume_amba.py --use_wandb $resume_args --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
 --label-csv /home/ss6928/ssamba/src/finetune/audioset/data/class_labels_indices.csv \

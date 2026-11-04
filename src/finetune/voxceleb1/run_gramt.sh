@@ -42,6 +42,8 @@ mkdir -p $expdir
 # Prevent PyTorch/NumPy threading crashes in DataLoader forks
 export OMP_NUM_THREADS=1
 
+# Report this run to the results branch, including failures (scripts/results_hook.sh)
+source "${SCRIPT_DIR}/../../../scripts/results_hook.sh" && results_hook voxceleb1 "$expdir"
 cd ${S3PRL_ROOT}/s3prl
 PYTHONPATH=${S3PRL_ROOT} $PYTHON_BIN run_downstream.py --expdir $expdir -m train -u $upstream_name \
     -d voxceleb1 -c ${S3PRL_ROOT}/s3prl/downstream/voxceleb1/config.yaml -s hidden_states \
