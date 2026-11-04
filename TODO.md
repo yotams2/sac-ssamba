@@ -97,9 +97,9 @@ IEMOCAP: the binaural setting did not exist yet, so the SAC model got mono audio
 - [ ] **Binaural spectral SAC runs on 3 feature groups by accident.** The design says 15 features in 5 groups, but `run_binaural_sac.sh` never passes
   `--spectral_features`, so since 71028e7 it has used the default `f0,hnr,centroid,flux,zcr` (Prosody, Voice_Quality, Scene). Nothing records a reason.
 - [ ] **F0 and HNR are fixed in the code, not yet in the manifests.** `src/sac/acoustic_features.py` now has a proper pitch tracker (checked by
-  `scripts/check_pitch_features.sbatch`, job 23354831). `binaural_*.json` still hold the old values, which correlate only 0.13 with real F0, so binaural runs,
-  including those in progress, use the old features until the manifests are regenerated with `precompute_acoustic_features.py`. Do this after the
-  spectral-only runs, as a separate comparison. Mono runs pick up the fix at once: `OPTUNA_OPTIMAL_SIGMAS` and `OPTIMAL_SIGMAS` were fitted to the old features.
+  `scripts/check_pitch_features.sbatch`, job 23354831). `binaural_{train,val}.json` still hold the old values, which barely track real F0 (rank correlation -0.11 on train, 0.19 on val), so binaural runs,
+  including those in progress, use the old features. Corrected copies are ready as `binaural_{train,val}.pitchfix.json` (job 23355202, 0 failures, only F0 and HNR differ):
+  once jobs 23347188, 23348510 and 23348511 are done, swap them in with the commands in `scripts/regen_binaural_features.sbatch`, as a separate comparison. Mono runs pick up the fix at once: `OPTUNA_OPTIMAL_SIGMAS` and `OPTIMAL_SIGMAS` were fitted to the old features.
 - [ ] **Frozen SAC on SC2: 13.5% or 5.75%?** This file and the frozen-probe debugging above quote 13.5%, but the only frozen SC2 run on this
   cluster (`--frozen-binaural_sac-...binaural_ccsr_dual_sac`, copied from RunAI) has test 5.75% and best validation 5.50% in `eval_result.csv`
   and `result.csv`. Find out which run gave 13.5%, then correct whichever is wrong. VoxCeleb1 frozen agrees (14.5% quoted, 14.81% at best dev).

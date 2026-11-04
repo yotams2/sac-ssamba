@@ -14,11 +14,13 @@ from functools import partial
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from sac.acoustic_features import extract_acoustic_features
 from binaural_dual_stream_sac.spatial_features import extract_spatial_features
+from data_paths import remap_wav_path
 
-def process_single_item(datum, features_list="f0,hnr,centroid,flux,zcr"):
+def process_single_item(datum, features_list="f0,hnr,centroid,flux,zcr", keep_spatial=False):
+    torch.set_num_threads(1)  # one process per CPU already
     wav_path = datum['wav']
     try:
-        waveform, sr = torchaudio.load(wav_path)
+        waveform, sr = torchaudio.load(remap_wav_path(wav_path))
         # Ensure 2 channels
         if waveform.shape[0] == 1:
             waveform = waveform.repeat(2, 1)
@@ -40,8 +42,11 @@ def process_single_item(datum, features_list="f0,hnr,centroid,flux,zcr"):
         mono_feats = [float(x) for x in mono_feats_tensor.squeeze(0).numpy()]
         
         # Extract spatial features
-        spatial_feats_array = extract_spatial_features(waveform, sr=sr)
-        spatial_feats = [float(x) for x in spatial_feats_array]
+        if keep_spatial:
+            spatial_feats = datum['spatial_features']
+        else:
+            spatial_feats_array = extract_spatial_features(waveform, sr=sr)
+            spatial_feats = [float(x) for x in spatial_feats_array]
 
         # Add to datum
         datum['acoustic_features'] = mono_feats
@@ -59,6 +64,7 @@ def main():
     parser.add_argument('--output_json', type=str, required=True, help="Path to output dataset JSON file.")
     parser.add_argument('--num_workers', type=int, default=cpu_count(), help="Number of parallel workers.")
     parser.add_argument('--features_list', type=str, default="f0,hnr,centroid,flux,zcr", help="Comma-separated feature list.")
+    parser.add_argument('--keep_spatial', action='store_true', help="Keep the spatial features of the input JSON instead of recomputing them.")
     args = parser.parse_args()
 
     print(f"Loading {args.input_json}...")
@@ -73,7 +79,7 @@ def main():
     print(f"Processing {len(data)} items with {args.num_workers} workers...")
     
     # Process items in parallel
-    process_func = partial(process_single_item, features_list=args.features_list)
+    process_func = partial(process_single_item, features_list=args.features_list, keep_spatial=args.keep_spatial)
     
     # Using Pool for multiprocessing
     processed_data = []
@@ -102,9 +108,11 @@ def main():
         print("\nAll files processed successfully (0 failures).")
     
     print(f"\nSaving to {args.output_json}...")
-    with open(args.output_json, 'w') as f:
+    # Through a temporary file: a job killed while saving must not leave a truncated manifest
+    with open(args.output_json + '.tmp', 'w') as f:
         json.dump(data_json, f, indent=2)
-        
+    os.replace(args.output_json + '.tmp', args.output_json)
+
     print("Done!")
 
 if __name__ == '__main__':
