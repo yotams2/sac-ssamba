@@ -1,0 +1,4 @@
+# Only results live on this branch. main ignores *.json globally, so re-allow them in case that rule is ever inherited.
+.sync.lock
+!results/**/*.json
+!results/**/*.jsonl
