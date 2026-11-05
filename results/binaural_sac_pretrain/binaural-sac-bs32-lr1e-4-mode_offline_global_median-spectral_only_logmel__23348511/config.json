@@ -29,7 +29,7 @@
   "mask_patch": 300,
   "fbank_mean": -3.98963,
   "fbank_std": 3.39167,
-  "latest_every": 1000,
+  "latest_every": 200,
   "resume": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel/models/latest.pth",
   "verify_synthetic": false,
   "use_checkpointing": true,

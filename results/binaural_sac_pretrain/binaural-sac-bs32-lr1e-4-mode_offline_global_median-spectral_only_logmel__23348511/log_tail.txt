@@ -1,60 +1,60 @@
-DEBUG Batch 370 c_mono std(dim=0): [3.79021263e+01 3.02138519e+00 4.61684998e+02 1.12281204e+02
-6.65900707e-02]
-DEBUG Batch 370 c_spatial stats: min=-0.4375, max=0.8700
-DEBUG Batch 370 c_spatial std(dim=0): [0.18095951 0.0853839  0.15347269 0.11473174 0.05753063]
-DEBUG Batch 370 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-Epoch [3][376/1562] Total: 5.1470 | Recon: 0.1013 | MPC: 4.0676 (Acc: 14.15%) | Spec SAC: 3.3032 | Spat SAC: 0.0000 | LR: 1.00e-04
-DEBUG Batch 380 c_mono stats: min=-7.1571, max=2595.9197
-DEBUG Batch 380 c_mono std(dim=0): [4.8219063e+01 2.9631641e+00 3.5474628e+02 1.0626275e+02 4.5549832e-02]
-DEBUG Batch 380 c_spatial stats: min=-0.5000, max=0.9178
-DEBUG Batch 380 c_spatial std(dim=0): [0.2087655  0.11082997 0.13376224 0.10905319 0.06629197]
-DEBUG Batch 380 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 390 c_mono stats: min=-9.9797, max=2934.9570
-DEBUG Batch 390 c_mono std(dim=0): [3.9246712e+01 2.5000136e+00 4.3152304e+02 1.9729315e+02 5.4701112e-02]
-DEBUG Batch 390 c_spatial stats: min=-0.3750, max=0.8352
-DEBUG Batch 390 c_spatial std(dim=0): [0.23698978 0.07368886 0.15226503 0.06493254 0.05087074]
-DEBUG Batch 390 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 400 c_mono stats: min=-8.7443, max=2992.5845
-DEBUG Batch 400 c_mono std(dim=0): [4.55073624e+01 2.38774943e+00 4.28547150e+02 1.05099785e+02
-5.58283180e-02]
-DEBUG Batch 400 c_spatial stats: min=-0.4375, max=0.8471
-DEBUG Batch 400 c_spatial std(dim=0): [0.17372084 0.07118953 0.11633945 0.0629806  0.04908787]
-DEBUG Batch 400 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 410 c_mono stats: min=-7.9858, max=2692.6716
-DEBUG Batch 410 c_mono std(dim=0): [5.59674187e+01 2.58991981e+00 3.55188202e+02 1.14753136e+02
-4.66788188e-02]
-DEBUG Batch 410 c_spatial stats: min=-0.3750, max=0.8709
-DEBUG Batch 410 c_spatial std(dim=0): [0.23262958 0.08989742 0.16189378 0.09679429 0.03998085]
-DEBUG Batch 410 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 420 c_mono stats: min=-8.7871, max=2977.8459
-DEBUG Batch 420 c_mono std(dim=0): [4.5814919e+01 3.2460492e+00 3.9490744e+02 1.1904463e+02 5.2341446e-02]
-DEBUG Batch 420 c_spatial stats: min=-0.3750, max=0.8400
-DEBUG Batch 420 c_spatial std(dim=0): [0.18229286 0.07614363 0.12936464 0.07949014 0.04645379]
-DEBUG Batch 420 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 430 c_mono stats: min=-7.7412, max=2770.8357
-DEBUG Batch 430 c_mono std(dim=0): [6.0631374e+01 2.4006395e+00 4.1858591e+02 1.0476145e+02 5.1437795e-02]
-DEBUG Batch 430 c_spatial stats: min=-0.5000, max=0.8679
-DEBUG Batch 430 c_spatial std(dim=0): [0.20932122 0.08939458 0.13018237 0.09293081 0.05866057]
-DEBUG Batch 430 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 440 c_mono stats: min=-9.3451, max=2810.6562
-DEBUG Batch 440 c_mono std(dim=0): [4.1798954e+01 2.7021346e+00 3.4059106e+02 1.0762585e+02 4.7491085e-02]
-DEBUG Batch 440 c_spatial stats: min=-0.5000, max=0.8493
-DEBUG Batch 440 c_spatial std(dim=0): [0.20871836 0.10405071 0.14899485 0.09894281 0.07122403]
-DEBUG Batch 440 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 450 c_mono stats: min=-9.9096, max=3048.3120
-DEBUG Batch 450 c_mono std(dim=0): [4.9025135e+01 2.1711218e+00 4.7385458e+02 1.2982895e+02 6.0216170e-02]
-DEBUG Batch 450 c_spatial stats: min=-0.5000, max=0.8561
-DEBUG Batch 450 c_spatial std(dim=0): [0.2451569  0.08475222 0.15741602 0.10651163 0.0544224 ]
-DEBUG Batch 450 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 460 c_mono stats: min=-7.0877, max=3538.4441
-DEBUG Batch 460 c_mono std(dim=0): [6.1465679e+01 2.3400652e+00 5.2392645e+02 9.6988083e+01 6.4221606e-02]
-DEBUG Batch 460 c_spatial stats: min=-0.5000, max=0.8492
-DEBUG Batch 460 c_spatial std(dim=0): [0.23623256 0.08510207 0.17072946 0.09630101 0.06605112]
-DEBUG Batch 460 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 470 c_mono stats: min=-7.7596, max=3076.9697
-DEBUG Batch 470 c_mono std(dim=0): [6.9029610e+01 3.1260364e+00 4.7083044e+02 1.3425566e+02 5.9731398e-02]
-DEBUG Batch 470 c_spatial stats: min=-0.3125, max=0.8788
-DEBUG Batch 470 c_spatial std(dim=0): [0.18038195 0.0967638  0.1512637  0.1029063  0.055093  ]
-DEBUG Batch 470 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-Epoch [3][476/1562] Total: 5.1267 | Recon: 0.1007 | MPC: 4.0537 (Acc: 14.30%) | Spec SAC: 3.3015 | Spat SAC: 0.0000 | LR: 1.00e-04
-[2026-11-04T18:49:49.643] error: *** JOB 23348511 ON compute-0-300 CANCELLED AT 2026-11-04T18:49:49 DUE TO PREEMPTION ***
+DEBUG Batch 1200 c_mono std(dim=0): [3.8455147e+01 2.4561210e+00 3.5088531e+02 1.1081605e+02 4.0788684e-02]
+DEBUG Batch 1200 c_spatial stats: min=-0.5000, max=0.7968
+DEBUG Batch 1200 c_spatial std(dim=0): [0.22136256 0.06850193 0.13611728 0.06124536 0.05382762]
+DEBUG Batch 1200 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+Epoch [2][1200/1562] Total: 4.3387 | Recon: 0.0760 | MPC: 3.5143 (Acc: 20.44%) | Spec SAC: 3.2294 | Spat SAC: 0.0000 | LR: 1.00e-04
+DEBUG Batch 1210 c_mono stats: min=-9.2666, max=2828.0527
+DEBUG Batch 1210 c_mono std(dim=0): [4.1511219e+01 3.2267678e+00 5.0444055e+02 1.3066087e+02 6.5033026e-02]
+DEBUG Batch 1210 c_spatial stats: min=-0.3125, max=0.8834
+DEBUG Batch 1210 c_spatial std(dim=0): [0.17270921 0.07366585 0.14930876 0.07408734 0.03931461]
+DEBUG Batch 1210 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1220 c_mono stats: min=-7.8153, max=3156.8469
+DEBUG Batch 1220 c_mono std(dim=0): [4.5184818e+01 2.3582594e+00 4.0806119e+02 1.0328612e+02 5.1879965e-02]
+DEBUG Batch 1220 c_spatial stats: min=-0.3125, max=0.8488
+DEBUG Batch 1220 c_spatial std(dim=0): [0.1858123  0.11951765 0.13873233 0.09278975 0.09127834]
+DEBUG Batch 1220 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1230 c_mono stats: min=-9.9697, max=3014.9360
+DEBUG Batch 1230 c_mono std(dim=0): [4.7648930e+01 3.0183294e+00 4.1864648e+02 8.3761261e+01 5.7526685e-02]
+DEBUG Batch 1230 c_spatial stats: min=-0.4375, max=0.8666
+DEBUG Batch 1230 c_spatial std(dim=0): [0.21371473 0.07968466 0.14959544 0.11051627 0.03502207]
+DEBUG Batch 1230 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1240 c_mono stats: min=-9.2955, max=2861.9670
+DEBUG Batch 1240 c_mono std(dim=0): [4.5905201e+01 2.6829948e+00 4.7295282e+02 9.2136742e+01 6.1239567e-02]
+DEBUG Batch 1240 c_spatial stats: min=-0.5625, max=0.8512
+DEBUG Batch 1240 c_spatial std(dim=0): [0.2613056  0.08020695 0.16225405 0.08039444 0.03456596]
+DEBUG Batch 1240 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1250 c_mono stats: min=-9.1124, max=3186.7563
+DEBUG Batch 1250 c_mono std(dim=0): [4.08075485e+01 2.46163750e+00 4.83469757e+02 1.23204216e+02
+6.01293929e-02]
+DEBUG Batch 1250 c_spatial stats: min=-0.4375, max=0.8732
+DEBUG Batch 1250 c_spatial std(dim=0): [0.19442844 0.08770347 0.12438779 0.10612316 0.06021101]
+DEBUG Batch 1250 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1260 c_mono stats: min=-8.7906, max=3411.9197
+DEBUG Batch 1260 c_mono std(dim=0): [3.7360043e+01 2.4783664e+00 4.4345502e+02 9.1840271e+01 5.5808585e-02]
+DEBUG Batch 1260 c_spatial stats: min=-0.3750, max=0.8768
+DEBUG Batch 1260 c_spatial std(dim=0): [0.15256491 0.10436843 0.1542748  0.09712974 0.05569241]
+DEBUG Batch 1260 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1270 c_mono stats: min=-8.5196, max=2720.3657
+DEBUG Batch 1270 c_mono std(dim=0): [5.60438538e+01 2.97840285e+00 3.64663788e+02 1.02903595e+02
+5.21510541e-02]
+DEBUG Batch 1270 c_spatial stats: min=-0.3750, max=0.9123
+DEBUG Batch 1270 c_spatial std(dim=0): [0.19953598 0.09749668 0.16655542 0.11110311 0.06078778]
+DEBUG Batch 1270 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1280 c_mono stats: min=-7.0948, max=3200.1562
+DEBUG Batch 1280 c_mono std(dim=0): [3.99571037e+01 1.82163525e+00 4.43065308e+02 1.21861565e+02
+5.53409196e-02]
+DEBUG Batch 1280 c_spatial stats: min=-0.5000, max=0.8662
+DEBUG Batch 1280 c_spatial std(dim=0): [0.21164104 0.10547842 0.13137104 0.09081385 0.07109174]
+DEBUG Batch 1280 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1290 c_mono stats: min=-9.3554, max=2977.8459
+DEBUG Batch 1290 c_mono std(dim=0): [4.4807888e+01 2.5776410e+00 4.6444373e+02 1.1965286e+02 5.4935385e-02]
+DEBUG Batch 1290 c_spatial stats: min=-0.5000, max=0.9160
+DEBUG Batch 1290 c_spatial std(dim=0): [0.21141765 0.0916193  0.15370847 0.11084186 0.05548923]
+DEBUG Batch 1290 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1300 c_mono stats: min=-7.3302, max=3012.9182
+DEBUG Batch 1300 c_mono std(dim=0): [4.3445225e+01 2.1437423e+00 3.6471234e+02 1.3904404e+02 5.1607803e-02]
+DEBUG Batch 1300 c_spatial stats: min=-0.4375, max=0.9092
+DEBUG Batch 1300 c_spatial std(dim=0): [0.18678458 0.10795167 0.14437228 0.12267844 0.07719004]
+DEBUG Batch 1300 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+Epoch [2][1300/1562] Total: 4.3349 | Recon: 0.0759 | MPC: 3.5111 (Acc: 20.47%) | Spec SAC: 3.2271 | Spat SAC: 0.0000 | LR: 1.00e-04
+[2026-11-04T20:37:35.664] error: *** JOB 23348511 ON compute-0-223 CANCELLED AT 2026-11-04T20:37:35 DUE TO JOB REQUEUE ***
