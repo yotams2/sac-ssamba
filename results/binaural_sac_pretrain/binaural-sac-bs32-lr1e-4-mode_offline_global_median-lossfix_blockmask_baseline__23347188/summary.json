@@ -2,10 +2,10 @@
   "task": "binaural_sac_pretrain",
   "experiment": "binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_baseline",
   "job_id": "23347188",
-  "status": "running",
-  "date": "2026-11-04T12:52:55+02:00",
-  "collected_at": "2026-11-04T13:38:16+02:00",
-  "host": "compute-0-25.powerslurm",
+  "status": "failed",
+  "date": "2026-11-05T07:55:22+02:00",
+  "collected_at": "2026-11-05T07:57:51+02:00",
+  "host": "compute-0-13.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_baseline",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_baseline/models",
   "model": "binaural_sac",
@@ -32,6 +32,13 @@
         "sid/eer": 0.3399999737739563,
         "emo/linear_ua": 0.45380476117134094,
         "step": 1000
+      },
+      {
+        "sc2/linear_acc": 0.11999999731779099,
+        "sid/linear_acc": 0.16499999165534973,
+        "sid/eer": 0.3100000023841858,
+        "emo/linear_ua": 0.4574223756790161,
+        "step": 2000
       }
     ]
   },
