@@ -1,60 +1,60 @@
----- Step 5000 probe: sc2/knn20_acc 7.05 | sc2/ncm_acc 6.38 | sc2/linear_acc 7.62 | sid/ncm_acc 9.00 | sid/linear_acc 14.00 | sid/eer 31.41 | emo/knn20_ua 38.91 | emo/ncm_ua 39.58 | emo/linear_ua 42.56 | emo/linear_acc 39.91 | probe_sec 98
-DEBUG Batch 1000 c_mono stats: min=-9.9548, max=3000.6921
-DEBUG Batch 1000 c_mono std(dim=0): [6.6153061e+01 2.8290651e+00 4.0316833e+02 1.1561204e+02 5.5904418e-02]
-DEBUG Batch 1000 c_spatial stats: min=-0.5000, max=0.8660
-DEBUG Batch 1000 c_spatial std(dim=0): [0.2517501  0.09192287 0.15979202 0.0892809  0.05670771]
-DEBUG Batch 1000 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-Epoch [3][1000/1562] Total: 7.7703 | Recon: 1.6309 | MPC: 6.0728 (Acc: 4.70%) | Spec SAC: 3.3288 | Spat SAC: 0.0000 | LR: 1.00e-04
-DEBUG Batch 1010 c_mono stats: min=-9.4484, max=2765.4067
-DEBUG Batch 1010 c_mono std(dim=0): [5.0504734e+01 3.0450675e+00 4.7864090e+02 8.6002876e+01 5.9079085e-02]
-DEBUG Batch 1010 c_spatial stats: min=-0.5000, max=0.8442
-DEBUG Batch 1010 c_spatial std(dim=0): [0.21620604 0.08276031 0.12917699 0.08767087 0.05029768]
-DEBUG Batch 1010 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1020 c_mono stats: min=-9.9082, max=2677.1062
-DEBUG Batch 1020 c_mono std(dim=0): [4.0266121e+01 2.2508192e+00 3.4735941e+02 1.0349867e+02 4.1756872e-02]
-DEBUG Batch 1020 c_spatial stats: min=-0.3750, max=0.9170
-DEBUG Batch 1020 c_spatial std(dim=0): [0.21588708 0.09513099 0.14648522 0.09808295 0.04790518]
-DEBUG Batch 1020 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1030 c_mono stats: min=-7.7328, max=2761.8054
-DEBUG Batch 1030 c_mono std(dim=0): [5.2863831e+01 2.9783208e+00 3.6166284e+02 1.0606814e+02 5.2061692e-02]
-DEBUG Batch 1030 c_spatial stats: min=-0.3750, max=0.8808
-DEBUG Batch 1030 c_spatial std(dim=0): [0.17444469 0.10553157 0.14589304 0.12179237 0.08060675]
-DEBUG Batch 1030 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1040 c_mono stats: min=-8.0541, max=2817.3474
-DEBUG Batch 1040 c_mono std(dim=0): [4.6680199e+01 2.8450525e+00 3.8020111e+02 1.5680104e+02 5.4385629e-02]
-DEBUG Batch 1040 c_spatial stats: min=-0.2500, max=0.8790
-DEBUG Batch 1040 c_spatial std(dim=0): [0.1563004  0.07895026 0.15756279 0.11891466 0.03820293]
-DEBUG Batch 1040 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1050 c_mono stats: min=-8.4840, max=2685.5403
-DEBUG Batch 1050 c_mono std(dim=0): [4.2656181e+01 2.7456088e+00 3.7313193e+02 1.2891205e+02 4.9149185e-02]
-DEBUG Batch 1050 c_spatial stats: min=-0.3750, max=0.8685
-DEBUG Batch 1050 c_spatial std(dim=0): [0.22891833 0.0966501  0.13202634 0.08749932 0.05910676]
-DEBUG Batch 1050 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1060 c_mono stats: min=-9.6640, max=3436.2351
-DEBUG Batch 1060 c_mono std(dim=0): [6.0350460e+01 2.2803450e+00 4.8179910e+02 9.3923416e+01 6.8949439e-02]
-DEBUG Batch 1060 c_spatial stats: min=-0.3750, max=0.8975
-DEBUG Batch 1060 c_spatial std(dim=0): [0.23458493 0.08647437 0.14317721 0.08895021 0.04759118]
-DEBUG Batch 1060 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1070 c_mono stats: min=-7.4102, max=3471.5149
-DEBUG Batch 1070 c_mono std(dim=0): [4.82443085e+01 2.62211156e+00 5.43117554e+02 1.05331955e+02
-6.99316487e-02]
-DEBUG Batch 1070 c_spatial stats: min=-0.5000, max=0.8450
-DEBUG Batch 1070 c_spatial std(dim=0): [0.2574189  0.08674686 0.14783792 0.07560147 0.04487264]
-DEBUG Batch 1070 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1080 c_mono stats: min=-8.3088, max=2729.8928
-DEBUG Batch 1080 c_mono std(dim=0): [3.8354649e+01 2.4041426e+00 3.7531421e+02 1.2772811e+02 4.6796992e-02]
-DEBUG Batch 1080 c_spatial stats: min=-0.4375, max=0.8716
-DEBUG Batch 1080 c_spatial std(dim=0): [0.20561056 0.08953761 0.13124704 0.0877946  0.05380499]
-DEBUG Batch 1080 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1090 c_mono stats: min=-8.6512, max=3126.3362
-DEBUG Batch 1090 c_mono std(dim=0): [3.8941093e+01 2.8315458e+00 4.2532419e+02 9.9219345e+01 5.6431081e-02]
-DEBUG Batch 1090 c_spatial stats: min=-0.3750, max=0.8469
-DEBUG Batch 1090 c_spatial std(dim=0): [0.16572815 0.0950455  0.12287373 0.1087582  0.06521624]
-DEBUG Batch 1090 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-DEBUG Batch 1100 c_mono stats: min=-8.5758, max=2759.7480
-DEBUG Batch 1100 c_mono std(dim=0): [4.8787598e+01 2.6626356e+00 3.6056821e+02 9.2409584e+01 4.7379453e-02]
-DEBUG Batch 1100 c_spatial stats: min=-0.3750, max=0.8622
-DEBUG Batch 1100 c_spatial std(dim=0): [0.19699377 0.0946894  0.14137653 0.1052196  0.05505403]
-DEBUG Batch 1100 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
-Epoch [3][1100/1562] Total: 7.7688 | Recon: 1.6300 | MPC: 6.0723 (Acc: 4.70%) | Spec SAC: 3.3280 | Spat SAC: 0.0000 | LR: 1.00e-04
-[2026-11-05T12:02:34.420] error: *** JOB 23348510 ON compute-0-300 CANCELLED AT 2026-11-05T12:02:34 DUE TO PREEMPTION ***
+Spatial: {'tdoa': 0.0625, 'gcc_phat_peak': 0.15547958, 'coh_low': 0.72909975, 'coh_mid': 0.110762954, 'coh_high': 0.05089934}
+Monaural: {'f0': 272.83807, 'hnr': 0.34301522, 'centroid': 1617.5438, 'flux': 305.4018, 'zcr': 0.0953881}
+[13] /storage/yotam/ssamba/data/MicSig/simu/pretrain/36341.wav
+Spatial: {'tdoa': 0.125, 'gcc_phat_peak': 0.2665257, 'coh_low': 0.78310806, 'coh_mid': 0.26373047, 'coh_high': 0.13056718}
+Monaural: {'f0': 249.2017, 'hnr': -2.5909991, 'centroid': 1640.011, 'flux': 487.44305, 'zcr': 0.15475097}
+[14] /storage/yotam/ssamba/data/MicSig/simu/pretrain/31799.wav
+Spatial: {'tdoa': -0.125, 'gcc_phat_peak': 0.15612262, 'coh_low': 0.5804182, 'coh_mid': 0.09535215, 'coh_high': 0.0977944}
+Monaural: {'f0': 182.21236, 'hnr': -1.9057268, 'centroid': 1395.3307, 'flux': 335.84283, 'zcr': 0.09455997}
+[15] /storage/yotam/ssamba/data/MicSig/simu/pretrain/45375.wav
+Spatial: {'tdoa': 0.5, 'gcc_phat_peak': 0.23828687, 'coh_low': 0.47615218, 'coh_mid': 0.1922507, 'coh_high': 0.1819368}
+Monaural: {'f0': 232.96968, 'hnr': -5.544701, 'centroid': 2127.0654, 'flux': 192.18658, 'zcr': 0.19254495}
+[16] /storage/yotam/ssamba/data/MicSig/simu/pretrain/40863.wav
+Spatial: {'tdoa': -0.3125, 'gcc_phat_peak': 0.11598781, 'coh_low': 0.53074294, 'coh_mid': 0.104779854, 'coh_high': 0.09901567}
+Monaural: {'f0': 381.57983, 'hnr': 4.158332, 'centroid': 1722.713, 'flux': 255.28755, 'zcr': 0.12240701}
+[17] /storage/yotam/ssamba/data/MicSig/simu/pretrain/12467.wav
+Spatial: {'tdoa': 0.25, 'gcc_phat_peak': 0.27530068, 'coh_low': 0.6521126, 'coh_mid': 0.22975235, 'coh_high': 0.17377377}
+Monaural: {'f0': 267.83618, 'hnr': -0.71316147, 'centroid': 2377.6074, 'flux': 558.6331, 'zcr': 0.20431377}
+[18] /storage/yotam/ssamba/data/MicSig/simu/pretrain/8636.wav
+Spatial: {'tdoa': 0.0625, 'gcc_phat_peak': 0.21855323, 'coh_low': 0.76102376, 'coh_mid': 0.20444548, 'coh_high': 0.15849632}
+Monaural: {'f0': 250.47346, 'hnr': -7.104984, 'centroid': 2284.4917, 'flux': 132.0141, 'zcr': 0.2229514}
+[19] /storage/yotam/ssamba/data/MicSig/simu/pretrain/12333.wav
+Spatial: {'tdoa': 0.0, 'gcc_phat_peak': 0.19439557, 'coh_low': 0.7874559, 'coh_mid': 0.22303146, 'coh_high': 0.07947313}
+Monaural: {'f0': 261.31247, 'hnr': -5.3406053, 'centroid': 1640.1661, 'flux': 183.02907, 'zcr': 0.13758837}
+[20] /storage/yotam/ssamba/data/MicSig/simu/pretrain/40700.wav
+Spatial: {'tdoa': 0.125, 'gcc_phat_peak': 0.10631816, 'coh_low': 0.3757549, 'coh_mid': 0.15406749, 'coh_high': 0.13446829}
+Monaural: {'f0': 285.5077, 'hnr': -2.0321562, 'centroid': 2186.017, 'flux': 324.4279, 'zcr': 0.1824949}
+[21] /storage/yotam/ssamba/data/MicSig/simu/pretrain/49984.wav
+Spatial: {'tdoa': -0.0625, 'gcc_phat_peak': 0.37874505, 'coh_low': 0.8312471, 'coh_mid': 0.4746739, 'coh_high': 0.18812877}
+Monaural: {'f0': 258.4491, 'hnr': -6.5587335, 'centroid': 2328.1316, 'flux': 544.7545, 'zcr': 0.21782011}
+[22] /storage/yotam/ssamba/data/MicSig/simu/pretrain/46779.wav
+Spatial: {'tdoa': 0.3125, 'gcc_phat_peak': 0.17964824, 'coh_low': 0.5871438, 'coh_mid': 0.1908469, 'coh_high': 0.13897069}
+Monaural: {'f0': 221.14796, 'hnr': -1.7325271, 'centroid': 1578.6545, 'flux': 266.10623, 'zcr': 0.11727573}
+[23] /storage/yotam/ssamba/data/MicSig/simu/pretrain/7258.wav
+Spatial: {'tdoa': 0.4375, 'gcc_phat_peak': 0.12767984, 'coh_low': 0.36479262, 'coh_mid': 0.17076162, 'coh_high': 0.13665368}
+Monaural: {'f0': 227.33527, 'hnr': -0.9770248, 'centroid': 2094.6123, 'flux': 149.9996, 'zcr': 0.15750098}
+[24] /storage/yotam/ssamba/data/MicSig/simu/pretrain/7301.wav
+Spatial: {'tdoa': 0.0625, 'gcc_phat_peak': 0.26382867, 'coh_low': 0.8190557, 'coh_mid': 0.3279481, 'coh_high': 0.10901752}
+Monaural: {'f0': 286.92447, 'hnr': -2.7568986, 'centroid': 2071.5476, 'flux': 120.15709, 'zcr': 0.17106982}
+[25] /storage/yotam/ssamba/data/MicSig/simu/pretrain/24086.wav
+Spatial: {'tdoa': -0.0625, 'gcc_phat_peak': 0.2667049, 'coh_low': 0.60875976, 'coh_mid': 0.22528014, 'coh_high': 0.12374743}
+Monaural: {'f0': 243.73721, 'hnr': 0.24800332, 'centroid': 1661.2563, 'flux': 329.688, 'zcr': 0.13371958}
+[26] /storage/yotam/ssamba/data/MicSig/simu/pretrain/35735.wav
+Spatial: {'tdoa': 0.4375, 'gcc_phat_peak': 0.22189313, 'coh_low': 0.5168125, 'coh_mid': 0.26314655, 'coh_high': 0.22873004}
+Monaural: {'f0': 260.60272, 'hnr': -8.7755165, 'centroid': 2058.8457, 'flux': 280.52176, 'zcr': 0.19043244}
+[27] /storage/yotam/ssamba/data/MicSig/simu/pretrain/1193.wav
+Spatial: {'tdoa': 0.25, 'gcc_phat_peak': 0.14256607, 'coh_low': 0.63786745, 'coh_mid': 0.17125303, 'coh_high': 0.12610151}
+Monaural: {'f0': 212.1212, 'hnr': -2.8437476, 'centroid': 1734.0594, 'flux': 454.82944, 'zcr': 0.13060081}
+[28] /storage/yotam/ssamba/data/MicSig/simu/pretrain/28956.wav
+Spatial: {'tdoa': 0.125, 'gcc_phat_peak': 0.26057956, 'coh_low': 0.6871611, 'coh_mid': 0.19332276, 'coh_high': 0.12252775}
+Monaural: {'f0': 199.97481, 'hnr': -3.4034643, 'centroid': 2007.754, 'flux': 241.0645, 'zcr': 0.15628223}
+[29] /storage/yotam/ssamba/data/MicSig/simu/pretrain/45790.wav
+Spatial: {'tdoa': 0.0, 'gcc_phat_peak': 0.30030423, 'coh_low': 0.89771885, 'coh_mid': 0.42794114, 'coh_high': 0.060513332}
+Monaural: {'f0': 312.5297, 'hnr': -5.2261467, 'centroid': 1281.3142, 'flux': 322.854, 'zcr': 0.10019438}
+[30] /storage/yotam/ssamba/data/MicSig/simu/pretrain/3673.wav
+Spatial: {'tdoa': 0.0, 'gcc_phat_peak': 0.25869063, 'coh_low': 0.62576395, 'coh_mid': 0.15369238, 'coh_high': 0.1659613}
+Monaural: {'f0': 285.05234, 'hnr': -4.804997, 'centroid': 2067.6365, 'flux': 426.80096, 'zcr': 0.1855199}
+[31] /storage/yotam/ssamba/data/MicSig/simu/pretrain/32744.wav
+Spatial: {'tdoa': 0.0625, 'gcc_phat_peak': 0.34556404, 'coh_low': 0.8680287, 'coh_mid': 0.41629696, 'coh_high': 0.10967849}
+Monaural: {'f0': 279.1756, 'hnr': -4.4408894, 'centroid': 2047.1072, 'flux': 529.91113, 'zcr': 0.17253233}
+FATAL ERROR: Loss went NaN/Inf for 5 consecutive steps. Model has likely diverged.
