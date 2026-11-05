@@ -39,7 +39,7 @@ epochs=${EPOCHS:-10}
 epoch_iter=4000
 time_mask_ratio=0.5
 mask_block=${MASK_BLOCK:-16}  # frames; 16 = one patch width, so masked tokens are fully hidden
-latest_every=1000             # rolling models/latest.pth; the run resumes from it after preemption
+latest_every=200              # rolling models/latest.pth; the run resumes from it after preemption (segments can die within 30-60 min)
 
 # Frozen SC2/SID/IEMOCAP probes on the spectral encoder (pretrain_probe.py), at step 0 and every probe_every steps; 0 disables.
 # ~6.6k clips loaded once into RAM; results in ${exp_dir}/probe_metrics.jsonl

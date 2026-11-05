@@ -57,13 +57,23 @@ dataloader, so padding is not silent after normalisation; the probe pools over r
 
 Compare the linear-probe curves with the dual baseline (job 23347188, `...-lossfix_blockmask_baseline`).
 
+The input alone moves the probes before any training, so raw scores cannot be compared across inputs. Linear probes of the random encoders at step 0:
+
+| | SC2 | SID | IEMOCAP UA | SID EER |
+|---|---|---|---|---|
+| `stft` (3 inits) | 4.5-4.9 | 2.0-2.25 | 38.7-39.1 | ~40 |
+| `logmel` (2 inits) | 5.0-5.3 | 38.4-39.1 | 49.7-51.5 | ~26.5 |
+
+Untrained `logmel` already beats the trained dual model on SID and emotion (~16 and ~47), so beating the baseline there says nothing about CCSR.
+It does show that raw STFT costs a lot on those two tasks. Judge each run by its gain over its own step 0. SC2 is the fairest task, since neither input has a head start there.
+
 | Result | Meaning |
 |---|---|
-| Both beat the dual baseline | CCSR holds the spectral encoder back: give it its own objective |
-| `logmel` clearly beats `stft` | Raw STFT costs quality: use log-mel for the spectral encoder |
-| Neither beats the baseline | The CCSR explanation is wrong: look elsewhere, for example at the binaural data |
+| Both gain more than the dual baseline, on SC2 especially | CCSR holds the spectral encoder back: give it its own objective |
+| `logmel` gains clearly more than `stft`, or ends clearly higher on SC2 | Raw STFT costs quality beyond the head start: use log-mel for the spectral encoder |
+| Neither gains more than the baseline | The CCSR explanation is wrong: look elsewhere, for example at the binaural data |
 
-Differences of about 1 point are noise (roughly 1000 query clips per task). If the spectral encoder leaves CCSR, the spatial encoder needs a small
+Differences of about 1 point are noise on SC2 and SID (roughly 1000 query clips per task). On emotion allow about 2: two random `logmel` inits differ by 1.8. If the spectral encoder leaves CCSR, the spatial encoder needs a small
 throwaway content encoder for CCSR (discarded after pretraining, as SAR-SSL discards its spectral encoder), and the spectral encoder keeps its own
 masked patches and input. That needs a spatial probe first, since nothing measures the spatial encoder yet (`src/spatial_downstream/` may be a start).
 
@@ -78,7 +88,7 @@ grep "probe:" logs/sac_spec_stft_<jobid>.out | cut -c1-210
 ```
 
 Outputs: `$SAC_EXP_ROOT/binaural_sac_pretrain/*-spectral_only_{stft,logmel}/` (`probe_metrics.jsonl`, `models/latest.pth`).
-Runs resume after preemption. After a time-limit kill, resubmit the same command.
+Runs resume from `latest.pth`, written every 200 steps (`latest_every` in `run_binaural_sac.sh`). A preemption before the first save restarts from step 0 with a new init. After a time-limit kill, resubmit the same command.
 
 ## Code
 
