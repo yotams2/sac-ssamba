@@ -3,9 +3,9 @@
   "experiment": "binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel",
   "job_id": "23348511",
   "status": "running",
-  "date": "2026-11-05T07:53:59+02:00",
-  "collected_at": "2026-11-05T07:54:02+02:00",
-  "host": "compute-0-300",
+  "date": "2026-11-05T12:16:16+02:00",
+  "collected_at": "2026-11-05T12:16:23+02:00",
+  "host": "compute-0-282.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_logmel/models",
   "model": "binaural_sac_spectral_only",
@@ -67,9 +67,30 @@
         "sid/eer": 0.2174999862909317,
         "emo/linear_ua": 0.5142993927001953,
         "step": 4000
+      },
+      {
+        "sc2/linear_acc": 0.15714286267757416,
+        "sid/linear_acc": 0.3062500059604645,
+        "sid/eer": 0.22906041145324707,
+        "emo/linear_ua": 0.51382976770401,
+        "step": 5000
+      },
+      {
+        "sc2/linear_acc": 0.16380952298641205,
+        "sid/linear_acc": 0.3149999976158142,
+        "sid/eer": 0.2391671985387802,
+        "emo/linear_ua": 0.5377344489097595,
+        "step": 6000
+      },
+      {
+        "sc2/linear_acc": 0.17428570985794067,
+        "sid/linear_acc": 0.3024999797344208,
+        "sid/eer": 0.2383328080177307,
+        "emo/linear_ua": 0.5221657752990723,
+        "step": 7000
       }
     ]
   },
-  "slurm_restart_count": 3,
+  "slurm_restart_count": 4,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_spec_logmel_23348511.out"
 }
