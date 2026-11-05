@@ -63,15 +63,20 @@ The thesis question is what adding SAC changes, compared with the same model pre
     spatial input zeroed 0.340 | 0.288; raw copy of the right ear 0.557 | 0.554. Zeroed inputs are out of distribution, so read these as rough.
   - Fixed: the recon and MPC losses use per-element weights on masked frames, W masks whole 16-frame blocks (`--mask_block`, 1 = old
     single-frame mask). All checkpoints and downstream numbers from before this fix are pre-fix: don't compare their recon losses.
-- [ ] **New baseline with the fixed objective**: job 23347188, started 2026-11-04 (6 epochs, ~9.4k steps, probes every 1000):
-  `sbatch --export=ALL,EPOCHS=6,PROBE_EVERY=1000,EXP_NAME_SUFFIX=-lossfix_blockmask_baseline src/binaural_dual_stream_sac/run_binaural_sac.sh`
-  Output in `$SAC_EXP_ROOT/binaural_sac_pretrain/...-lossfix_blockmask_baseline` (`probe_metrics.jsonl`). Step 0 matches the random encoder.
-  Old run for comparison: SC2 linear ~12, SID linear ~16, EER ~29, IEMOCAP linear UA ~47, flat from step 4k.
-  Check the speed: first step took ~22 s, and 2 days only fit ~18 s/step. After a time-limit kill, resubmit the same command: it resumes from
-  `models/latest.pth` (saved every 1000 steps; automatic on preemption requeue).
+- [ ] **New baseline with the fixed objective and fixed F0/HNR**: job 23380446, submitted 2026-11-05, queued (6 epochs, probes every 1000; ~15 s/step, so ~39 h plus preemptions):
+  `sbatch --export=ALL,EPOCHS=6,PROBE_EVERY=1000,EXP_NAME_SUFFIX=-lossfix_blockmask_pitchfix_baseline,DATA_TRAIN=$SAC_DATA_ROOT/binaural_train.pitchfix.json,DATA_VAL=$SAC_DATA_ROOT/binaural_val.pitchfix.json src/binaural_dual_stream_sac/run_binaural_sac.sh`
+  Output in `$SAC_EXP_ROOT/binaural_sac_pretrain/...-lossfix_blockmask_pitchfix_baseline` (`probe_metrics.jsonl`). After a time-limit kill, resubmit the same command: it resumes from `models/latest.pth`.
+  **If this run keeps failing before it finishes, stop resubmitting and debug the cause.**
+  Previous attempt, job 23347188 (old manifests), failed 2026-11-05 on resume: 0c3f0dc changed the size of `cpredlayer`, so its `latest.pth` no longer loads. Only 2000 steps: SC2 / SID / UA linear 12.0 / 16.5 / 45.7, EER 31.0.
+  Old pre-fix run for comparison: SC2 linear ~12, SID linear ~16, EER ~29, IEMOCAP linear UA ~47, flat from step 4k.
 - [ ] **Spectral-only runs** (one encoder, no CCSR; raw STFT vs log-mel, nothing else differs): reasoning, reading guide and limits in
-  [docs/spectral_only_experiment.md](docs/spectral_only_experiment.md). `sbatch --job-name=sac_spec_stft scripts/spectral_only.sbatch stft`, same with `logmel`.
-  Jobs: 23348510 (stft), 23348511 (logmel), submitted 2026-11-04.
+  [docs/spectral_only_experiment.md](docs/spectral_only_experiment.md). `sbatch --job-name=sac_spec_stft scripts/spectral_only.sbatch stft`, same with `logmel`. Both used the old manifests.
+  - `logmel`, job 23348511: still running 2026-11-05, in the last epoch (ends ~12.4k steps; each resume redoes that epoch's data, so compare by step, not epoch). Isolated NaN gradients, skipped by AMP.
+  - `stft`, job 23348510: failed with NaN loss at step 8021. Resubmitted as job 23380447 (queued), resuming from step 8000, to finish the run and test the NaN. **If it NaNs again or keeps failing, debug the masked forward pass.**
+  - NaN facts: every weight and buffer in the step 8000 checkpoint is finite and normal in size. Recon and MPC went NaN, first in validation at step 8000 after 3000 clean steps in that job segment, while Spec SAC stayed finite. Cause unknown: numerics in the masked pass, or a transient GPU fault. The `spatial_encoder contains NaN` line is only a label, since shared weights are named that way.
+  - Linear probes, step 0 -> 2000 -> 8000 -> latest. SC2: `stft` 4.7 / 5.7 / 8.1, `logmel` 5.2 / 12.6 / 16.8 / 19.8 (step 12000), dual 5.0 / 12.0. SID: `stft` 2.1 / 8.9 / 16.7, `logmel` 38.8 / 29.5 / 33.5 / 33.1, dual 2.7 / 16.5. SID EER: `stft` 40.2 / 30.3 / 30.6, `logmel` 26.6 / 20.9 / 23.5 / 23.7, dual 40.3 / 31.0. IEMOCAP UA: `stft` 38.9 / 39.0 / 45.5, `logmel` 50.6 / 52.0 / 54.0 / 53.8, dual 38.9 / 45.7.
+  - Reading so far: raw STFT costs far more than CCSR. `logmel` gains ~15 on SC2 vs 3.4 for `stft`. Removing CCSR did not help STFT: dual at step 2000 beats `stft` at step 8000 on SC2 (SAC weight differs, 1.0 vs 0.02). CCSR on log-mel is untested. Beyond SC2, `logmel` barely improves on its random encoder (best EER 20.2 at step 3000, SID linear falls from 39), and it stays far below GRAM-T.
+  - Next, once the baseline has its curve: build the spatial probe, then design the log-mel spectral stream.
 - [ ] **Ablations against that baseline**, ~4k+ steps each, scored with the probes: no SAC; same mask on both ears in the spectral stream;
   compressed input and log-magnitude target. Revisit after the spectral-only runs, which may replace them. Only if a run clearly beats the baseline: the 3 real downstream runs. Profile the step time first.
   Nothing measures the spatial encoder yet.
@@ -99,7 +104,7 @@ IEMOCAP: the binaural setting did not exist yet, so the SAC model got mono audio
 - [ ] **F0 and HNR are fixed in the code, not yet in the manifests.** `src/sac/acoustic_features.py` now has a proper pitch tracker (checked by
   `scripts/check_pitch_features.sbatch`, job 23354831). `binaural_{train,val}.json` still hold the old values, which barely track real F0 (rank correlation -0.11 on train, 0.19 on val), so binaural runs,
   including those in progress, use the old features. Corrected copies are ready as `binaural_{train,val}.pitchfix.json` (job 23355202, 0 failures, only F0 and HNR differ):
-  once jobs 23347188, 23348510 and 23348511 are done, swap them in with the commands in `scripts/regen_binaural_features.sbatch`, as a separate comparison. Mono runs pick up the fix at once: `OPTUNA_OPTIMAL_SIGMAS` and `OPTIMAL_SIGMAS` were fitted to the old features.
+  baseline job 23380446 uses them through `DATA_TRAIN` / `DATA_VAL`. Don't do the `mv` swap from `scripts/regen_binaural_features.sbatch` until jobs 23348511 and 23380447 are done, since they resume on the old manifests. A pitchfix spectral-only run needs a new `EXP_NAME_SUFFIX`, or it resumes the old run. 230 of 50,000 training clips have F0 exactly 0, probably a no-voiced-frames fallback (unchecked). Mono runs pick up the fix at once: `OPTUNA_OPTIMAL_SIGMAS` and `OPTIMAL_SIGMAS` were fitted to the old features.
 - [ ] **Frozen SAC on SC2: 13.5% or 5.75%?** This file and the frozen-probe debugging above quote 13.5%, but the only frozen SC2 run on this
   cluster (`--frozen-binaural_sac-...binaural_ccsr_dual_sac`, copied from RunAI) has test 5.75% and best validation 5.50% in `eval_result.csv`
   and `result.csv`. Find out which run gave 13.5%, then correct whichever is wrong. VoxCeleb1 frozen agrees (14.5% quoted, 14.81% at best dev).

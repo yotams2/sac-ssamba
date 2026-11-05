@@ -55,7 +55,7 @@ dataloader, so padding is not silent after normalisation; the probe pools over r
 
 ## How to read the results
 
-Compare the linear-probe curves with the dual baseline (job 23347188, `...-lossfix_blockmask_baseline`).
+Compare the linear-probe curves with the dual baseline (job 23380446, `...-lossfix_blockmask_pitchfix_baseline`; job 23347188 failed at 2000 steps).
 
 The input alone moves the probes before any training, so raw scores cannot be compared across inputs. Linear probes of the random encoders at step 0:
 

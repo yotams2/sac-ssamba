@@ -74,6 +74,13 @@ Follow `src/finetune/voxceleb1/run_gramt.sh`: `#SBATCH` header (partition, exclu
 sbatch-safe `SCRIPT_DIR` (resolve via `scontrol show job` when `BASH_SOURCE` is `slurm_script`), `source env.sh`,
 use `$PYTHON`, `$SAC_DATA_ROOT`, `$SAC_EXP_ROOT` instead of absolute paths.
 
+## Keeping the status current
+
+`~/STATUS.md` (home dir, outside git) is the user's executive summary of where things stand. After **every** change or
+action (job submitted or finished, result read, decision made, code committed), update both `~/STATUS.md` and `TODO.md`
+before ending the turn. Keep `STATUS.md` to one screen: where we are, what we're waiting for, latest results, next
+action. Replace stale text instead of appending, and put the detail in `TODO.md`.
+
 ## Results sync and the cloud Claude
 
 I also work with Claude in the claude.ai app ("cloud Claude"). It cannot reach this cluster. It reads this repo from
