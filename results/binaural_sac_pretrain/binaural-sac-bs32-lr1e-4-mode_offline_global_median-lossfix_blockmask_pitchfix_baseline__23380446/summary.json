@@ -1,0 +1,23 @@
+{
+  "task": "binaural_sac_pretrain",
+  "experiment": "binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_pitchfix_baseline",
+  "job_id": "23380446",
+  "status": "running",
+  "date": "2026-11-06T05:22:06+02:00",
+  "collected_at": "2026-11-06T05:22:10+02:00",
+  "host": "compute-0-419.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_pitchfix_baseline",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_pitchfix_baseline/models",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": null,
+  "frozen": null,
+  "git_commit": "b13d0f4a878ee1ddcd1f4b885b54a95d6446ebba",
+  "git_dirty": false,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain"
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_pretrain_23380446.out"
+}
