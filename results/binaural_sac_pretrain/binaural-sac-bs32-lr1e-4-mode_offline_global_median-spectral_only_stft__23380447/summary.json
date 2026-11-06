@@ -2,9 +2,9 @@
   "task": "binaural_sac_pretrain",
   "experiment": "binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_stft",
   "job_id": "23380447",
-  "status": "running",
-  "date": "2026-11-06T05:25:34+02:00",
-  "collected_at": "2026-11-06T05:25:37+02:00",
+  "status": "done",
+  "date": "2026-11-06T15:30:47+02:00",
+  "collected_at": "2026-11-06T17:09:09+02:00",
   "host": "compute-0-420.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_stft",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_stft/models",
@@ -19,11 +19,11 @@
   "metrics": {
     "pipeline": "pretrain",
     "last_progress": [
+      6,
+      12000,
       4,
-      8000,
-      3,
-      16469.204077482224,
-      NaN
+      35954.02354860306,
+      7.638883464813232
     ],
     "probes": [
       {
@@ -102,8 +102,37 @@
         "sid/eer": 0.30583280324935913,
         "emo/linear_ua": 0.4545983374118805,
         "step": 8000
+      },
+      {
+        "sc2/linear_acc": 0.09047619253396988,
+        "sid/linear_acc": 0.19249999523162842,
+        "sid/eer": 0.3008626699447632,
+        "emo/linear_ua": 0.46417102217674255,
+        "step": 9000
+      },
+      {
+        "sc2/linear_acc": 0.09333333373069763,
+        "sid/linear_acc": 0.17749999463558197,
+        "sid/eer": 0.30583280324935913,
+        "emo/linear_ua": 0.45602214336395264,
+        "step": 10000
+      },
+      {
+        "sc2/linear_acc": 0.09047619253396988,
+        "sid/linear_acc": 0.19499999284744263,
+        "sid/eer": 0.29250001907348633,
+        "emo/linear_ua": 0.47312843799591064,
+        "step": 11000
+      },
+      {
+        "sc2/linear_acc": 0.10000000149011612,
+        "sid/linear_acc": 0.19749999046325684,
+        "sid/eer": 0.29250001907348633,
+        "emo/linear_ua": 0.4912121295928955,
+        "step": 12000
       }
     ]
   },
+  "exit_code": 0,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_spec_stft_23380447.out"
 }

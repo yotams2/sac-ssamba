@@ -1,1 +1,60 @@
-
+DEBUG Batch 1460 c_mono stats: min=-9.4445, max=3187.2141
+DEBUG Batch 1460 c_mono std(dim=0): [4.1070324e+01 2.4910924e+00 5.2917065e+02 1.3950957e+02 6.4654820e-02]
+DEBUG Batch 1460 c_spatial stats: min=-0.3125, max=0.8436
+DEBUG Batch 1460 c_spatial std(dim=0): [0.20561056 0.08852752 0.13119984 0.08065508 0.0700395 ]
+DEBUG Batch 1460 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1470 c_mono stats: min=-10.0946, max=2718.8708
+DEBUG Batch 1470 c_mono std(dim=0): [3.25532112e+01 2.74001789e+00 4.70979279e+02 1.13621506e+02
+5.98257892e-02]
+DEBUG Batch 1470 c_spatial stats: min=-0.4375, max=0.8591
+DEBUG Batch 1470 c_spatial std(dim=0): [0.20515043 0.08542524 0.14995164 0.11347463 0.0502914 ]
+DEBUG Batch 1470 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+Epoch [6][1476/1562] Total: 7.6809 | Recon: 1.6008 | MPC: 6.0154 (Acc: 5.30%) | Spec SAC: 3.2321 | Spat SAC: 0.0000 | LR: 1.00e-04
+DEBUG Batch 1480 c_mono stats: min=-8.3017, max=3167.6025
+DEBUG Batch 1480 c_mono std(dim=0): [4.8855389e+01 2.6168916e+00 4.4534283e+02 1.1578274e+02 5.6127951e-02]
+DEBUG Batch 1480 c_spatial stats: min=-0.5000, max=0.8826
+DEBUG Batch 1480 c_spatial std(dim=0): [0.21116605 0.10755626 0.15928146 0.08716968 0.07100969]
+DEBUG Batch 1480 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1490 c_mono stats: min=-8.5186, max=2944.3723
+DEBUG Batch 1490 c_mono std(dim=0): [4.2888519e+01 2.6878176e+00 4.3075244e+02 9.8607712e+01 5.0497983e-02]
+DEBUG Batch 1490 c_spatial stats: min=-0.4375, max=0.8244
+DEBUG Batch 1490 c_spatial std(dim=0): [0.21401852 0.06728244 0.12664762 0.06769564 0.05702292]
+DEBUG Batch 1490 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1500 c_mono stats: min=-7.1863, max=2988.5183
+DEBUG Batch 1500 c_mono std(dim=0): [5.1872517e+01 2.1703489e+00 4.4514783e+02 1.1518895e+02 5.7575438e-02]
+DEBUG Batch 1500 c_spatial stats: min=-0.3125, max=0.8152
+DEBUG Batch 1500 c_spatial std(dim=0): [0.21235617 0.05482299 0.1063607  0.06319106 0.03916538]
+DEBUG Batch 1500 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1510 c_mono stats: min=-7.5243, max=2765.9270
+DEBUG Batch 1510 c_mono std(dim=0): [4.49316177e+01 2.78478813e+00 3.64246796e+02 1.14813545e+02
+4.66330312e-02]
+DEBUG Batch 1510 c_spatial stats: min=-0.3750, max=0.8257
+DEBUG Batch 1510 c_spatial std(dim=0): [0.24068293 0.07634629 0.14508562 0.07620801 0.05340972]
+DEBUG Batch 1510 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1520 c_mono stats: min=-9.5515, max=3432.7896
+DEBUG Batch 1520 c_mono std(dim=0): [4.2870865e+01 2.4437351e+00 5.2064868e+02 1.3408966e+02 6.7099184e-02]
+DEBUG Batch 1520 c_spatial stats: min=-0.3125, max=0.9114
+DEBUG Batch 1520 c_spatial std(dim=0): [0.20107917 0.11627533 0.1402452  0.1256809  0.07260901]
+DEBUG Batch 1520 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1530 c_mono stats: min=-8.1444, max=2850.5896
+DEBUG Batch 1530 c_mono std(dim=0): [4.8324379e+01 2.9556320e+00 4.5138126e+02 1.1085176e+02 6.0889412e-02]
+DEBUG Batch 1530 c_spatial stats: min=-0.2500, max=0.8303
+DEBUG Batch 1530 c_spatial std(dim=0): [0.19376911 0.1003965  0.14317012 0.09667945 0.0634512 ]
+DEBUG Batch 1530 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1540 c_mono stats: min=-8.3523, max=2902.7507
+DEBUG Batch 1540 c_mono std(dim=0): [3.66933212e+01 2.60559440e+00 3.14516846e+02 1.14096115e+02
+4.36375998e-02]
+DEBUG Batch 1540 c_spatial stats: min=-0.3750, max=0.8446
+DEBUG Batch 1540 c_spatial std(dim=0): [0.2232402  0.08964153 0.1673294  0.09206528 0.04479435]
+DEBUG Batch 1540 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1550 c_mono stats: min=-8.3616, max=3089.0669
+DEBUG Batch 1550 c_mono std(dim=0): [4.5362396e+01 2.6509447e+00 4.2903613e+02 1.2064043e+02 5.3336721e-02]
+DEBUG Batch 1550 c_spatial stats: min=-0.5000, max=0.8928
+DEBUG Batch 1550 c_spatial std(dim=0): [0.22990529 0.09830443 0.15989237 0.09643962 0.06393421]
+DEBUG Batch 1550 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+DEBUG Batch 1560 c_mono stats: min=-9.5962, max=2778.6738
+DEBUG Batch 1560 c_mono std(dim=0): [4.2292393e+01 3.0443587e+00 4.1493008e+02 1.6309547e+02 5.2912932e-02]
+DEBUG Batch 1560 c_spatial stats: min=-0.4375, max=0.9010
+DEBUG Batch 1560 c_spatial std(dim=0): [0.18026184 0.10418729 0.16546984 0.09917665 0.05475642]
+DEBUG Batch 1560 REP COLLAPSE TEST: sim_mean=0.0000, sim_std=0.0000, z_spat_std_mean=0.000000
+Pretraining complete. Final model saved to '/scratch200/yotams2/sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-spectral_only_stft/models/audio_model.final.pth'.
