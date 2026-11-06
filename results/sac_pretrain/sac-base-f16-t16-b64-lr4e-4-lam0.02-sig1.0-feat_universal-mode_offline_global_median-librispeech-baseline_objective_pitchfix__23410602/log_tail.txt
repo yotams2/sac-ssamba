@@ -1,0 +1,60 @@
++ mask_patch=300
++ patch_size=16
++ embed_dim=768
++ depth=24
++ rms_norm=false
++ residual_in_fp32=false
++ fused_add_norm=false
++ if_rope=false
++ if_rope_residual=false
++ bimamba_type=v2
++ drop_path_rate=0.1
++ stride=16
++ channels=1
++ num_classes=1000
++ drop_rate=0.
++ norm_epsilon=1e-5
++ if_bidirectional=true
++ final_pool_type=none
++ if_abs_pos_embed=true
++ if_bimamba=false
++ if_cls_token=true
++ if_devide_out=true
++ use_double_cls_token=false
++ use_middle_cls_token=false
++ batch_size=64
++ lr=4e-4
++ lr_patience=2
++ n_epochs=10
++ epoch_iter=4000
++ recon_lambda=10.0
++ classif_lambda=1.0
++ sac_lambda=0.02
++ sac_temperature=0.12
++ sac_sigma=1.0
++ sac_features=f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm
++ feature_alias=universal
++ proj_dim=128
++ local_sigma_mode=offline_global_median
++ use_cross_attention=true
++ num_queries_per_group=1
++ resume_checkpoint=
++ exp_description='Mono SAC on the no-SAC baseline objective (10 mpg + mpc + 0.02 SAC) with the fixed F0 and HNR'
++ exp_name_suffix=-baseline_objective_pitchfix
++ exp_root=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain
++ exp_dir=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix
++ mkdir -p /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix/models
++ echo 'Mono SAC on the no-SAC baseline objective (10 mpg + mpc + 0.02 SAC) with the fixed F0 and HNR'
++ '[' -z '' ']'
++ '[' -f /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix/models/latest.pth ']'
+++ dirname run_sac.sh
++ _hook=./../../scripts/results_hook.sh
++ '[' -z '' ']'
++ '[' -f ./../../scripts/results_hook.sh ']'
++ source ./../../scripts/results_hook.sh
+++++ dirname ./../../scripts/results_hook.sh
++++ cd ./../../scripts
++++ pwd
+++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
++ results_hook sac_pretrain /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix
++ '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
