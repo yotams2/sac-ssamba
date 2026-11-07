@@ -18,9 +18,9 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # ---- Dataset Configuration ----
 dataset=librispeech
-tr_data=/storage/yotam/ssamba/librispeech_train.json
-te_data=/storage/yotam/ssamba/librispeech_eval.json
-label_csv=/storage/yotam/ssamba/src/finetune/audioset/data/class_labels_indices.csv
+tr_data=${TR_DATA:-/storage/yotam/ssamba/librispeech_train.json}
+te_data=${TE_DATA:-/storage/yotam/ssamba/librispeech_eval.json}
+label_csv=${LABEL_CSV:-/storage/yotam/ssamba/src/finetune/audioset/data/class_labels_indices.csv}
 dataset_mean=-4.2677393
 dataset_std=4.5689974
 target_length=1024
@@ -59,17 +59,17 @@ use_double_cls_token='false'
 use_middle_cls_token='false'
 
 # ---- Training Configuration ----
-batch_size=64
+batch_size=${BATCH_SIZE:-64}
 lr=4e-4
 lr_patience=2
-n_epochs=10
-epoch_iter=4000
+n_epochs=${N_EPOCHS:-10}
+epoch_iter=${EPOCH_ITER:-4000}
 
 # ---- Multi-Loss Configuration ----
-recon_lambda=1.0      # Weight for reconstruction loss (MPG): 1.0 (matching EXP2 dual loss baseline)
-classif_lambda=0.0    # Weight for classification loss (MPC): set to 0.0 for EXP8 dual loss
-sac_lambda=0.02       # Weight for SAC contrastive loss: 0.02 (matching EXP2 dual loss baseline)
-sac_temperature=0.8502  # Temperature τ for cosine similarity (winning value from Optuna v5_1 Trial #49)
+recon_lambda=${RECON_LAMBDA:-1.0}      # Weight for reconstruction loss (MPG): 1.0 (matching EXP2 dual loss baseline)
+classif_lambda=${CLASSIF_LAMBDA:-0.0}    # Weight for classification loss (MPC): set to 0.0 for EXP8 dual loss
+sac_lambda=${SAC_LAMBDA:-0.02}       # Weight for SAC contrastive loss: 0.02 (matching EXP2 dual loss baseline)
+sac_temperature=${SAC_TEMPERATURE:-0.8502}  # Temperature τ for cosine similarity (winning value from Optuna v5_1 Trial #49)
 sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by optuna_optimal)
 
 # === PREDEFINED FEATURE LISTS ===
@@ -101,7 +101,7 @@ sac_features="f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm"
 feature_alias="universal"
 
 proj_dim=128         # Projection head output dimension
-local_sigma_mode="optuna_optimal" # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal, optuna_optimal
+local_sigma_mode=${LOCAL_SIGMA_MODE:-optuna_optimal} # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal, optuna_optimal
 use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cross-attention)
 num_queries_per_group=1   # Number of queries per acoustic feature group
 
@@ -110,22 +110,30 @@ resume_checkpoint=""
 
 # ---- Experiment Description ----
 # Free-text description of the run to easily identify it later. This is saved to description.log in the exp_dir.
-exp_description="Experiment 8: Optuna-Calibrated Factorized SAC (Dual Loss: recon_lambda=1.0, classif_lambda=0.0, sac_lambda=0.02, tau=0.8502, mode=optuna_optimal v5_1, BS64 LR 4e-4)"
-exp_name_suffix="-exp8_optuna_v5_1"
+exp_description="${EXP_DESCRIPTION:-Experiment 8: Optuna-Calibrated Factorized SAC (Dual Loss: recon_lambda=1.0, classif_lambda=0.0, sac_lambda=0.02, tau=0.8502, mode=optuna_optimal v5_1, BS64 LR 4e-4)}"
+exp_name_suffix="${EXP_NAME_SUFFIX:--exp8_optuna_v5_1}"
 
 # ---- Experiment Directory ----
-exp_dir=./exp/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}
+exp_root=${SAC_EXP_ROOT:+${SAC_EXP_ROOT}/sac_pretrain}
+exp_dir=${exp_root:-./exp}/sac-${model_size}-f${fshape}-t${tshape}-b${batch_size}-lr${lr}-lam${sac_lambda}-sig${sac_sigma}-feat_${feature_alias}-mode_${local_sigma_mode}-${dataset}${exp_name_suffix}
 mkdir -p ${exp_dir}/models
 
 # Save description
 echo "${exp_description}" > "${exp_dir}/description.log"
 
+# A resubmitted run continues from its rolling checkpoint
+if [ -z "${resume_checkpoint}" ] && [ -f "${exp_dir}/models/latest.pth" ]; then
+    resume_checkpoint="${exp_dir}/models/latest.pth"
+fi
+
 # ---- Launch ----
 # Report this run to the results branch, including failures (scripts/results_hook.sh)
-_hook="$(dirname "${BASH_SOURCE[0]}")/../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook sac_pretrain "${exp_dir}"
-CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 python -u -W ignore run_pretrain_sac.py \
+_hook="$(dirname "${BASH_SOURCE[0]}")/../../scripts/results_hook.sh"; [ -z "${NO_RESULTS_HOOK:-}" ] && [ -f "$_hook" ] && source "$_hook" && results_hook sac_pretrain "${exp_dir}"
+CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 ${PYTHON:-python} -u -W ignore run_pretrain_sac.py \
     --sac-loss \
-    --use_wandb \
+    $( [ "${USE_WANDB:-true}" = "true" ] && echo "--use_wandb" ) \
+    --latest_every ${LATEST_EVERY:-0} \
+    --diagnostic_steps ${DIAGNOSTIC_STEPS:-500} \
     --dataset ${dataset} \
     --data-train ${tr_data} \
     --data-val ${te_data} \
@@ -135,7 +143,7 @@ CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 python -u -W ignore run_pretrain_sac.py 
     --lr_patience ${lr_patience} \
     --n-epochs ${n_epochs} \
     --batch-size ${batch_size} \
-    --num-workers 16 \
+    --num-workers ${NUM_WORKERS:-16} \
     --n-print-steps 100 \
     --epoch_iter ${epoch_iter} \
     --task pretrain_joint \

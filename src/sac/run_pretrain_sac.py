@@ -117,6 +117,22 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 
+def save_latest(path, core_model, optimizer, scheduler, feature_stats, global_step, epoch, best_val_loss):
+    """Rolling full training state, so a preempted job continues instead of restarting. Atomic: a kill
+    while writing leaves the previous file."""
+    tmp = path + '.tmp'
+    torch.save({
+        'state_dict': core_model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'scheduler': scheduler.state_dict(),
+        'feature_stats': feature_stats,
+        'global_step': global_step,
+        'epoch': epoch,
+        'best_val_loss': best_val_loss,
+    }, tmp)
+    os.replace(tmp, path)
+
+
 # ============================================================
 # Training & Validation
 # ============================================================
@@ -242,6 +258,18 @@ def train_sac(model, train_loader, test_loader, args, device):
                     print(f"=> Resuming from epoch {epoch}, step {global_step}, best_val_loss {best_val_loss:.4f}")
             except Exception as e:
                 print(f"Warning: could not load progress.pkl: {e}")
+
+        # latest.pth holds the full state, which is newer than progress.pkl
+        if 'optimizer' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['scheduler'])
+            global_step = checkpoint['global_step']
+            epoch = checkpoint['epoch']
+            best_val_loss = checkpoint['best_val_loss']
+            if checkpoint.get('feature_stats') is not None:
+                feature_stats = {k: v.to(device) if torch.is_tensor(v) else v for k, v in checkpoint['feature_stats'].items()}
+                model_core.feature_stats = feature_stats
+            print(f"=> Resumed full training state: epoch {epoch}, step {global_step}, best_val_loss {best_val_loss:.4f}")
 
     while epoch < args.n_epochs + 1:
         model.train()
@@ -502,6 +530,12 @@ def train_sac(model, train_loader, test_loader, args, device):
                 model.train()
                 print('---- evaluation finished ----')
 
+            if args.latest_every > 0 and global_step % args.latest_every == 0:
+                save_latest(os.path.join(args.exp_dir, 'models', 'latest.pth'),
+                            model.module if isinstance(model, nn.DataParallel) else model,
+                            optimizer, scheduler, feature_stats if args.sac_loss else None,
+                            global_step, epoch, best_val_loss)
+
         epoch += 1
 
     # Final evaluation & model saving at completion of all epochs
@@ -596,6 +630,7 @@ def get_args():
     parser.add_argument('--n-print-steps', type=int, default=100, help='Print frequency')
     parser.add_argument('--epoch_iter', type=int, default=4000, help='Steps between evaluations')
     parser.add_argument('--use_wandb', action='store_true', help='Enable WandB logging')
+    parser.add_argument('--latest_every', type=int, default=0, help='Save the full training state to models/latest.pth every N steps, 0 = off')
 
     # Task
     parser.add_argument('--task', type=str, default='pretrain_joint',
