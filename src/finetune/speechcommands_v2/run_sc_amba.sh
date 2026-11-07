@@ -107,7 +107,7 @@ use_middle_cls_token='false'
 
 task=ft_avgtok
 model_size=base
-pool_real_time_only=${POOL_REAL_TIME_ONLY:-false}
+pool_real_time_only=${POOL_REAL_TIME_ONLY:-False}
 if [[ $pretrain_model == *"tiny"* ]]; then
   model_size="tiny"
   embed_dim=192
