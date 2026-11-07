@@ -1,21 +1,27 @@
 #!/bin/bash
-#SBATCH --job-name=esc
-#SBATCH --gres=gpu:l40:1         # Request an L40 GPU
-#SBATCH --cpus-per-task=8        # Number of CPUs
-#SBATCH --mem=32G                # Amount of memory
-#SBATCH --output=job_%j.out      # Standard output and error log
+#SBATCH --job-name=amba_sc
+#SBATCH --partition=gpu-general-pool
+#SBATCH --exclude=compute-0-[18,53,58,300,376,419,420]  # 18: Blackwell, no kernels in this torch; the rest are the slow cards
+#SBATCH --gres=gpu:1
+#SBATCH --time=2-00:00:00
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH --open-mode=append
+#SBATCH --output=logs/%x_%j.out  # relative to the submit dir: submit from the sac-ssamba root
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export TORCH_HOME="${SCRIPT_DIR}/../../pretrained_models"
-mkdir -p "${SCRIPT_DIR}/exp"
-
-# prep speechcommands dataset and download the pretrained model
-if [ -e "${SCRIPT_DIR}/data/datafiles" ]
-then
-    echo "speechcommands already downloaded and processed."
-else
-    (cd "${SCRIPT_DIR}" && python prep_sc.py)
+SCRIPT_PATH=${BASH_SOURCE[0]}
+# under sbatch BASH_SOURCE is slurm's spooled copy, so take the submitted script path instead
+if [ "$(basename "$SCRIPT_PATH")" = "slurm_script" ]; then
+    SCRIPT_PATH=$(scontrol show job "$SLURM_JOB_ID" | sed -n 's/^ *Command=\([^ ]*\).*/\1/p')
 fi
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+source "${SCRIPT_DIR}/../../../env.sh"
+export TORCH_HOME="${SCRIPT_DIR}/../../pretrained_models"
+cd "${SCRIPT_DIR}"
+
+# mono manifests come from scripts/extract_mono_downstream.sbatch
+SC_DATAFILES=${SC_DATAFILES:-${SAC_DATA_ROOT}/mono/speechcommands_datafiles}
+[ -f "${SC_DATAFILES}/speechcommand_train_data.json" ] || { echo "Missing ${SC_DATAFILES}"; exit 1; }
 
 # source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
 # conda activate new_env_name
@@ -62,15 +68,15 @@ dataset_mean=-6.845978
 dataset_std=5.5654526
 target_length=128
 noise=True
-tr_data=./data/datafiles/speechcommand_train_data.json
-val_data=./data/datafiles/speechcommand_valid_data.json
-eval_data=./data/datafiles/speechcommand_eval_data.json
+tr_data=${SC_DATAFILES}/speechcommand_train_data.json
+val_data=${SC_DATAFILES}/speechcommand_valid_data.json
+eval_data=${SC_DATAFILES}/speechcommand_eval_data.json
 
 bal=none
 freqm=48
 timem=48
 mixup=0.6
-epoch=30
+epoch=${EPOCHS:-30}
 batch_size=128
 fshape=16
 tshape=16
@@ -99,9 +105,6 @@ if_devide_out='true'
 use_double_cls_token='false'
 use_middle_cls_token='false'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "${SCRIPT_DIR}/exp"
-
 task=ft_avgtok
 model_size=base
 pool_real_time_only=${POOL_REAL_TIME_ONLY:-false}
@@ -111,7 +114,7 @@ if [[ $pretrain_model == *"tiny"* ]]; then
 elif [[ $pretrain_model == *"small"* ]]; then
   model_size="small"
   embed_dim=384
-elif [[ $pretrain_model == *"binaural"* ]] || [[ $pretrain_model == *"sac"* ]]; then
+elif [[ $pretrain_model == *"binaural"* ]]; then  # mono SAC runs are called sac-* and stay on the mono path
   model_size="binaural_sac"
   embed_dim=768
   tr_data=${SAC_DATA_ROOT:-/storage/yotam/ssamba/data}/speechcommands_spatial_pretrain.json
@@ -143,7 +146,7 @@ if [ ! -f "$PYTHON_BIN" ]; then
 fi
 
 # Report this run to the results branch, including failures (scripts/results_hook.sh)
-source "${SCRIPT_DIR}/../../../scripts/results_hook.sh" && results_hook speechcommands_v2 "$exp_dir"
+[ -z "${NO_RESULTS_HOOK:-}" ] && source "${SCRIPT_DIR}/../../../scripts/results_hook.sh" && results_hook speechcommands_v2 "$exp_dir"
 CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore "${SCRIPT_DIR}/../../run_amba.py" --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${val_data} --data-eval ${eval_data} --exp-dir $exp_dir \
 --label-csv "${SCRIPT_DIR}/data/speechcommands_class_labels_indices.csv" --n_class 35 \

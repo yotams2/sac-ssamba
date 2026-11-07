@@ -1,21 +1,34 @@
 #!/bin/bash
 
 #SBATCH --job-name=amba_er
-#SBATCH --gres=gpu:a40:1         # Request an A40 GPU
-#SBATCH --cpus-per-task=12        # Number of CPUs
-#SBATCH --mem=32G                # Amount of memory
-#SBATCH --output=job_%j.out      # Standard output and error log
+#SBATCH --partition=gpu-general-pool
+#SBATCH --exclude=compute-0-[18,53,58,300,376,419,420]  # 18: Blackwell, no kernels in this torch; the rest are the slow cards
+#SBATCH --gres=gpu:1
+#SBATCH --time=2-00:00:00
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=32G
+#SBATCH --open-mode=append
+#SBATCH --output=logs/%x_%j.out  # relative to the submit dir: submit from the sac-ssamba root
 
 set -x
 # source /share/apps/anaconda3-2019.03/etc/profile.d/conda.sh
 # conda activate superv
-export TORCH_HOME=../../pretrained_models
+SCRIPT_PATH=${BASH_SOURCE[0]}
+# under sbatch BASH_SOURCE is slurm's spooled copy, so take the submitted script path instead
+if [ "$(basename "$SCRIPT_PATH")" = "slurm_script" ]; then
+    SCRIPT_PATH=$(scontrol show job "$SLURM_JOB_ID" | sed -n 's/^ *Command=\([^ ]*\).*/\1/p')
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+source "${SCRIPT_DIR}/../../../env.sh"
+S3PRL_ROOT=${S3PRL_ROOT:-$(cd "${SCRIPT_DIR}/../../../.." && pwd)/sac-s3prl}
+export SAC_SSAMBA_SRC=${SAC_SSAMBA_SRC:-$(cd "${SCRIPT_DIR}/../.." && pwd)}
+export TORCH_HOME="${SCRIPT_DIR}/../../pretrained_models"
 
 # Default parameters
 # Available models: ssast_patch400_base, ssamba_sac_feat_universal_mode_sqrt_dim, ssamba_sac_feat_universal_mode_offline_global_median, etc.
 model_input=${1:-ssast_patch400_base}  # default to 'ssast_patch400_base'
-lr=${2:-1e-5}
-if [[ "$model_input" == *"binaural"* ]] || [[ "$model_input" == *"sac"* ]]; then
+lr=${2:-1e-5}  # the old mono runs named _1e-5 actually ran at 1e-4, the config value: pass 1e-4 to compare with them
+if [[ "$(basename "$model_input")" == *"binaural"* ]]; then  # mono SAC runs are called sac-*, and the repo path holds "sac" too
     default_upstream="binaural_sac_local"
 else
     default_upstream="ssamba_local"
@@ -24,11 +37,8 @@ upstream_name=${3:-$default_upstream}
 frozen=${4:-${FROZEN:-false}}
 
 # Ensure datarc.root points to the actual IEMOCAP directory containing Session1-Session5
-if [ -d "/storage/data/IEMOCAP_audio_only/IEMOCAP_full_release" ]; then
-    file_path_override=",,config.downstream_expert.datarc.root=/storage/data/IEMOCAP_audio_only/IEMOCAP_full_release"
-else
-    file_path_override=""
-fi
+IEMOCAP_ROOT=${IEMOCAP_ROOT:-${SAC_DATA_ROOT}/mono/IEMOCAP_full_release}
+file_path_override=",,config.downstream_expert.datarc.root=${IEMOCAP_ROOT},,config.downstream_expert.datarc.meta_data=${S3PRL_ROOT}/s3prl/downstream/emotion/meta_data"
 
 # Binaural models are evaluated on the binaural simulation of IEMOCAP (same utterances/folds/labels)
 if [[ "$upstream_name" == *"binaural"* ]] || [[ "$upstream_name" == *"sac"* ]]; then
@@ -73,10 +83,10 @@ export SSAMBA_WINDOW_SECS=6.0
 
 #for test_fold in fold1 fold2 fold3 fold4 fold5;
 # Report this run to the results branch, including failures (scripts/results_hook.sh)
-_hook="$(dirname "${BASH_SOURCE[0]}")/../../../scripts/results_hook.sh"; [ -f "$_hook" ] && source "$_hook" && results_hook iemocap "$expdir"
+[ -z "${NO_RESULTS_HOOK:-}" ] && source "${SCRIPT_DIR}/../../../scripts/results_hook.sh" && results_hook iemocap "$expdir"
 for test_fold in fold1;
 do
   echo "running cross-validation on $test_fold"
-  mkdir -p $expdir/${mode_name}_cross-valid-on-${test_fold}; mkdir -p ./log/emotion/${mode_name}_cross-valid-on-${test_fold}
-  PYTHONPATH=/storage/yotam/s3prl python3 /storage/yotam/s3prl/s3prl/run_downstream.py --expdir $expdir/${mode_name}_cross-valid-on-${test_fold} -m train $upstream_args -d emotion -c /storage/yotam/s3prl/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.downstream_expert.datarc.test_fold='$test_fold'$file_path_override" $trainable_flag -a
+  mkdir -p $expdir/${mode_name}_cross-valid-on-${test_fold}
+  (cd ${S3PRL_ROOT}/s3prl && PYTHONPATH=${S3PRL_ROOT}:${VIM_ROOT}:${VIM_ROOT}/vim:${VIM_ROOT}/mamba-1p1p1 ${PYTHON} run_downstream.py --expdir $expdir/${mode_name}_cross-valid-on-${test_fold} -m train $upstream_args -d emotion -c ${S3PRL_ROOT}/s3prl/downstream/emotion/config.yaml -s hidden_states -o "config.optimizer.lr=$lr,,config.downstream_expert.datarc.test_fold='$test_fold'$file_path_override${EXTRA_OVERRIDES:-}" $trainable_flag -a)
 done
