@@ -3,21 +3,29 @@
   "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix-1x-noiseTrue",
   "job_id": "23474187",
   "status": "running",
-  "date": "2026-11-09T08:58:04+02:00",
-  "collected_at": "2026-11-09T08:58:04+02:00",
-  "host": "compute-0-100.powerslurm",
+  "date": "2026-11-09T12:12:27+02:00",
+  "collected_at": "2026-11-09T13:22:15+02:00",
+  "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix-1x-noiseTrue",
-  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix-1x-noiseTrue",
-  "model": null,
-  "pretrained": null,
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix-1x-noiseTrue/models",
+  "model": "labhamlet/gramt-binaural-frame",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix/models/best_audio_model.pth",
   "seed": null,
-  "lr": null,
-  "frozen": null,
-  "git_commit": "de50fc3f9e85c112cfd88535f040c496b7e534a6",
-  "git_dirty": true,
+  "lr": 0.00025,
+  "frozen": false,
+  "git_commit": "1dbdcd074b163a57dd42dbdb52cda23ee5dcf528",
+  "git_dirty": false,
   "s3prl_commit": null,
   "metrics": {
-    "pipeline": "pretrain"
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 14,
+      "acc": 0.9728484119827673,
+      "auc": 0.9996010722737877
+    },
+    "epochs_done": 15,
+    "complete": false
   },
+  "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23474187.out"
 }
