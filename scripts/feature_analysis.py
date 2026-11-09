@@ -32,6 +32,9 @@ SETS = {
             ['F0 mean', 'F0 CoV', 'Voiced segments/s', 'Voiced length', 'Unvoiced length', 'F1 mean', 'F2 mean',
              'F3 mean', 'F1 CoV', 'F2 CoV', 'F3 CoV', 'MFCC1', 'MFCC2', 'MFCC3', 'MFCC4', 'HNR', 'Centroid',
              'Flux mean', 'Flux CoV', 'ZCR mean']),
+    'final': ('f0_mean,f0_var,voiced_len,formant_stats,mfcc,hnr,loudness_cov,centroid,flux,flux_cov',
+              ['F0 mean', 'F0 CoV', 'Voiced length', 'F1 mean', 'F2 mean', 'F3 mean', 'F1 CoV', 'F2 CoV', 'F3 CoV',
+               'MFCC1', 'MFCC2', 'MFCC3', 'MFCC4', 'HNR', 'Loudness CoV', 'Centroid', 'Flux mean', 'Flux CoV']),
 }
 
 
@@ -42,7 +45,7 @@ def load_old():
     return module
 
 
-MODULES = {'old': load_old(), 'new': new}
+MODULES = {'old': load_old(), 'new': new, 'final': new}
 
 
 def feats(x):
@@ -128,13 +131,18 @@ def sanity():
     checks.append(('batch = single clip', bool(torch.allclose(f2[1], f1[0], rtol=1e-4, atol=1e-4))))
     groups, _ = new.get_feature_groups(SETS['new'][0])
     checks.append(('20 values in 5 groups', f2.shape[1] == len(SETS['new'][1]) == 20 and len(groups) == 5))
+    ff = new.extract_acoustic_features(batch, SR, features_list=SETS['final'][0], normalize=False)
+    final_groups, _ = new.get_feature_groups(SETS['final'][0])
+    checks.append(('final set: 18 values in 5 groups, finite', ff.shape[1] == len(SETS['final'][1]) == 18 and len(final_groups) == 5 and bool(torch.isfinite(ff).all())))
+    for label, x in (('silence', torch.zeros(1, SR)), ('noise', torch.randn(1, SR)), ('short', torch.randn(1, 200))):
+        checks.append((f'final set finite on {label}', bool(torch.isfinite(new.extract_acoustic_features(x, SR, features_list=SETS['final'][0], normalize=False)).all())))
     t0 = time.time()
     new.extract_acoustic_features(torch.randn(64, WINDOW), SR, features_list=SETS['new'][0], normalize=False)
     t_new = time.time() - t0
     t0 = time.time()
     MODULES['old'].extract_acoustic_features(torch.randn(64, WINDOW), SR, features_list=SETS['old'][0], normalize=False)
     t_old = time.time() - t0
-    return checks, {'new': t_new, 'old': t_old}, {g: [SETS['new'][1][i] for i in idx] for g, idx in groups.items()}
+    return checks, {'new': t_new, 'old': t_old}, {g: [SETS['final'][1][i] for i in idx] for g, idx in final_groups.items()}
 
 
 if __name__ == '__main__':

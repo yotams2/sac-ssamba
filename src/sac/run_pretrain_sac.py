@@ -199,7 +199,7 @@ def train_sac(model, train_loader, test_loader, args, device):
         for f in args.sac_features.split(','):
             f = f.strip().lower()
             names = {'f0': ['μ_F0'], 'f0_mean': ['μ_F0'], 'f0_var': ['CoV_F0'], 'voiced_rate': ['VoicedSegPerSec'],
-                     'voiced_len': ['μ_VoicedLen'], 'unvoiced_len': ['μ_UnvoicedLen'], 'hnr': ['HNR'],
+                     'voiced_len': ['μ_VoicedLen'], 'unvoiced_len': ['μ_UnvoicedLen'], 'hnr': ['HNR'], 'loudness_cov': ['CoV_Loudness'],
                      'centroid': ['μ_Centroid'], 'flux': ['μ_Flux'], 'flux_cov': ['CoV_Flux'], 'zcr': ['ZCR'],
                      'zcr_mean': ['ZCR'], 'formants': ['F1', 'F2', 'F3'], 'f1': ['F1'], 'f2': ['F2'], 'f3': ['F3'],
                      'formant_stats': ['μ_F1', 'μ_F2', 'μ_F3', 'CoV_F1', 'CoV_F2', 'CoV_F3'],

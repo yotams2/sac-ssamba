@@ -10,6 +10,7 @@ features) or non-silent frames (others), so pauses and zero padding do not enter
     - formants: mean F1-F3 over the 10 loudest frames (older definition, kept for comparison)
     - mfcc: mean of MFCC 1-4 over voiced frames (no c0, which is log energy)
     - hnr: mean harmonics-to-noise ratio over voiced frames, in dB
+    - loudness_cov: coefficient of variation of loudness over non-silent frames (level-invariant loudness dynamics)
     - centroid: mean spectral centroid over non-silent frames
     - flux / flux_cov: mean and coefficient of variation over voiced frames of the spectral flux between
       level-normalised magnitude spectra
@@ -38,6 +39,7 @@ MIN_VOICED_FRAMES = 5             # fewer voiced frames than this counts as no v
 SPECTRAL_FRAME_SEC = 0.025
 SPECTRAL_N_FFT = 512
 MFCC_N_MELS = 26
+LOUDNESS_EXPONENT = 0.33          # intensity-to-loudness power law (Stevens), applied to mel-band powers
 
 # LPC formants, with Praat's default formant settings (5 formants up to 5500 Hz)
 FORMANT_SAMPLE_RATE = 11000       # twice the 5500 Hz ceiling
@@ -195,6 +197,16 @@ def _compute_mfccs(mag: torch.Tensor, voiced: torch.Tensor, sample_rate: int) ->
     return torch.where((count >= MIN_VOICED_FRAMES), mean, torch.zeros_like(mean))   # [B, 4]
 
 
+def _compute_loudness_cov(mag: torch.Tensor, loud: torch.Tensor, sample_rate: int) -> torch.Tensor:
+    """Coefficient of variation over non-silent frames of a loudness estimate: sum of the 26 mel-band powers, each
+    compressed by the 0.33 power law. A gain change scales every frame equally, so the CoV does not depend on level."""
+    import torchaudio.functional as AF
+    fb = AF.melscale_fbanks(mag.shape[-1], 0.0, sample_rate / 2, MFCC_N_MELS, sample_rate).to(mag.device, mag.dtype)
+    loudness = (mag.pow(2) @ fb).clamp(min=0).pow(LOUDNESS_EXPONENT).sum(dim=-1)
+    mean, std, count = _masked_mean_std(*_trim(loudness, loud))
+    return torch.where(count >= MIN_VOICED_FRAMES, std / mean.clamp(min=1e-10), torch.zeros_like(mean))
+
+
 def _compute_temporal(voiced: torch.Tensor, loud: torch.Tensor) -> torch.Tensor:
     """eGeMAPS temporal features within the span from the first to the last non-silent frame: voiced segments per
     second, mean voiced segment length (s), mean unvoiced segment length (s). Returns [B, 3]."""
@@ -339,9 +351,9 @@ def extract_acoustic_features(
                         'voiced_rate', 'voiced_len', 'unvoiced_len'}
         track = _pitch_track(x, sample_rate) if voiced_feats & set(selected) else None
         voiced = track[2] if track is not None else None
-        loud = _loud_frames(x, sample_rate) if {'centroid', 'zcr', 'zcr_mean', 'voiced_rate', 'voiced_len', 'unvoiced_len'} & set(selected) else None
-        frames = _spectral_frames(x, sample_rate) if {'centroid', 'flux', 'flux_cov', 'mfcc', 'zcr', 'zcr_mean'} & set(selected) else None
-        mag = _magnitude_spectra(frames) if {'centroid', 'flux', 'flux_cov', 'mfcc'} & set(selected) else None
+        loud = _loud_frames(x, sample_rate) if {'centroid', 'zcr', 'zcr_mean', 'loudness_cov', 'voiced_rate', 'voiced_len', 'unvoiced_len'} & set(selected) else None
+        frames = _spectral_frames(x, sample_rate) if {'centroid', 'flux', 'flux_cov', 'mfcc', 'loudness_cov', 'zcr', 'zcr_mean'} & set(selected) else None
+        mag = _magnitude_spectra(frames) if {'centroid', 'flux', 'flux_cov', 'mfcc', 'loudness_cov'} & set(selected) else None
         if {'f0', 'f0_mean', 'f0_var'} & set(selected):
             m_f0, v_f0 = _compute_f0_stats(x, sample_rate, track)
         if {'flux', 'flux_cov'} & set(selected):
@@ -358,6 +370,7 @@ def extract_acoustic_features(
             elif f == 'voiced_len': computed_feats.append(temporal[:, 1])
             elif f == 'unvoiced_len': computed_feats.append(temporal[:, 2])
             elif f == 'hnr': computed_feats.append(_compute_hnr(x, sample_rate, track))
+            elif f == 'loudness_cov': computed_feats.append(_compute_loudness_cov(mag, loud, sample_rate))
             elif f == 'centroid': computed_feats.append(_compute_spectral_centroid(mag, loud, sample_rate))
             elif f == 'flux': computed_feats.append(m_flux)
             elif f == 'flux_cov': computed_feats.append(cov_flux)
@@ -473,7 +486,7 @@ def get_feature_groups(features_list: str):
         'Prosody': ['f0', 'f0_mean', 'f0_var', 'voiced_rate', 'voiced_len', 'unvoiced_len'],
         'Vocal_Tract': ['formants', 'formant_stats', 'f1', 'f2', 'f3'],
         'Timbre': ['mfcc'],
-        'Voice_Quality': ['hnr'],
+        'Voice_Quality': ['hnr', 'loudness_cov'],
         'Scene': ['centroid', 'flux', 'flux_cov', 'zcr', 'zcr_mean']
     }
     selected = [f.strip().lower() for f in features_list.split(',')]
