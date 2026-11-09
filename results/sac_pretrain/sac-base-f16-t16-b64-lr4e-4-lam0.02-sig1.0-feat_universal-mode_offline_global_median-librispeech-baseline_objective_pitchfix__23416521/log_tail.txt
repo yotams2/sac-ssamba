@@ -1,60 +1,60 @@
-+ patch_size=16
-+ embed_dim=768
-+ depth=24
-+ rms_norm=false
-+ residual_in_fp32=false
-+ fused_add_norm=false
-+ if_rope=false
-+ if_rope_residual=false
-+ bimamba_type=v2
-+ drop_path_rate=0.1
-+ stride=16
-+ channels=1
-+ num_classes=1000
-+ drop_rate=0.
-+ norm_epsilon=1e-5
-+ if_bidirectional=true
-+ final_pool_type=none
-+ if_abs_pos_embed=true
-+ if_bimamba=false
-+ if_cls_token=true
-+ if_devide_out=true
-+ use_double_cls_token=false
-+ use_middle_cls_token=false
-+ batch_size=64
-+ lr=4e-4
-+ lr_patience=2
-+ n_epochs=10
-+ epoch_iter=4000
-+ recon_lambda=10.0
-+ classif_lambda=1.0
-+ sac_lambda=0.02
-+ sac_temperature=0.12
-+ sac_sigma=1.0
-+ sac_features=f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm
-+ feature_alias=universal
-+ proj_dim=128
-+ local_sigma_mode=offline_global_median
-+ use_cross_attention=true
-+ num_queries_per_group=1
-+ resume_checkpoint=
-+ exp_description='Exp6 recipe rerun on TAU with the fixed F0 and HNR'
-+ exp_name_suffix=-baseline_objective_pitchfix
-+ exp_root=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain
-+ exp_dir=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix
-+ mkdir -p /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix/models
-+ echo 'Exp6 recipe rerun on TAU with the fixed F0 and HNR'
-+ '[' -z '' ']'
-+ '[' -f /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix/models/latest.pth ']'
-+ resume_checkpoint=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix/models/latest.pth
-++ dirname run_sac.sh
-+ _hook=./../../scripts/results_hook.sh
-+ '[' -z '' ']'
-+ '[' -f ./../../scripts/results_hook.sh ']'
-+ source ./../../scripts/results_hook.sh
-++++ dirname ./../../scripts/results_hook.sh
-+++ cd ./../../scripts
-+++ pwd
-++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
-+ results_hook sac_pretrain /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix
-+ '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
+Epoch [8][1129/2071] Loss: 2.5106 Recon: 0.0470 Classif: 1.9608 SAC: 3.9654 Acc: 0.5975 LR: 4.00e-04
+Epoch [8][1229/2071] Loss: 2.5085 Recon: 0.0470 Classif: 1.9589 SAC: 3.9657 Acc: 0.5979 LR: 4.00e-04
+Epoch [8][1329/2071] Loss: 2.5083 Recon: 0.0470 Classif: 1.9588 SAC: 3.9657 Acc: 0.5979 LR: 4.00e-04
+Epoch [8][1429/2071] Loss: 2.5067 Recon: 0.0470 Classif: 1.9575 SAC: 3.9659 Acc: 0.5982 LR: 4.00e-04
+Epoch [8][1529/2071] Loss: 2.5059 Recon: 0.0470 Classif: 1.9569 SAC: 3.9658 Acc: 0.5984 LR: 4.00e-04
+Epoch [8][1629/2071] Loss: 2.5045 Recon: 0.0469 Classif: 1.9557 SAC: 3.9657 Acc: 0.5986 LR: 4.00e-04
+Epoch [8][1729/2071] Loss: 2.5031 Recon: 0.0469 Classif: 1.9545 SAC: 3.9658 Acc: 0.5989 LR: 4.00e-04
+Epoch [8][1829/2071] Loss: 2.5013 Recon: 0.0469 Classif: 1.9528 SAC: 3.9659 Acc: 0.5993 LR: 4.00e-04
+Epoch [8][1929/2071] Loss: 2.5001 Recon: 0.0469 Classif: 1.9519 SAC: 3.9658 Acc: 0.5995 LR: 4.00e-04
+Epoch [8][2029/2071] Loss: 2.4989 Recon: 0.0469 Classif: 1.9506 SAC: 3.9659 Acc: 0.5998 LR: 4.00e-04
+Epoch [9][58/2071] Loss: 2.4966 Recon: 0.0469 Classif: 1.9484 SAC: 3.9658 Acc: 0.6002 LR: 4.00e-04
+Epoch [9][158/2071] Loss: 2.4943 Recon: 0.0469 Classif: 1.9464 SAC: 3.9658 Acc: 0.6006 LR: 4.00e-04
+Epoch [9][258/2071] Loss: 2.4929 Recon: 0.0468 Classif: 1.9454 SAC: 3.9658 Acc: 0.6008 LR: 4.00e-04
+Epoch [9][358/2071] Loss: 2.4917 Recon: 0.0468 Classif: 1.9443 SAC: 3.9657 Acc: 0.6011 LR: 4.00e-04
+Epoch [9][458/2071] Loss: 2.4909 Recon: 0.0468 Classif: 1.9437 SAC: 3.9656 Acc: 0.6012 LR: 4.00e-04
+Epoch [9][558/2071] Loss: 2.4901 Recon: 0.0468 Classif: 1.9431 SAC: 3.9656 Acc: 0.6014 LR: 4.00e-04
+Epoch [9][658/2071] Loss: 2.4885 Recon: 0.0468 Classif: 1.9415 SAC: 3.9656 Acc: 0.6018 LR: 4.00e-04
+Epoch [9][758/2071] Loss: 2.4870 Recon: 0.0468 Classif: 1.9402 SAC: 3.9656 Acc: 0.6021 LR: 4.00e-04
+Epoch [9][858/2071] Loss: 2.4859 Recon: 0.0467 Classif: 1.9392 SAC: 3.9654 Acc: 0.6023 LR: 4.00e-04
+Epoch [9][958/2071] Loss: 2.4850 Recon: 0.0467 Classif: 1.9385 SAC: 3.9653 Acc: 0.6024 LR: 4.00e-04
+Epoch [9][1058/2071] Loss: 2.4839 Recon: 0.0467 Classif: 1.9377 SAC: 3.9653 Acc: 0.6026 LR: 4.00e-04
+Epoch [9][1158/2071] Loss: 2.4829 Recon: 0.0467 Classif: 1.9368 SAC: 3.9652 Acc: 0.6028 LR: 4.00e-04
+Epoch [9][1258/2071] Loss: 2.4815 Recon: 0.0467 Classif: 1.9355 SAC: 3.9652 Acc: 0.6031 LR: 4.00e-04
+Epoch [9][1358/2071] Loss: 2.4802 Recon: 0.0466 Classif: 1.9344 SAC: 3.9652 Acc: 0.6033 LR: 4.00e-04
+Epoch [9][1458/2071] Loss: 2.4793 Recon: 0.0466 Classif: 1.9337 SAC: 3.9652 Acc: 0.6035 LR: 4.00e-04
+Epoch [9][1558/2071] Loss: 2.4778 Recon: 0.0466 Classif: 1.9324 SAC: 3.9651 Acc: 0.6038 LR: 4.00e-04
+---- Step 20000 evaluation ----
+Train Loss: 2.4763, Val Loss: 4.2354
+New best model saved (val_loss=4.2354)
+---- evaluation finished ----
+Epoch [9][1658/2071] Loss: 2.4178 Recon: 0.0470 Classif: 1.8689 SAC: 3.9676 Acc: 0.6158 LR: 4.00e-04
+Epoch [9][1758/2071] Loss: 2.4407 Recon: 0.0458 Classif: 1.9037 SAC: 3.9616 Acc: 0.6106 LR: 4.00e-04
+Epoch [9][1858/2071] Loss: 2.4274 Recon: 0.0461 Classif: 1.8876 SAC: 3.9613 Acc: 0.6139 LR: 4.00e-04
+Epoch [9][1958/2071] Loss: 2.4237 Recon: 0.0461 Classif: 1.8837 SAC: 3.9639 Acc: 0.6145 LR: 4.00e-04
+Epoch [9][2058/2071] Loss: 2.4202 Recon: 0.0461 Classif: 1.8797 SAC: 3.9644 Acc: 0.6154 LR: 4.00e-04
+Epoch [10][87/2071] Loss: 2.4138 Recon: 0.0461 Classif: 1.8731 SAC: 3.9645 Acc: 0.6166 LR: 4.00e-04
+Epoch [10][187/2071] Loss: 2.4156 Recon: 0.0461 Classif: 1.8756 SAC: 3.9639 Acc: 0.6162 LR: 4.00e-04
+Epoch [10][287/2071] Loss: 2.4161 Recon: 0.0460 Classif: 1.8765 SAC: 3.9635 Acc: 0.6161 LR: 4.00e-04
+Epoch [10][387/2071] Loss: 2.4143 Recon: 0.0460 Classif: 1.8753 SAC: 3.9634 Acc: 0.6163 LR: 4.00e-04
+Epoch [10][487/2071] Loss: 2.4135 Recon: 0.0460 Classif: 1.8744 SAC: 3.9637 Acc: 0.6165 LR: 4.00e-04
+Epoch [10][587/2071] Loss: 2.4139 Recon: 0.0459 Classif: 1.8752 SAC: 3.9636 Acc: 0.6164 LR: 4.00e-04
+Epoch [10][687/2071] Loss: 2.4128 Recon: 0.0459 Classif: 1.8743 SAC: 3.9637 Acc: 0.6166 LR: 4.00e-04
+Epoch [10][787/2071] Loss: 2.4118 Recon: 0.0459 Classif: 1.8736 SAC: 3.9637 Acc: 0.6168 LR: 4.00e-04
+Epoch [10][887/2071] Loss: 2.4109 Recon: 0.0459 Classif: 1.8728 SAC: 3.9640 Acc: 0.6170 LR: 4.00e-04
+Epoch [10][987/2071] Loss: 2.4102 Recon: 0.0458 Classif: 1.8725 SAC: 3.9641 Acc: 0.6170 LR: 4.00e-04
+Epoch [10][1087/2071] Loss: 2.4094 Recon: 0.0458 Classif: 1.8719 SAC: 3.9639 Acc: 0.6172 LR: 4.00e-04
+Epoch [10][1187/2071] Loss: 2.4085 Recon: 0.0458 Classif: 1.8712 SAC: 3.9638 Acc: 0.6173 LR: 4.00e-04
+Epoch [10][1287/2071] Loss: 2.4077 Recon: 0.0458 Classif: 1.8705 SAC: 3.9635 Acc: 0.6175 LR: 4.00e-04
+Epoch [10][1387/2071] Loss: 2.4071 Recon: 0.0458 Classif: 1.8700 SAC: 3.9635 Acc: 0.6175 LR: 4.00e-04
+Epoch [10][1487/2071] Loss: 2.4062 Recon: 0.0458 Classif: 1.8693 SAC: 3.9634 Acc: 0.6177 LR: 4.00e-04
+Epoch [10][1587/2071] Loss: 2.4051 Recon: 0.0458 Classif: 1.8683 SAC: 3.9634 Acc: 0.6179 LR: 4.00e-04
+Epoch [10][1687/2071] Loss: 2.4034 Recon: 0.0457 Classif: 1.8667 SAC: 3.9636 Acc: 0.6182 LR: 4.00e-04
+Epoch [10][1787/2071] Loss: 2.4025 Recon: 0.0457 Classif: 1.8661 SAC: 3.9636 Acc: 0.6184 LR: 4.00e-04
+Epoch [10][1887/2071] Loss: 2.4016 Recon: 0.0457 Classif: 1.8654 SAC: 3.9637 Acc: 0.6185 LR: 4.00e-04
+Epoch [10][1987/2071] Loss: 2.4008 Recon: 0.0457 Classif: 1.8648 SAC: 3.9637 Acc: 0.6186 LR: 4.00e-04
+---- Final Pretraining Evaluation ----
+Final Train Loss: 2.4004, Final Val Loss: 4.2210
+New best model saved at end of pretraining (val_loss=4.2210)
++ _rh_exit
++ local rc=0
