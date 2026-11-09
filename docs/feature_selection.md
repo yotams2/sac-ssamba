@@ -1,6 +1,6 @@
 # SAC acoustic features: definitions and selection
 
-*2026-11-09, branch `formant-functionals`. Numbers from `scripts/feature_analysis.sbatch`, job 23493999
+*2026-11-09, branch `formant-functionals`. Numbers from `scripts/feature_analysis.sbatch`, job 23501377
 (`docs/feature_analysis.json`).*
 
 ## Summary
@@ -13,8 +13,9 @@
   set, every feature moves by at most 0.03 IQR under both tests.
 - **The new set carries more information for all three tasks.** Leave-one-out 1-NN on the whole vector:
   speaker 0.72 → 0.86, word 0.19 → 0.25, emotion 0.44 → 0.48.
-- **Proposal:** drop 3 of the 20 candidate values (ZCR, voiced segments per second, unvoiced segment length): two are
-  near-duplicates of other features and one carries almost nothing. That leaves 17 values in the same 5 groups.
+- **Chosen set (18 values):** the 20 candidates minus ZCR, voiced segments per second and unvoiced segment length
+  (two near-duplicates and one near-empty feature), plus loudness CoV. It scores best of the three sets on every task:
+  speaker 0.88, word 0.26, emotion 0.48.
 
 ## Definitions (new set)
 
@@ -29,6 +30,7 @@ neutral fallback values.
 | Vocal tract | Formants | F1-F3 by LPC with Praat's default settings (11 kHz, order 10); mean and CoV over voiced frames (eGeMAPS) | 6 |
 | Timbre | MFCC | MFCC 1-4 (26 mel bands, no c0), mean over voiced frames (eGeMAPS) | 4 |
 | Voice quality | HNR | mean harmonics-to-noise ratio over voiced frames, dB (Boersma 1993) | 1 |
+| Voice quality | Loudness | CoV over non-silent frames of the sum of mel-band powers raised to 0.33 (power law); level-invariant | 1 |
 | Scene | Spectral centroid | mean over non-silent frames | 1 |
 | Scene | Spectral flux | L2 distance between consecutive level-normalised spectra; mean and CoV over voiced frames (eGeMAPS) | 2 |
 | Scene | ZCR | mean zero-crossing rate over non-silent frames | 1 |
@@ -106,7 +108,8 @@ happens on the 11.24 s pretraining window, but it shows the feature was not a me
 | Set | Speaker (chance 0.025) | Word (chance 0.029) | Emotion (majority 0.305) |
 |---|---|---|---|
 | Old (15 values) | 0.721 | 0.190 | 0.441 |
-| New (20 values) | **0.855** | **0.249** | **0.475** |
+| New candidates (20 values) | 0.855 | 0.249 | 0.475 |
+| **Chosen (18 values)** | **0.879** | **0.262** | **0.481** |
 
 ## Reading
 
@@ -123,21 +126,35 @@ happens on the 11.24 s pretraining window, but it shows the feature was not a me
 - **Redundancy:** centroid and ZCR (ρ 0.95), and voiced segments/s and voiced length (ρ −0.93), are near-duplicates.
   Inside a SAC group a duplicate doubles that factor's weight in the distance.
 
-## Proposed set: 17 values
+## Chosen set: 18 values
 
-Drop:
-- **ZCR mean:** duplicates centroid. Centroid is equal or better on speaker and word and level on emotion.
-- **Voiced segments/s:** duplicates voiced length, which scores higher on every task.
+Dropped from the candidates:
+- **ZCR mean:** duplicates centroid (ρ 0.95). Centroid is equal or better on speaker and word and level on emotion.
+- **Voiced segments/s:** duplicates voiced length (ρ −0.93), which scores higher on every task.
 - **Unvoiced length:** weakest feature overall (split 0.38, speaker 0.26, emotion 0.01).
 
-`SAC_FEATURES=f0_mean,f0_var,voiced_len,formant_stats,mfcc,hnr,centroid,flux,flux_cov FEATURE_ALIAS=egemaps17`
+Added:
+- **Loudness CoV** (eGeMAPS has loudness mean and CoV; the mean depends on recording gain, so only the CoV is used).
+  Split 0.40, speaker 0.45, word 0.24, emotion 0.01, level 0.00, pad 0.02, max ρ 0.41 (HNR). It was added as an
+  arousal cue, but after per-speaker normalisation it carries almost no emotion information here. It is kept because
+  it is level-invariant, not redundant, and adds speaker and word information.
 
-## Open choices
+With these changes no pair of features is correlated above 0.78 (MFCC1 and centroid).
 
-- **Loudness CoV.** eGeMAPS has loudness mean and CoV. The mean depends on recording gain, so leave it out. The CoV is
-  level-invariant and is the eGeMAPS way to capture loudness dynamics, a known arousal cue that the old MFCC0 and flux
-  variance carried by accident. It's one value, and it would need a test before adding.
-- **Formant CoV in a speaker-heavy group.** F1-F3 CoV are as speaker-informative as the means, but weak on word and
+| Group | Features |
+|---|---|
+| Prosody | F0 mean, F0 CoV, voiced length |
+| Vocal_Tract | F1-F3 mean, F1-F3 CoV |
+| Timbre | MFCC 1-4 |
+| Voice_Quality | HNR, loudness CoV |
+| Scene | centroid, flux mean, flux CoV |
+
+`run_sac.sh` default: `f0_mean,f0_var,voiced_len,formant_stats,mfcc,hnr,loudness_cov,centroid,flux,flux_cov`, alias
+`egemaps18`.
+
+## Open choice
+
+- **Formant CoV in a speaker-heavy group.** F1-F3 CoV are as speaker-informative as the means but weak on word and
   emotion. Keep them unless the next run suggests the Vocal_Tract group over-weights speaker.
 
 ## Limitations
@@ -146,5 +163,5 @@ Drop:
 - SC2 clips are 1 s, while pretraining uses about 11 s windows. The word column shows what a feature can encode,
   not what it will encode in pretraining.
 - One dataset per task, no seeds. The analysis takes 10 minutes and can be rerun with other data.
-- Cost: on CPU (8 threads) a batch of 64 × 11.24 s takes 2.0 s vs 0.9 s for the old set. On the GPU it runs on the
+- Cost: on CPU (8 threads) a batch of 64 × 11.24 s takes 2-4 s vs 1-1.5 s for the old set (varies by node). On the GPU it runs on the
   device; watch peak memory in the first run.
