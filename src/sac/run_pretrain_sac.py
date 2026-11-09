@@ -206,6 +206,7 @@ def train_sac(model, train_loader, test_loader, args, device):
             elif f in ['zcr', 'zcr_mean']: feature_names.append('ZCR')
             elif f in ['zcr_var', 'rhythm']: feature_names.append('σ_ZCR')
             elif f == 'formants': feature_names.extend(['F1', 'F2', 'F3'])
+            elif f == 'formant_stats': feature_names.extend(['μ_F1', 'μ_F2', 'μ_F3', 'CoV_F1', 'CoV_F2', 'CoV_F3'])
             elif f == 'f1': feature_names.append('F1')
             elif f == 'f2': feature_names.append('F2')
             elif f == 'f3': feature_names.append('F3')

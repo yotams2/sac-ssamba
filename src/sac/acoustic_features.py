@@ -7,7 +7,8 @@ Features extracted per clip:
     - centroid
     - flux
     - zcr_mean / zcr_var
-    - formants (f1, f2, f3)
+    - formants (f1, f2, f3): mean over the 10 loudest frames
+    - formant_stats: mean and coefficient of variation of F1-F3 over voiced frames (eGeMAPS-style)
     - mfcc (mean of first 5 mfccs)
 
 Output: normalized feature vector c_i ∈ [-1, 1]^K for each sample in the batch.
@@ -32,6 +33,8 @@ FORMANT_SAMPLE_RATE = 11000       # twice the 5500 Hz ceiling
 LPC_ORDER = 10                    # two poles per formant
 LPC_PRE_EMPHASIS = 0.97
 FORMANT_MIN_HZ = 50.0
+FORMANT_MIN_VOICED_FRAMES = 5     # formant_stats: fewer voiced frames than this counts as no voice
+FORMANT_NO_VOICE = (500.0, 1500.0, 2500.0)   # formant_stats: means for clips without voice (neutral vowel)
 
 def _safe_log(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
     return torch.log(x.clamp(min=eps))
@@ -175,34 +178,28 @@ def _levinson_durbin(R, order):
         
     return a
 
-def _compute_formants_lpc(waveform: torch.Tensor, sample_rate: int) -> tuple:
-    """F1-F3 by LPC root solving (autocorrelation method) with Praat's default settings: resample to 11 kHz,
-    pre-emphasis, order 10, the three lowest roots above 50 Hz. Averaged over the 10 highest-energy 30 ms frames
-    (chosen on the raw signal, so they are mostly vowels). On LibriSpeech it agrees with Praat's Burg formants at
-    the same frames to a median of 3 / 5 / 19 Hz (scripts/check_formant_features.py)."""
+def _lpc_formant_frames(waveform: torch.Tensor, sample_rate: int, hop_sec: float):
+    """Per-frame F1-F3 by LPC root solving (autocorrelation method) with Praat's default settings: resample to
+    11 kHz, pre-emphasis, order 10, the three lowest roots above 50 Hz, 30 ms Hann windows.
+    Returns formants [B, N, 3] (NaN where a frame has fewer than 3 roots) and raw-signal frame energy [B, N]."""
     import torchaudio.functional as AF
-    B = waveform.shape[0]
     device = waveform.device
     sr = FORMANT_SAMPLE_RATE
     x = AF.resample(waveform, sample_rate, sr).double()   # float64: in float32 Levinson-Durbin is unstable here
 
     win_length = int(sr * 0.03)
-    hop_length = int(sr * 0.02)
+    hop_length = int(round(sr * hop_sec))
     if x.shape[-1] < win_length:
         x = F.pad(x, (0, win_length - x.shape[-1]))
     window = torch.hann_window(win_length, device=device, dtype=x.dtype)
     emphasized = torch.cat([x[..., :1], x[..., 1:] - LPC_PRE_EMPHASIS * x[..., :-1]], dim=-1)
-    raw_frames = x.unfold(-1, win_length, hop_length) * window
-    frames = emphasized.unfold(-1, win_length, hop_length) * window   # [B, num_frames, win_length]
+    energy = (x.unfold(-1, win_length, hop_length) * window).pow(2).sum(dim=-1)
+    frames = emphasized.unfold(-1, win_length, hop_length) * window   # [B, N, win_length]
+    B, N, _ = frames.shape
 
-    num_f = min(10, frames.shape[1])
-    _, top_indices = raw_frames.pow(2).sum(dim=-1).topk(num_f, dim=-1)
-    top_frames = torch.gather(frames, 1, top_indices.unsqueeze(-1).expand(-1, -1, win_length))
-
-    a = _levinson_durbin(_autocorr(top_frames, LPC_ORDER), LPC_ORDER).reshape(-1, LPC_ORDER + 1)
-
+    a = _levinson_durbin(_autocorr(frames, LPC_ORDER), LPC_ORDER).reshape(-1, LPC_ORDER + 1)
     # Roots of the LPC polynomial = eigenvalues of its companion matrix
-    companion = torch.zeros((B * num_f, LPC_ORDER, LPC_ORDER), device=device, dtype=x.dtype)
+    companion = torch.zeros((B * N, LPC_ORDER, LPC_ORDER), device=device, dtype=x.dtype)
     idx = torch.arange(LPC_ORDER - 1, device=device)
     companion[:, idx + 1, idx] = 1.0
     companion[:, :, -1] = -a[:, 1:].flip(dims=[1])
@@ -210,14 +207,48 @@ def _compute_formants_lpc(waveform: torch.Tensor, sample_rate: int) -> tuple:
 
     freqs = torch.angle(roots) * (sr / (2 * math.pi))
     mask = (roots.imag > 0) & (freqs > FORMANT_MIN_HZ) & (freqs < sr / 2 - FORMANT_MIN_HZ)
-    valid_f, _ = torch.where(mask, freqs, torch.full_like(freqs, 1e5)).sort(dim=-1)
+    valid_f, _ = torch.where(mask, freqs, torch.full_like(freqs, float('inf'))).sort(dim=-1)
+    formants = valid_f[:, :3].reshape(B, N, 3)
+    return torch.where(torch.isfinite(formants), formants, torch.full_like(formants, float('nan'))), energy
+
+
+def _compute_formants_lpc(waveform: torch.Tensor, sample_rate: int) -> tuple:
+    """Mean F1-F3 over the 10 highest-energy frames (chosen on the raw signal, so mostly vowels). On LibriSpeech it
+    agrees with Praat's Burg formants at the same frames to a median of 3 / 5 / 19 Hz (scripts/check_formant_features.py)."""
+    formants, energy = _lpc_formant_frames(waveform, sample_rate, hop_sec=0.02)
+    num_f = min(10, formants.shape[1])
+    top = energy.topk(num_f, dim=-1).indices
+    f = torch.gather(formants, 1, top.unsqueeze(-1).expand(-1, -1, 3))   # [B, num_f, 3]
 
     # Fallbacks for frames with fewer than 3 roots (e.g. silence)
-    f1s = torch.where(valid_f[:, 0] < 1e5, valid_f[:, 0], torch.full_like(valid_f[:, 0], 500.0))
-    f2s = torch.where(valid_f[:, 1] < 1e5, valid_f[:, 1], f1s + 1000.0)
-    f3s = torch.where(valid_f[:, 2] < 1e5, valid_f[:, 2], f2s + 1000.0)
+    f1s = torch.nan_to_num(f[..., 0], nan=500.0)
+    f2s = torch.where(torch.isnan(f[..., 1]), f1s + 1000.0, f[..., 1])
+    f3s = torch.where(torch.isnan(f[..., 2]), f2s + 1000.0, f[..., 2])
+    return tuple(v.mean(dim=1).to(waveform.dtype) for v in (f1s, f2s, f3s))
 
-    return tuple(f.view(B, num_f).mean(dim=1).to(waveform.dtype) for f in (f1s, f2s, f3s))
+
+def _compute_formant_stats(waveform: torch.Tensor, sample_rate: int, track: tuple = None) -> torch.Tensor:
+    """eGeMAPS-style formant functionals (Eyben et al., 2016): mean and coefficient of variation of F1-F3 over
+    voiced frames. Formants per 10 ms frame as in _lpc_formant_frames; voicing from _pitch_track (same 10 ms hop;
+    frame centres differ by 5 ms). Clips with fewer than FORMANT_MIN_VOICED_FRAMES voiced frames get
+    FORMANT_NO_VOICE means and zero variation. Returns [B, 6]: mean F1, F2, F3, CoV F1, F2, F3."""
+    formants, _ = _lpc_formant_frames(waveform, sample_rate, hop_sec=PITCH_HOP_SEC)
+    voiced = (track if track is not None else _pitch_track(waveform, sample_rate))[2]
+    n = min(formants.shape[1], voiced.shape[1])
+    formants, voiced = formants[:, :n], voiced[:, :n]
+
+    use = voiced.unsqueeze(-1) & ~torch.isnan(formants)                  # [B, n, 3]
+    count = use.sum(dim=1).to(formants.dtype)                           # [B, 3]
+    values = torch.nan_to_num(formants) * use
+    mean = values.sum(dim=1) / count.clamp(min=1)
+    var = ((values - mean.unsqueeze(1)) * use).pow(2).sum(dim=1) / (count - 1).clamp(min=1)
+    cov = var.sqrt() / mean.clamp(min=1.0)
+
+    enough = count >= FORMANT_MIN_VOICED_FRAMES
+    no_voice = torch.tensor(FORMANT_NO_VOICE, device=mean.device, dtype=mean.dtype).expand_as(mean)
+    mean = torch.where(enough, mean, no_voice)
+    cov = torch.where(enough, cov, torch.zeros_like(cov))
+    return torch.cat([mean, cov], dim=-1).to(waveform.dtype)
 
 def _compute_mfccs(waveform: torch.Tensor, sample_rate: int) -> torch.Tensor:
     import torchaudio.transforms as T
@@ -248,7 +279,7 @@ def extract_acoustic_features(
     
     with torch.no_grad():
         track = None
-        if any(f in selected for f in ['f0', 'f0_mean', 'f0_var', 'hnr']):
+        if any(f in selected for f in ['f0', 'f0_mean', 'f0_var', 'hnr', 'formant_stats']):
             track = _pitch_track(audio_tensor, sample_rate)
         if any(f in selected for f in ['f0', 'f0_mean', 'f0_var']):
             m_f0, v_f0 = _compute_f0_stats(audio_tensor, sample_rate, track)
@@ -267,6 +298,8 @@ def extract_acoustic_features(
             elif f == 'zcr_var' or f == 'rhythm': computed_feats.append(v_zcr)
             elif f == 'formants': 
                 computed_feats.extend([f1, f2, f3])
+            elif f == 'formant_stats':
+                computed_feats.extend(_compute_formant_stats(audio_tensor, sample_rate, track).unbind(dim=1))
             elif f == 'f1': computed_feats.append(f1)
             elif f == 'f2': computed_feats.append(f2)
             elif f == 'f3': computed_feats.append(f3)
@@ -374,7 +407,7 @@ def get_feature_groups(features_list: str):
     """
     groups = {
         'Prosody': ['f0', 'f0_mean', 'f0_var'],
-        'Vocal_Tract': ['formants', 'f1', 'f2', 'f3'],
+        'Vocal_Tract': ['formants', 'formant_stats', 'f1', 'f2', 'f3'],
         'Timbre': ['mfcc'],
         'Voice_Quality': ['hnr'],
         'Scene': ['centroid', 'flux', 'flux_var', 'zcr', 'zcr_mean', 'zcr_var', 'rhythm']
@@ -383,7 +416,7 @@ def get_feature_groups(features_list: str):
     group_indices = {k: [] for k in groups}
     current_idx = 0
     for f in selected:
-        num_feats = 3 if f == 'formants' else 5 if f == 'mfcc' else 1
+        num_feats = {'formants': 3, 'formant_stats': 6, 'mfcc': 5}.get(f, 1)
         for group_name, group_members in groups.items():
             if f in group_members:
                 group_indices[group_name].extend(list(range(current_idx, current_idx + num_feats)))
