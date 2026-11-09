@@ -79,7 +79,9 @@ use `$PYTHON`, `$SAC_DATA_ROOT`, `$SAC_EXP_ROOT` instead of absolute paths.
 `~/STATUS.md` (home dir, outside git) is the user's executive summary of where things stand. After **every** change or
 action (job submitted or finished, result read, decision made, code committed), update both `~/STATUS.md` and `TODO.md`
 before ending the turn. Keep `STATUS.md` to one screen: where we are, what we're waiting for, latest results, next
-action. Replace stale text instead of appending, and put the detail in `TODO.md`.
+action. Replace stale text instead of appending. `TODO.md` holds the current state only (running jobs, decisions in
+force, open tasks, results table, caveats that are still true; keep it under ~10 KB). History (job-by-job narrative,
+diagnostics, dead ends, superseded decisions) goes in `docs/log/YYYY-MM.md` as dated entries; grep it when the past matters.
 
 ## Results sync and the cloud Claude
 
