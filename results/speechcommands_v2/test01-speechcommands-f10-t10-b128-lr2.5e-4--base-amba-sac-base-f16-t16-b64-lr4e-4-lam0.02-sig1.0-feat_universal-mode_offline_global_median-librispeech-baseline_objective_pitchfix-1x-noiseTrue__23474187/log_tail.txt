@@ -1,60 +1,60 @@
-valid_loss: 0.684204
-validation finished
-normal learning rate scheduler step
-Epoch-13 lr: 5.7904236570800764e-05
-Epoch-13 lr: 5.7904236570800764e-05
-epoch 13 training time: 768.577
+Epoch-28 lr: 5.058179368296441e-06
+Epoch-28 lr: 5.058179368296441e-06
+epoch 28 training time: 607.276
 ---------------
-2026-11-09 11:46:47.274498
-current #epochs=14, #steps=8606
-Epoch: [14][94/662]	Per Sample Total Time 0.00854	Per Sample Data Time 0.00011	Per Sample DNN Time 0.00842	Train Loss 0.0491
-Epoch: [14][194/662]	Per Sample Total Time 0.00857	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00850	Train Loss 0.0489
-Epoch: [14][294/662]	Per Sample Total Time 0.00856	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00850	Train Loss 0.0488
-Epoch: [14][394/662]	Per Sample Total Time 0.00856	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00851	Train Loss 0.0489
-Epoch: [14][494/662]	Per Sample Total Time 0.00856	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00852	Train Loss 0.0490
-Epoch: [14][594/662]	Per Sample Total Time 0.00857	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00852	Train Loss 0.0489
+2026-11-09 18:11:57.820434
+current #epochs=29, #steps=18536
+Epoch: [29][64/662]	Per Sample Total Time 0.00692	Per Sample Data Time 0.00016	Per Sample DNN Time 0.00676	Train Loss 0.0462
+Epoch: [29][164/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00678	Train Loss 0.0456
+Epoch: [29][264/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00679	Train Loss 0.0456
+Epoch: [29][364/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00679	Train Loss 0.0456
+Epoch: [29][464/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00679	Train Loss 0.0456
+Epoch: [29][564/662]	Per Sample Total Time 0.00683	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00679	Train Loss 0.0457
 start validation
-acc: 0.972848
-AUC: 0.999601
-Avg Precision: 0.057486
-Avg Recall: 0.999917
-d_prime: 4.742618
-train_loss: 0.048909
-valid_loss: 0.683975
+acc: 0.974752
+AUC: 0.999531
+Avg Precision: 0.057499
+Avg Recall: 1.000000
+d_prime: 4.678856
+train_loss: 0.045644
+valid_loss: 0.683733
 validation finished
 normal learning rate scheduler step
-Epoch-14 lr: 4.921860108518065e-05
-Epoch-14 lr: 4.921860108518065e-05
-epoch 14 training time: 780.070
+Epoch-29 lr: 4.299452463051975e-06
+Epoch-29 lr: 4.299452463051975e-06
+epoch 29 training time: 605.751
 ---------------
-2026-11-09 11:59:47.344442
-current #epochs=15, #steps=9268
-Epoch: [15][32/662]	Per Sample Total Time 0.00920	Per Sample Data Time 0.00094	Per Sample DNN Time 0.00826	Train Loss 0.0496
-Epoch: [15][132/662]	Per Sample Total Time 0.00870	Per Sample Data Time 0.00025	Per Sample DNN Time 0.00845	Train Loss 0.0488
-Epoch: [15][232/662]	Per Sample Total Time 0.00864	Per Sample Data Time 0.00016	Per Sample DNN Time 0.00848	Train Loss 0.0486
-Epoch: [15][332/662]	Per Sample Total Time 0.00861	Per Sample Data Time 0.00012	Per Sample DNN Time 0.00850	Train Loss 0.0487
-Epoch: [15][432/662]	Per Sample Total Time 0.00861	Per Sample Data Time 0.00010	Per Sample DNN Time 0.00851	Train Loss 0.0486
-Epoch: [15][532/662]	Per Sample Total Time 0.00860	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00852	Train Loss 0.0486
-Epoch: [15][632/662]	Per Sample Total Time 0.00859	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00852	Train Loss 0.0485
+2026-11-09 18:22:03.571419
+current #epochs=30, #steps=19198
+Epoch: [30][2/662]	Per Sample Total Time 0.01074	Per Sample Data Time 0.00398	Per Sample DNN Time 0.00676	Train Loss 0.0450
+Epoch: [30][102/662]	Per Sample Total Time 0.00691	Per Sample Data Time 0.00014	Per Sample DNN Time 0.00676	Train Loss 0.0458
+Epoch: [30][202/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00009	Per Sample DNN Time 0.00678	Train Loss 0.0460
+Epoch: [30][302/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00678	Train Loss 0.0458
+Epoch: [30][402/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00678	Train Loss 0.0457
+Epoch: [30][502/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00679	Train Loss 0.0457
+Epoch: [30][602/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00679	Train Loss 0.0457
 start validation
-acc: 0.972848
-AUC: 0.999596
-Avg Precision: 0.057484
-Avg Recall: 0.999917
-d_prime: 4.737471
-train_loss: 0.048585
-valid_loss: 0.683858
+acc: 0.974752
+AUC: 0.999550
+Avg Precision: 0.057503
+Avg Recall: 1.000000
+d_prime: 4.695306
+train_loss: 0.045622
+valid_loss: 0.683699
 validation finished
 normal learning rate scheduler step
-Epoch-15 lr: 4.183581092240355e-05
-Epoch-15 lr: 4.183581092240355e-05
-epoch 15 training time: 760.568
----------------
-2026-11-09 12:12:27.912876
-current #epochs=16, #steps=9930
-Epoch: [16][70/662]	Per Sample Total Time 0.00866	Per Sample Data Time 0.00016	Per Sample DNN Time 0.00850	Train Loss 0.0481
-Epoch: [16][170/662]	Per Sample Total Time 0.00862	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00854	Train Loss 0.0480
-Epoch: [16][270/662]	Per Sample Total Time 0.00859	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00852	Train Loss 0.0483
-Epoch: [16][370/662]	Per Sample Total Time 0.00857	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00851	Train Loss 0.0481
-[2026-11-09T12:20:14.318] error: *** JOB 23474187 ON compute-0-100 CANCELLED AT 2026-11-09T12:20:14 DUE TO PREEMPTION ***
-Running in FINE-TUNING mode (upstream weights trainable)
+Epoch-30 lr: 3.6545345935941787e-06
+Epoch-30 lr: 3.6545345935941787e-06
+epoch 30 training time: 606.181
+---------------evaluate on the validation set---------------
+Accuracy: 0.975353
+AUC: 0.999504
+---------------the evaluation dataloader---------------
+now using following mask: 0 freq, 0 time
+now using mix-up with rate 0.000000
+now process speechcommands
+use dataset mean -6.846 and std 5.565 to normalize the input.
+number of classes is 35
+---------------evaluate on the test set---------------
+Accuracy: 0.975829
+AUC: 0.999780
