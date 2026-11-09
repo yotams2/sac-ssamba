@@ -97,9 +97,9 @@ sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by optuna_optimal)
 
 # 5. Universal Representation (All Groups)
 # Uses the factorized cross-attention to learn all acoustic properties simultaneously.
-# SAC_FEATURES / FEATURE_ALIAS override, e.g. formant_stats instead of formants with FEATURE_ALIAS=universal_fstats
-sac_features="${SAC_FEATURES:-f0_mean,f0_var,formants,mfcc,hnr,centroid,flux,zcr_mean,rhythm}"
-feature_alias="${FEATURE_ALIAS:-universal}"
+# eGeMAPS-style candidate set (20 values); SAC_FEATURES / FEATURE_ALIAS override it
+sac_features="${SAC_FEATURES:-f0_mean,f0_var,voiced_rate,voiced_len,unvoiced_len,formant_stats,mfcc,hnr,centroid,flux,flux_cov,zcr_mean}"
+feature_alias="${FEATURE_ALIAS:-egemaps}"
 
 proj_dim=128         # Projection head output dimension
 local_sigma_mode=${LOCAL_SIGMA_MODE:-optuna_optimal} # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal, optuna_optimal
