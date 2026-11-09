@@ -198,18 +198,13 @@ def train_sac(model, train_loader, test_loader, args, device):
         feature_names = []
         for f in args.sac_features.split(','):
             f = f.strip().lower()
-            if f in ['f0', 'f0_mean']: feature_names.append('μ_F0')
-            elif f == 'f0_var': feature_names.append('σ_F0')
-            elif f == 'hnr': feature_names.append('HNR')
-            elif f == 'centroid': feature_names.append('μ_Centroid')
-            elif f in ['flux', 'flux_var']: feature_names.append('σ_Flux')
-            elif f in ['zcr', 'zcr_mean']: feature_names.append('ZCR')
-            elif f in ['zcr_var', 'rhythm']: feature_names.append('σ_ZCR')
-            elif f == 'formants': feature_names.extend(['F1', 'F2', 'F3'])
-            elif f == 'f1': feature_names.append('F1')
-            elif f == 'f2': feature_names.append('F2')
-            elif f == 'f3': feature_names.append('F3')
-            elif f == 'mfcc': feature_names.extend([f'MFCC_{i+1}' for i in range(5)])
+            names = {'f0': ['μ_F0'], 'f0_mean': ['μ_F0'], 'f0_var': ['CoV_F0'], 'voiced_rate': ['VoicedSegPerSec'],
+                     'voiced_len': ['μ_VoicedLen'], 'unvoiced_len': ['μ_UnvoicedLen'], 'hnr': ['HNR'], 'loudness_cov': ['CoV_Loudness'],
+                     'centroid': ['μ_Centroid'], 'flux': ['μ_Flux'], 'flux_cov': ['CoV_Flux'], 'zcr': ['ZCR'],
+                     'zcr_mean': ['ZCR'], 'formants': ['F1', 'F2', 'F3'], 'f1': ['F1'], 'f2': ['F2'], 'f3': ['F3'],
+                     'formant_stats': ['μ_F1', 'μ_F2', 'μ_F3', 'CoV_F1', 'CoV_F2', 'CoV_F3'],
+                     'mfcc': [f'MFCC_{i}' for i in range(1, 5)]}
+            feature_names.extend(names[f])
         debugger = SACDebugger(feature_names=feature_names)
     else:
         debugger = None
