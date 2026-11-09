@@ -27,6 +27,12 @@ PITCH_SILENCE_RATIO = 0.03        # frame RMS relative to the loudest frame of t
 PITCH_OCTAVE_COST = 0.01          # Praat's default
 F0_NO_VOICE_SEMITONES = 10.0      # about 178 Hz
 
+# LPC formants, with Praat's default formant settings (5 formants up to 5500 Hz)
+FORMANT_SAMPLE_RATE = 11000       # twice the 5500 Hz ceiling
+LPC_ORDER = 10                    # two poles per formant
+LPC_PRE_EMPHASIS = 0.97
+FORMANT_MIN_HZ = 50.0
+
 def _safe_log(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
     return torch.log(x.clamp(min=eps))
 
@@ -170,68 +176,48 @@ def _levinson_durbin(R, order):
     return a
 
 def _compute_formants_lpc(waveform: torch.Tensor, sample_rate: int) -> tuple:
-    B, T = waveform.shape
+    """F1-F3 by LPC root solving (autocorrelation method) with Praat's default settings: resample to 11 kHz,
+    pre-emphasis, order 10, the three lowest roots above 50 Hz. Averaged over the 10 highest-energy 30 ms frames
+    (chosen on the raw signal, so they are mostly vowels). On LibriSpeech it agrees with Praat's Burg formants at
+    the same frames to a median of 3 / 5 / 19 Hz (scripts/check_formant_features.py)."""
+    import torchaudio.functional as AF
+    B = waveform.shape[0]
     device = waveform.device
-    
-    # 30ms window, 20ms hop
-    win_length = int(sample_rate * 0.03)
-    hop_length = int(sample_rate * 0.02)
-    window = torch.hann_window(win_length, device=device)
-    
-    if T < win_length:
-        waveform = F.pad(waveform, (0, win_length - T))
-        
-    frames = waveform.unfold(-1, win_length, hop_length) # [B, num_frames, win_length]
-    frames = frames * window
-    
-    # Select top 10 highest energy frames to represent the vowel sounds
-    energy = frames.pow(2).sum(dim=-1)
+    sr = FORMANT_SAMPLE_RATE
+    x = AF.resample(waveform, sample_rate, sr).double()   # float64: in float32 Levinson-Durbin is unstable here
+
+    win_length = int(sr * 0.03)
+    hop_length = int(sr * 0.02)
+    if x.shape[-1] < win_length:
+        x = F.pad(x, (0, win_length - x.shape[-1]))
+    window = torch.hann_window(win_length, device=device, dtype=x.dtype)
+    emphasized = torch.cat([x[..., :1], x[..., 1:] - LPC_PRE_EMPHASIS * x[..., :-1]], dim=-1)
+    raw_frames = x.unfold(-1, win_length, hop_length) * window
+    frames = emphasized.unfold(-1, win_length, hop_length) * window   # [B, num_frames, win_length]
+
     num_f = min(10, frames.shape[1])
-    _, top_indices = energy.topk(num_f, dim=-1)
-    
-    top_frames = torch.gather(frames, 1, top_indices.unsqueeze(-1).expand(-1, -1, win_length)) # [B, num_f, win_length]
-    
-    # LPC order: typically 2 + sample_rate / 1000
-    order = int(2 + sample_rate / 1000) # For 16k -> 18
-    
-    R = _autocorr(top_frames, order)
-    a_coeffs = _levinson_durbin(R, order) # [B, num_f, order+1]
-    
-    B_size = B
-    a_coeffs_flat = a_coeffs.reshape(-1, order + 1)
-    
-    # Companion matrix
-    companion = torch.zeros((B_size * num_f, order, order), device=device)
-    idx = torch.arange(order - 1, device=device)
+    _, top_indices = raw_frames.pow(2).sum(dim=-1).topk(num_f, dim=-1)
+    top_frames = torch.gather(frames, 1, top_indices.unsqueeze(-1).expand(-1, -1, win_length))
+
+    a = _levinson_durbin(_autocorr(top_frames, LPC_ORDER), LPC_ORDER).reshape(-1, LPC_ORDER + 1)
+
+    # Roots of the LPC polynomial = eigenvalues of its companion matrix
+    companion = torch.zeros((B * num_f, LPC_ORDER, LPC_ORDER), device=device, dtype=x.dtype)
+    idx = torch.arange(LPC_ORDER - 1, device=device)
     companion[:, idx + 1, idx] = 1.0
-    companion[:, :, -1] = -a_coeffs_flat[:, 1:].flip(dims=[1])
-    
-    # Eigenvalues (roots of LPC polynomial)
-    roots = torch.linalg.eigvals(companion) # [B*num_f, order]
-    
-    # Frequencies from roots
-    angles = torch.angle(roots)
-    freqs = angles * (sample_rate / (2 * math.pi))
-    
-    # Filter valid formants (positive frequencies, upper half of complex plane)
-    mask = (freqs > 50) & (roots.imag > 0)
-    valid_f = torch.where(mask, freqs, torch.full_like(freqs, 1e5))
-    valid_f, _ = valid_f.sort(dim=-1)
-    
-    f1s = valid_f[:, 0]
-    f2s = valid_f[:, 1]
-    f3s = valid_f[:, 2]
-    
-    # Fallbacks for failed frames
-    f1s = torch.where(f1s < 1e5, f1s, torch.tensor(500.0, device=device))
-    f2s = torch.where(f2s < 1e5, f2s, f1s + 1000.0)
-    f3s = torch.where(f3s < 1e5, f3s, f2s + 1000.0)
-    
-    f1_mean = f1s.view(B_size, num_f).mean(dim=1)
-    f2_mean = f2s.view(B_size, num_f).mean(dim=1)
-    f3_mean = f3s.view(B_size, num_f).mean(dim=1)
-    
-    return f1_mean, f2_mean, f3_mean
+    companion[:, :, -1] = -a[:, 1:].flip(dims=[1])
+    roots = torch.linalg.eigvals(companion)
+
+    freqs = torch.angle(roots) * (sr / (2 * math.pi))
+    mask = (roots.imag > 0) & (freqs > FORMANT_MIN_HZ) & (freqs < sr / 2 - FORMANT_MIN_HZ)
+    valid_f, _ = torch.where(mask, freqs, torch.full_like(freqs, 1e5)).sort(dim=-1)
+
+    # Fallbacks for frames with fewer than 3 roots (e.g. silence)
+    f1s = torch.where(valid_f[:, 0] < 1e5, valid_f[:, 0], torch.full_like(valid_f[:, 0], 500.0))
+    f2s = torch.where(valid_f[:, 1] < 1e5, valid_f[:, 1], f1s + 1000.0)
+    f3s = torch.where(valid_f[:, 2] < 1e5, valid_f[:, 2], f2s + 1000.0)
+
+    return tuple(f.view(B, num_f).mean(dim=1).to(waveform.dtype) for f in (f1s, f2s, f3s))
 
 def _compute_mfccs(waveform: torch.Tensor, sample_rate: int) -> torch.Tensor:
     import torchaudio.transforms as T
