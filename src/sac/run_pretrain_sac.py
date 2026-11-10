@@ -117,7 +117,8 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 
-def save_latest(path, core_model, optimizer, scheduler, feature_stats, global_step, epoch, best_val_loss):
+def save_latest(path, core_model, optimizer, scheduler, feature_stats, global_step, epoch, best_val_loss,
+                shuffle_seed):
     """Rolling full training state, so a preempted job continues instead of restarting. Atomic: a kill
     while writing leaves the previous file."""
     tmp = path + '.tmp'
@@ -129,8 +130,20 @@ def save_latest(path, core_model, optimizer, scheduler, feature_stats, global_st
         'global_step': global_step,
         'epoch': epoch,
         'best_val_loss': best_val_loss,
+        'shuffle_seed': shuffle_seed,
     }, tmp)
     os.replace(tmp, path)
+
+
+def epoch_sample_order(n_samples, batch_size, n_batches, shuffle_seed, epoch, start_batch):
+    """Sample indices for batches start_batch .. n_batches-1 of one epoch (drop_last: the last
+    n_samples - n_batches * batch_size samples of the permutation are unused, as with the DataLoader's
+    drop_last). The permutation depends only on (shuffle_seed, epoch), so a resumed epoch continues
+    with exactly the samples it had not seen yet."""
+    g = torch.Generator()
+    g.manual_seed(shuffle_seed + epoch)
+    perm = torch.randperm(n_samples, generator=g)
+    return perm[start_batch * batch_size:n_batches * batch_size].tolist()
 
 
 # ============================================================
@@ -223,6 +236,12 @@ def train_sac(model, train_loader, test_loader, args, device):
 
     epoch = 1
 
+    # Training length is fixed in steps: n_epochs passes of len(train_loader) batches. Epoch and position
+    # within the epoch are derived from global_step, so a preempted run neither repeats nor adds steps.
+    steps_per_epoch = len(train_loader)
+    total_steps = args.n_epochs * steps_per_epoch
+    shuffle_seed = int(torch.randint(0, 2 ** 31 - 1, (1,)).item())
+
     # Resume logic
     if hasattr(args, 'resume') and args.resume and os.path.isfile(args.resume):
         print(f"=> Loading checkpoint '{args.resume}'")
@@ -265,12 +284,30 @@ def train_sac(model, train_loader, test_loader, args, device):
                 feature_stats = {k: v.to(device) if torch.is_tensor(v) else v for k, v in checkpoint['feature_stats'].items()}
                 model_core.feature_stats = feature_stats
             print(f"=> Resumed full training state: epoch {epoch}, step {global_step}, best_val_loss {best_val_loss:.4f}")
+            if checkpoint.get('shuffle_seed') is not None:
+                shuffle_seed = checkpoint['shuffle_seed']
+            else:
+                print("=> Checkpoint has no shuffle_seed (older format): the rest of the current epoch uses a "
+                      "fresh permutation, so it may repeat or skip some samples of that epoch")
 
-    while epoch < args.n_epochs + 1:
+    epoch = global_step // steps_per_epoch + 1
+    start_batch = global_step % steps_per_epoch
+    print(f"=> Training position: step {global_step}/{total_steps} = epoch {epoch}, batch "
+          f"{start_batch}/{steps_per_epoch}; shuffle_seed {shuffle_seed}", flush=True)
+
+    while epoch <= args.n_epochs:
         model.train()
         begin_time = time.time()
 
-        for i, batch_data in enumerate(train_loader):
+        epoch_loader = torch.utils.data.DataLoader(
+            train_loader.dataset, batch_size=train_loader.batch_size,
+            sampler=epoch_sample_order(len(train_loader.dataset), train_loader.batch_size, steps_per_epoch,
+                                       shuffle_seed, epoch, start_batch),
+            num_workers=train_loader.num_workers, pin_memory=train_loader.pin_memory,
+            drop_last=train_loader.drop_last, collate_fn=train_loader.collate_fn,
+        )
+
+        for i, batch_data in enumerate(epoch_loader, start=start_batch):
             if args.sac_loss and len(batch_data) >= 3:
                 fbank, waveform, _ = batch_data
                 fbank = fbank.to(device, non_blocking=True)
@@ -529,12 +566,13 @@ def train_sac(model, train_loader, test_loader, args, device):
                 save_latest(os.path.join(args.exp_dir, 'models', 'latest.pth'),
                             model.module if isinstance(model, nn.DataParallel) else model,
                             optimizer, scheduler, feature_stats if args.sac_loss else None,
-                            global_step, epoch, best_val_loss)
+                            global_step, epoch, best_val_loss, shuffle_seed)
 
         epoch += 1
+        start_batch = 0
 
     # Final evaluation & model saving at completion of all epochs
-    print('---- Final Pretraining Evaluation ----')
+    print(f'---- Final Pretraining Evaluation (step {global_step}/{total_steps}) ----')
     final_val_loss = validate_sac(model, test_loader, args, device, feature_stats)
     print(f'  Final Train Loss: {loss_meter.avg:.4f}, Final Val Loss: {final_val_loss:.4f}')
     final_path = os.path.join(args.exp_dir, 'models', 'audio_model.final.pth')
