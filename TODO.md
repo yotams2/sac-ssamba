@@ -8,17 +8,22 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
 
 ## Running / waiting
 
-- **Mono pretraining, egemaps18 features: job 23502629** (pending). Same recipe as the old-feature run except features:
+- **Mono pretraining, egemaps18 features: job 23502629.** Started 2026-11-09 16:53 on compute-0-102 (L40S), preempted
+  4x, pending (priority) since 2026-11-10 09:16; last `latest.pth` ~step 6400 (09:10). ~6 s/step on L40S, no NaN/OOM.
+  Step 4000 val loss 5.0244. Nominal end 20710 steps (10 x 2071); ~30 h of GPU time left plus resume overhead.
+  Command if it ever needs resubmitting:
   `sbatch --exclude='compute-0-[18,53,58,300,376,419,420]' --export=ALL,RECON_LAMBDA=10.0,CLASSIF_LAMBDA=1.0,EXP_NAME_SUFFIX=-baseline_objective_egemaps18 scripts/mono_sac.sbatch`
-  (from the repo root). ~2 days on an A100 + one resubmit of the same command after the 2-day limit (resumes from
-  `models/latest.pth`). At start check: peak GPU memory (per-frame LPC, ~1 GB transient), s/step vs 8.2 on A100,
-  group medians in the log.
-  - [ ] Set up the downstream gate for it (copy `scripts/mono_downstream_gate.sbatch`, point it at the new exp dir).
-- **Old-feature mono run, downstream** (pretraining 23410602 + 23416521, `-baseline_objective_pitchfix`, final val 4.22):
-  - SC2 23474187: running; preempted once and **restarted from epoch 1** (no resume in `run_sc_amba.sh`).
-  - IEMOCAP 23474188, SID 23474189: preempted, resume from checkpoints; `nice=100` so 23502629 starts first.
-  - Compare with `amba` lr 4e-4 under the 1.5-pt rule (below). IEMOCAP so far: best dev 68.8 at step 1000 (first
-    eval), test 60.2 vs 57.2; later devs ≤ 65.3.
+  - **Resume bug fixed 2026-11-10 (22430a6):** the run is now exactly n_epochs x len(loader) = 20710 steps; resumes
+    continue mid-epoch with a stored per-epoch shuffle seed. Tested on CPU (`scripts/test_pretrain_resume.sbatch`,
+    job 23574751, bit-identical to an uninterrupted run). 23502629's next start uses it: expect "Training position:
+    step ~6400/20710 = epoch 4" and the "older format" note (the rest of epoch 4 gets a fresh permutation). The
+    ~3300 steps already repeated stay in. The old-feature run got ~1770 extra steps (22480 total), so it is not exactly
+    matched to `amba`.
+  - Downstream gate **23504394** (afterany 23502629): if pretraining hit the 2-day limit it resubmits it with the same
+    exports and chains itself (2 resubmits allowed); once `audio_model.final.pth` exists it submits SC2, IEMOCAP, SID.
+- **Old-feature mono run, downstream** (pretraining 23410602 + 23416521, `-baseline_objective_pitchfix`):
+  SC2 23474187 done (97.58), IEMOCAP 23474188 done (60.18, best dev at step 1000, the first eval), SID 23474189 pending
+  (priority), resumes. Compare with `amba` under the 1.5-pt rule once SID is in.
 
 ## Decisions in force
 
@@ -38,9 +43,16 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
 ## Open tasks
 
 Mono (critical path)
-- [ ] Add resume to `run_sc_amba.sh` (a preemption restarts SC2 from epoch 1, ~3 h lost each time).
-- [ ] `--seed` in `run_amba.py` and `run_binaural_amba.py` (summaries say `seed: null`); s3prl defaults to 1337, pass
-  a different seed per run. Needed before any 3-seed runs.
+- [ ] **SC2 resume test 23504361 passed** (|C-A| within |B-A| on dev acc, loss, weights; test acc 0.0009, inside
+  the 0.0035 dev noise floor). Commit when you say so (uncommitted:
+  `src/traintest.py`, `src/run_amba.py`, `run_sc_amba.sh`, `run_binaural_amba.py`, the gate, the test).
+  Code: `run_amba.py --auto_resume True` writes `models/resume.pth` after each epoch (model, optimizer, scheduler,
+  step, best, results, prediction files, all RNG states) and continues from it; `run_sc_amba.sh` passes it.
+  `--seed` (default 0) in `run_amba.py` and `run_binaural_amba.py`; `SEED=n` in `run_sc_amba.sh` adds `-seed<n>` to
+  the exp dir (unset = seed 0, old name). Pretraining (`run_pretrain_sac.py`) still has no seed.
+- [ ] ER/SID resume is not exact (s3prl `-a`): restarts from the last `states-*.ckpt` (every 1000 steps), loses up to
+  1000 steps, begins a fresh epoch (new shuffle, RNG re-seeded to 1337), so a resumed run takes a different path than
+  an uninterrupted one. Old-feature IEMOCAP/SID 23474188-9 already resumed this way. Your call whether to make it exact.
 - [ ] IEMOCAP: all 5 folds for final numbers (`run_er.sh` and `run_gramt.sh` run fold1 only).
 - [ ] Formal choice of tau and sigma (journal; user 2026-11-07). Proposed frame: per-group SAC = SNE objective
   H(P) + KL(P||Q); sigma by perplexity calibration (median rule as baseline); tau learnable per group. First cheap
@@ -76,8 +88,8 @@ Test accuracy at best dev, single seed. Mono rows: fine-tuned, LibriSpeech pretr
 |---|---|---|---|---|
 | `amba` no SAC (RunAI) | 97.34 | 57.24 | 60.50 | objective mpc + 10 mpg |
 | exp6 SAC (RunAI) | 97.46 | 56.13 | 61.29 | no mpc: confounded objective; old features |
-| Mono SAC, old features, same objective as `amba` | running | 60.2 (partial) | pending | 23474187-9 |
-| Mono SAC, egemaps18 | | | | 23502629 pending |
+| Mono SAC, old features, same objective as `amba` | 97.58 | 60.18 | pending | 23474187-9 |
+| Mono SAC, egemaps18 | | | | 23502629 pretraining ~step 6400/20710, gate 23504394 |
 | GRAM-T binaural-frame (frozen) | 89.59 | | 76.88 | 23244879, 23305339 |
 
 All IEMOCAP numbers from before the binaural v2 regeneration were on mono IEMOCAP.
