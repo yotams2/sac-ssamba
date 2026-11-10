@@ -4,7 +4,7 @@
   "job_id": "23474189",
   "status": "running",
   "date": "2026-11-09T21:48:44+02:00",
-  "collected_at": "2026-11-10T03:34:07+02:00",
+  "collected_at": "2026-11-10T05:30:00+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix_1e-4",
@@ -34,6 +34,6 @@
     "total_steps": 50000,
     "complete": false
   },
-  "slurm_restart_count": 2,
+  "slurm_restart_count": 3,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sid_23474189.out"
 }
