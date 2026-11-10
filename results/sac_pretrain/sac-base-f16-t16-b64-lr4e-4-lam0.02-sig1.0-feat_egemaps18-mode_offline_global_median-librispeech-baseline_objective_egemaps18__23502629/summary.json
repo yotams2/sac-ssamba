@@ -3,8 +3,8 @@
   "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18",
   "job_id": "23502629",
   "status": "running",
-  "date": "2026-11-10T05:27:22+02:00",
-  "collected_at": "2026-11-10T05:27:23+02:00",
+  "date": "2026-11-10T07:15:51+02:00",
+  "collected_at": "2026-11-10T07:15:52+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models",
@@ -19,6 +19,6 @@
   "metrics": {
     "pipeline": "pretrain"
   },
-  "slurm_restart_count": 2,
+  "slurm_restart_count": 3,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_mono_23502629.out"
 }
