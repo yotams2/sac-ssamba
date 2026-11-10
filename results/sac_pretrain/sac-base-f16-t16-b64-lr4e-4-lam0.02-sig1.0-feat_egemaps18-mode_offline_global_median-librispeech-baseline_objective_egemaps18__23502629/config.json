@@ -60,5 +60,5 @@
   "sac_features": "f0_mean,f0_var,voiced_len,formant_stats,mfcc,hnr,loudness_cov,centroid,flux,flux_cov",
   "proj_dim": 128,
   "local_sigma_mode": "offline_global_median",
-  "resume": ""
+  "resume": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models/latest.pth"
 }
