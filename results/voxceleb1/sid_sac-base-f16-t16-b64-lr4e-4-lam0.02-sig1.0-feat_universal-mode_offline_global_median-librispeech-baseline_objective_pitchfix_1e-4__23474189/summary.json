@@ -3,9 +3,9 @@
   "experiment": "sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix_1e-4",
   "job_id": "23474189",
   "status": "running",
-  "date": "2026-11-10T08:54:34+02:00",
-  "collected_at": "2026-11-10T23:21:25+02:00",
-  "host": "compute-0-223.powerslurm",
+  "date": "2026-11-11T10:15:55+02:00",
+  "collected_at": "2026-11-11T11:13:41+02:00",
+  "host": "compute-0-292.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix_1e-4",
   "model": "ssamba_local",
@@ -13,27 +13,27 @@
   "seed": 1337,
   "lr": 0.0001,
   "frozen": false,
-  "git_commit": "20107c7a46ebc45c0de90ce51607160e183ac9ed",
+  "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
   "metrics": {
     "pipeline": "s3prl",
     "best_dev": {
-      "step": 25000,
-      "acc": 0.6939455270767212
+      "step": 40000,
+      "acc": 0.7239281535148621
     },
     "test_at_best_dev": {
-      "step": 25000,
-      "acc": 0.6882802248001099
+      "step": 40000,
+      "acc": 0.7139740586280823
     },
     "test_final": {
-      "step": 25000,
-      "acc": 0.6882802248001099
+      "step": 45000,
+      "acc": 0.7045206427574158
     },
-    "last_step": 25000,
+    "last_step": 45500,
     "total_steps": 50000,
     "complete": false
   },
-  "slurm_restart_count": 5,
+  "slurm_restart_count": 6,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sid_23474189.out"
 }
