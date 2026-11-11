@@ -2,9 +2,9 @@
   "task": "sac_pretrain",
   "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18",
   "job_id": "23502629",
-  "status": "running",
-  "date": "2026-11-11T12:32:34+02:00",
-  "collected_at": "2026-11-11T12:32:35+02:00",
+  "status": "failed",
+  "date": "2026-11-12T00:36:31+02:00",
+  "collected_at": "2026-11-12T01:55:44+02:00",
   "host": "compute-0-293.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models",
@@ -19,6 +19,8 @@
   "metrics": {
     "pipeline": "pretrain"
   },
+  "exit_code": 2,
   "slurm_restart_count": 5,
-  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_mono_23502629.out"
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_mono_23502629.out",
+  "parse_error": "no metrics found in /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18"
 }
