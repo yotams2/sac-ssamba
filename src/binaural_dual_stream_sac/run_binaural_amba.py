@@ -273,6 +273,7 @@ def main():
     parser.add_argument('--fbank_mean', type=float, default=None, help="Log-mel normalisation mean (--input_repr logmel)")
     parser.add_argument('--fbank_std', type=float, default=None, help="Log-mel normalisation std (--input_repr logmel)")
     parser.add_argument('--latest_every', type=int, default=0, help="Save the full training state to models/latest.pth every N steps; 0 disables")
+    parser.add_argument('--seed', type=int, default=0, help="seeds python, numpy and torch")
     parser.add_argument('--resume', type=str, default='', help="Path to checkpoint (.pth) to resume training")
     parser.add_argument('--verify_synthetic', action='store_true', default=False, help="Run synthetic batch verification and exit")
     parser.add_argument('--use_checkpointing', action='store_true', help="Enable gradient checkpointing to save memory at the cost of training speed")
@@ -284,6 +285,10 @@ def main():
     parser.add_argument('--probe_tasks', type=str, default='sc2,sid,iemocap', help="Comma-separated probe tasks (sc2, sid, iemocap)")
 
     args = parser.parse_args()
+    import random
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
     if args.input_repr == 'logmel' and (not args.spectral_only or args.fbank_mean is None or args.fbank_std is None):
         parser.error('--input_repr logmel needs --spectral_only, --fbank_mean and --fbank_std')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'

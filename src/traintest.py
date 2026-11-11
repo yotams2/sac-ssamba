@@ -12,6 +12,7 @@ import torch
 from torch import nn
 import numpy as np
 import pickle
+import random
 from torch.cuda.amp import autocast, GradScaler
 try:
     import wandb
@@ -114,10 +115,54 @@ def train(audio_model, train_loader, test_loader, args):
     print('The learning rate scheduler starts at {:d} epoch with decay rate of {:.3f} every {:d} epoches'.format(args.lrscheduler_start, args.lrscheduler_decay, args.lrscheduler_step))
 
     epoch += 1
+    result = np.zeros([args.n_epochs, 10])
+
+    # Epoch-level resume: everything the next epoch depends on is saved at the end of each epoch, including the RNG
+    # states (they fix the next shuffle, the augmentation in the data workers and drop_path), so a killed and resumed
+    # run repeats the continuous run's trajectory; only the unfinished epoch is lost.
+    resume_path = "%s/models/resume.pth" % exp_dir
+    if getattr(args, 'auto_resume', False) and os.path.exists(resume_path):
+        ck = torch.load(resume_path, map_location='cpu')
+        audio_model.load_state_dict(ck['model'])
+        optimizer.load_state_dict(ck['optimizer'])
+        scheduler.load_state_dict(ck['scheduler'])
+        epoch, global_step = ck['epoch'] + 1, ck['global_step']
+        best_epoch, best_cum_epoch, best_mAP, best_acc, best_cum_mAP = ck['best']
+        progress[:] = ck['progress']
+        result[:min(len(result), len(ck['result']))] = ck['result'][:len(result)]
+        os.makedirs(exp_dir + '/predictions', exist_ok=True)
+        for name, data in ck['prediction_files'].items():  # put back the files validate_ensemble reads next epoch
+            with open(exp_dir + '/predictions/' + name, 'wb') as f:
+                f.write(data)
+        torch.set_rng_state(ck['rng']['torch'])
+        if torch.cuda.is_available() and ck['rng']['cuda'] is not None:
+            torch.cuda.set_rng_state_all(ck['rng']['cuda'])
+        np.random.set_state(ck['rng']['numpy'])
+        random.setstate(ck['rng']['python'])
+        print('resumed from %s: epoch %d done, global step %d, best acc %.6f at epoch %d'
+              % (resume_path, ck['epoch'], global_step, best_acc, best_epoch), flush=True)
+        del ck
+
+    def _save_resume():
+        pred_dir = exp_dir + '/predictions/'
+        names = ['target.csv', 'cum_predictions.csv', 'predictions_%d.csv' % epoch]
+        files = {}
+        for n in names:
+            if os.path.exists(pred_dir + n):
+                with open(pred_dir + n, 'rb') as f:
+                    files[n] = f.read()
+        ck = {'model': audio_model.state_dict(), 'optimizer': optimizer.state_dict(),
+              'scheduler': scheduler.state_dict(), 'epoch': epoch, 'global_step': global_step,
+              'best': (best_epoch, best_cum_epoch, best_mAP, best_acc, best_cum_mAP), 'progress': list(progress),
+              'result': result.copy(), 'prediction_files': files,
+              'rng': {'torch': torch.get_rng_state(),
+                      'cuda': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+                      'numpy': np.random.get_state(), 'python': random.getstate()}}
+        torch.save(ck, resume_path + '.tmp')
+        os.replace(resume_path + '.tmp', resume_path)  # atomic: a kill mid-write leaves the previous epoch's file
 
     print("current #steps=%s, #epochs=%s" % (global_step, epoch))
     print("start training...")
-    result = np.zeros([args.n_epochs, 10])
     audio_model.train()
     while epoch < args.n_epochs + 1:
         begin_time = time.time()
@@ -280,6 +325,8 @@ def train(audio_model, train_loader, test_loader, args):
         with open(exp_dir + '/stats_' + str(epoch) +'.pickle', 'wb') as handle:
             pickle.dump(stats, handle, protocol=pickle.HIGHEST_PROTOCOL)
         _save_progress()
+        if getattr(args, 'auto_resume', False):
+            _save_resume()
 
         finish_time = time.time()
         print('epoch {:d} training time: {:.3f}'.format(epoch, finish_time-begin_time))

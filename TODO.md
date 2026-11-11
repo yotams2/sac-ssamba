@@ -9,21 +9,23 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
 ## Running / waiting
 
 - **Mono pretraining, egemaps18 features: job 23502629.** Started 2026-11-09 16:53 on compute-0-102 (L40S), preempted
-  4x, pending (priority) since 2026-11-10 09:16; last `latest.pth` ~step 6400 (09:10). ~6 s/step on L40S, no NaN/OOM.
+  4x; running again since 2026-11-10 23:12 on compute-0-223 (L40S). At 2026-11-11 07:55: ~step 11100/20710 (epoch 6,
+  batch 745), ~6.7 s/step, no NaN/OOM; ~18 h left if not preempted. Resume fix confirmed in log (see below).
   Step 4000 val loss 5.0244. Nominal end 20710 steps (10 x 2071); ~30 h of GPU time left plus resume overhead.
   Command if it ever needs resubmitting:
   `sbatch --exclude='compute-0-[18,53,58,300,376,419,420]' --export=ALL,RECON_LAMBDA=10.0,CLASSIF_LAMBDA=1.0,EXP_NAME_SUFFIX=-baseline_objective_egemaps18 scripts/mono_sac.sbatch`
   - **Resume bug fixed 2026-11-10 (22430a6):** the run is now exactly n_epochs x len(loader) = 20710 steps; resumes
     continue mid-epoch with a stored per-epoch shuffle seed. Tested on CPU (`scripts/test_pretrain_resume.sbatch`,
-    job 23574751, bit-identical to an uninterrupted run). 23502629's next start uses it: expect "Training position:
-    step ~6400/20710 = epoch 4" and the "older format" note (the rest of epoch 4 gets a fresh permutation). The
+    job 23574751, bit-identical to an uninterrupted run). Confirmed 2026-11-10 23:12: log shows "Training position:
+    step 6400/20710 = epoch 4, batch 187/2071" and the "older format" note (the rest of epoch 4 gets a fresh permutation). The
     ~3300 steps already repeated stay in. The old-feature run got ~1770 extra steps (22480 total), so it is not exactly
     matched to `amba`.
   - Downstream gate **23504394** (afterany 23502629): if pretraining hit the 2-day limit it resubmits it with the same
     exports and chains itself (2 resubmits allowed); once `audio_model.final.pth` exists it submits SC2, IEMOCAP, SID.
 - **Old-feature mono run, downstream** (pretraining 23410602 + 23416521, `-baseline_objective_pitchfix`):
-  SC2 23474187 done (97.58), IEMOCAP 23474188 done (60.18, best dev at step 1000, the first eval), SID 23474189 pending
-  (priority), resumes. Compare with `amba` under the 1.5-pt rule once SID is in.
+  SC2 23474187 done (97.58), IEMOCAP 23474188 done (60.18, best dev at step 1000, the first eval), SID 23474189 running since
+  2026-11-10 23:21 on compute-0-223, step ~41160/50000 at 07:55 (~4.5 h left). Interim: latest dev 72.39, last two
+  test evals 70.55 / 70.37 (`amba` 60.50; check it is the same metric/split before trusting the gap). Compare with `amba` under the 1.5-pt rule once SID is in.
 
 ## Decisions in force
 

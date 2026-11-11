@@ -138,7 +138,9 @@ exp_root=${SAC_EXP_ROOT:+${SAC_EXP_ROOT}/speechcommands_v2}  # set by env.sh; un
 exp_root=${exp_root:-${SCRIPT_DIR}/exp}
 base_exp_dir="${exp_root}/test01-${dataset}-f${fstride}-${fshape}-t${tstride}-${tshape}-b${batch_size}-lr${lr}-${exp_task_name}-${model_size}-${pretrain_exp}-${pretrain_model}-${head_lr}x-noise${noise}"
 
-exp_dir="${exp_root}/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}"
+exp_dir="${exp_root}/test01-${dataset}-f$fstride-t$tstride-b$batch_size-lr${lr}-${exp_task_name}-${model_size}-$pretrain_exp-${pretrain_model}-${head_lr}x-noise${noise}${SEED:+-seed${SEED}}"
+# SEED unset: seed 0 and the old directory name. A requeued job continues from ${exp_dir}/models/resume.pth (last
+# finished epoch, same trajectory as an uninterrupted run); delete that file to start the run over.
 
 PYTHON_BIN=${PYTHON:-/storage/yotam/venvs/ssamba_ide/bin/python}
 if [ ! -f "$PYTHON_BIN" ]; then
@@ -150,7 +152,7 @@ fi
 CUDA_CACHE_DISABLE=1 $PYTHON_BIN -W ignore "${SCRIPT_DIR}/../../run_amba.py" --use_wandb --dataset ${dataset} \
 --data-train ${tr_data} --data-val ${val_data} --data-eval ${eval_data} --exp-dir $exp_dir \
 --label-csv "${SCRIPT_DIR}/data/speechcommands_class_labels_indices.csv" --n_class 35 \
---lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
+--seed ${SEED:-0} --auto_resume True --lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
 --freqm $freqm --timem $timem --mixup ${mixup} --bal ${bal} --embed_dim ${embed_dim} \
 --tstride $tstride --fstride $fstride --fshape ${fshape} --tshape ${tshape} --warmup True --task ${task} \
 --model_size ${model_size} --adaptschedule False --pool_real_time_only ${pool_real_time_only} \

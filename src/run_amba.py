@@ -107,6 +107,9 @@ parser.add_argument('--save_model', help='save the models or not', type=ast.lite
 
 parser.add_argument("--resume_model", type=str, default=None, help="path to model to resume")
 parser.add_argument("--resume_optimizer", type=str, default=None, help="path to optimizer to resume")
+parser.add_argument("--auto_resume", type=ast.literal_eval, default=False,
+                    help="fine-tuning: save <exp-dir>/models/resume.pth after every epoch and continue from it if present")
+parser.add_argument("--seed", type=int, default=0, help="seeds python, numpy and torch (shuffle, augmentation, init)")
 parser.add_argument("--wandb_id", type=str, default=None, help="wandb run id to resume")
 
 parser.add_argument('--freqm', help='frequency mask max length', type=int, default=0)
@@ -180,6 +183,11 @@ parser.add_argument('--pool_real_time_only', help='if average only over real aud
 def main():
     print("I am process %s, running on %s: starting (%s)" % (os.getpid(), os.uname()[1], time.asctime()))
     args = parser.parse_args()
+    import random
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)  # also seeds every CUDA device
+    print('seed: %d' % args.seed)
     if args.use_wandb and wandb is not None:
         project_name = "SSAMBA"  # default project name
         if args.dataset == "esc50":
