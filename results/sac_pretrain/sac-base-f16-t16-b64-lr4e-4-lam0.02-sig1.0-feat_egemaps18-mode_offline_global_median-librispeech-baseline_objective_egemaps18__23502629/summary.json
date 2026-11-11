@@ -3,9 +3,9 @@
   "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18",
   "job_id": "23502629",
   "status": "running",
-  "date": "2026-11-10T23:12:24+02:00",
-  "collected_at": "2026-11-10T23:12:27+02:00",
-  "host": "compute-0-223.powerslurm",
+  "date": "2026-11-11T12:32:34+02:00",
+  "collected_at": "2026-11-11T12:32:35+02:00",
+  "host": "compute-0-293.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models",
   "model": "binaural_sac",
@@ -13,12 +13,12 @@
   "seed": null,
   "lr": 0.0004,
   "frozen": null,
-  "git_commit": "20107c7a46ebc45c0de90ce51607160e183ac9ed",
+  "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": null,
   "metrics": {
     "pipeline": "pretrain"
   },
-  "slurm_restart_count": 4,
+  "slurm_restart_count": 5,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_mono_23502629.out"
 }
