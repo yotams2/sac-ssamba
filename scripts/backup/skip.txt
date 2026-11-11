@@ -1,0 +1,1 @@
+# Files never to back up (superseded runs etc.). Same format as keep.txt; keep.txt wins.

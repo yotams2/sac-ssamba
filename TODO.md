@@ -44,14 +44,13 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
 
 ## Open tasks
 
+Storage
+- [ ] Backup flow `scripts/backup/` (2026-11-11, uncommitted): daily self-requeued `backup.sbatch` (first 23583088 done 11-11: 8 weight files 6.9 GB + 303 records; next 23583637). Policy in `backup.py` docstring; pin/skip in `keep.txt`/`skip.txt`; manifest `~/exp-records/manifest.tsv`. Covers top-level `sac-ssamba/data/*.json` manifests (features computed here); audio dirs come from /moshe-data. Unverified: that IEMOCAP/simu_v2 (RunAI regen) is on /moshe-data.
+
 Mono (critical path)
-- [ ] **SC2 resume test 23504361 passed** (|C-A| within |B-A| on dev acc, loss, weights; test acc 0.0009, inside
-  the 0.0035 dev noise floor). Commit when you say so (uncommitted:
-  `src/traintest.py`, `src/run_amba.py`, `run_sc_amba.sh`, `run_binaural_amba.py`, the gate, the test).
-  Code: `run_amba.py --auto_resume True` writes `models/resume.pth` after each epoch (model, optimizer, scheduler,
-  step, best, results, prediction files, all RNG states) and continues from it; `run_sc_amba.sh` passes it.
-  `--seed` (default 0) in `run_amba.py` and `run_binaural_amba.py`; `SEED=n` in `run_sc_amba.sh` adds `-seed<n>` to
-  the exp dir (unset = seed 0, old name). Pretraining (`run_pretrain_sac.py`) still has no seed.
+- [x] Resume + seed code committed 2026-11-11 (`1086cd6`): `run_amba.py --auto_resume True` (models/resume.pth per
+  epoch, exact; SC2 test 23504361 passed), `--seed` in `run_amba.py`/`run_binaural_amba.py`, `SEED=n` in `run_sc_amba.sh`.
+  Pretraining (`run_pretrain_sac.py`) still has no seed.
 - [ ] ER/SID resume is not exact (s3prl `-a`): restarts from the last `states-*.ckpt` (every 1000 steps), loses up to
   1000 steps, begins a fresh epoch (new shuffle, RNG re-seeded to 1337), so a resumed run takes a different path than
   an uninterrupted one. Old-feature IEMOCAP/SID 23474188-9 already resumed this way. Your call whether to make it exact.
@@ -66,7 +65,16 @@ Binaural (on hold)
   `spectral_only.sbatch` hard-codes `EXP_NAME_SUFFIX` and the lambda.
 - [ ] `run_binaural_sac.sh` never passes `--spectral_features`, so binaural runs used 3 groups (`f0,hnr,centroid,flux,zcr`)
   by accident; pass the full list.
-- [ ] Spatial probe (nothing measures the spatial encoder); CCSR on log-mel needs a design (CCSR's target is the complex STFT).
+- [ ] **Spatial encoder on SAR-SSL tasks (started 2026-11-11, in `~/SAC-SAR-SSL`, uncommitted):** SAR-SSL's own
+  `code/run_downstream.py --upstream ssamba_spatial --ssamba-ckpt <pth>` (wrapper `code/ssamba_spatial.py`: spatial encoder
+  only, pretraining front-end = peak 0.9, STFT 512/hop 160, clip tiled to 10 s; SAR-SSL head LayerNorm+Linear).
+  Launcher `scripts/ssamba_spatial_downstream.sbatch <TASK> <ckpt> <label> [nsimroom=8] [mode]`, runs in the sac venv.
+  Checkpoint: `binaural_sac_pretrain/...lossfix_blockmask_pitchfix_baseline/models/audio_model.final.pth` (old 3-group features).
+  Data staged (simu_ds R1..R256+val+test in /scratch200/yotams2/SAC-SAR-SSL/data). Wrapper check 23582050 passed
+  (front-end = wav2stft to 3e-7; finetune 0.55 s/batch8, 11.4 GB; frozen 0.17 s). Smoke 23582593 (TDOA R8 `--my-tmp`,
+  exp_smoke; sbatch now `--workers 0`: forked workers deadlocked in 23582088). Next: 5 tasks x finetune at R8; compare with SAR-SSL rows on `results`.
+  The older port `src/spatial_downstream/` (own driver, SAR-SSL STFT input, strict=False load) is superseded.
+- [ ] CCSR on log-mel needs a design (CCSR's target is the complex STFT).
 - [ ] Merge the binaural `num_workers=8` fix from local branch `profiling` (`12f979c`; not the `--amp` part).
 - [ ] Frozen-probe debugging: `scripts/probe_diagnostic.sbatch <ckpt>` (pretrained vs random, padding vs tiling, input
   level). Frozen SAC SC2 is quoted as 13.5% but the only run here says 5.75%: find which is right.
