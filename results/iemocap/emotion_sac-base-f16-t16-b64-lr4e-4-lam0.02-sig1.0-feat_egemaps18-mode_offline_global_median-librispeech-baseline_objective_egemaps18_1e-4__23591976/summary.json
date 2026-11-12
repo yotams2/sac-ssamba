@@ -3,21 +3,46 @@
   "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "job_id": "23591976",
   "status": "running",
-  "date": "2026-11-12T05:36:53+02:00",
-  "collected_at": "2026-11-12T05:36:53+02:00",
-  "host": "compute-0-103.powerslurm",
+  "date": "2026-11-12T09:59:23+02:00",
+  "collected_at": "2026-11-12T13:26:34+02:00",
+  "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
-  "model": null,
-  "pretrained": null,
-  "seed": null,
-  "lr": null,
-  "frozen": null,
+  "model": "ssamba_local",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
   "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
   "metrics": {
-    "pipeline": "pretrain"
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 4000,
+          "acc": 0.6730337142944336
+        },
+        "test_at_best_dev": {
+          "step": 4000,
+          "acc": 0.5668202638626099
+        },
+        "test_final": {
+          "step": 10000,
+          "acc": 0.547465443611145
+        },
+        "last_step": 10500,
+        "total_steps": 30000,
+        "complete": false
+      }
+    },
+    "complete": false,
+    "test_at_best_dev": {
+      "acc": 0.5668202638626099,
+      "n_folds": 1
+    }
   },
+  "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23591976.out"
 }
