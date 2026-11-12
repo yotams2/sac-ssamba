@@ -1,0 +1,28 @@
+downstream_expert:
+  datarc:
+    eval_batch_size: 1
+    file_path: /scratch200/yotams2/sac-ssamba/data/mono/voxceleb1
+    max_timestep: 128000
+    meta_data: /a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/downstream/voxceleb1/veri_test_class.txt
+    num_workers: 12
+    train_batch_size: 8
+  modelrc:
+    UtteranceLevel:
+      pooling: MeanPooling
+    projector_dim: 256
+    select: UtteranceLevel
+optimizer:
+  lr: 0.0001
+  name: TorchOptim
+  torch_optim_name: Adam
+runner:
+  eval_dataloaders:
+  - dev
+  - test
+  eval_step: 5000
+  gradient_accumulate_steps: 4
+  gradient_clipping: 1
+  log_step: 500
+  max_keep: 1
+  save_step: 1000
+  total_steps: 50000

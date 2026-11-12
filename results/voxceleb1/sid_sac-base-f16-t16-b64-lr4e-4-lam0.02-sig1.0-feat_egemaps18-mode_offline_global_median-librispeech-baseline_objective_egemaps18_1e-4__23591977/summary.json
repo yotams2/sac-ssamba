@@ -3,21 +3,37 @@
   "experiment": "sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "job_id": "23591977",
   "status": "running",
-  "date": "2026-11-12T05:41:45+02:00",
-  "collected_at": "2026-11-12T05:41:45+02:00",
-  "host": "compute-0-223.powerslurm",
+  "date": "2026-11-12T11:52:20+02:00",
+  "collected_at": "2026-11-12T13:50:24+02:00",
+  "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
-  "model": null,
-  "pretrained": null,
-  "seed": null,
-  "lr": null,
-  "frozen": null,
+  "model": "ssamba_local",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
   "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
   "metrics": {
-    "pipeline": "pretrain"
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 10000,
+      "acc": 0.6303592324256897
+    },
+    "test_at_best_dev": {
+      "step": 10000,
+      "acc": 0.6189552545547485
+    },
+    "test_final": {
+      "step": 10000,
+      "acc": 0.6189552545547485
+    },
+    "last_step": 11500,
+    "total_steps": 50000,
+    "complete": false
   },
+  "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sid_23591977.out"
 }
