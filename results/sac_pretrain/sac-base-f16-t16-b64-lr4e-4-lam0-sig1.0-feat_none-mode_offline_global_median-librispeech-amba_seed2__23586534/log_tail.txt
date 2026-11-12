@@ -1,4 +1,3 @@
-+ mask_patch=300
 + patch_size=16
 + embed_dim=768
 + depth=24
@@ -47,6 +46,7 @@
 + echo amba_noSAC_mpc+10mpg_seed2
 + '[' -z '' ']'
 + '[' -f /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2/models/latest.pth ']'
++ resume_checkpoint=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2/models/latest.pth
 ++ dirname run_sac.sh
 + _hook=./../../scripts/results_hook.sh
 + '[' -z '' ']'
