@@ -3,8 +3,8 @@
   "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3",
   "job_id": "23586536",
   "status": "running",
-  "date": "2026-11-13T21:02:34+02:00",
-  "collected_at": "2026-11-13T21:02:35+02:00",
+  "date": "2026-11-13T21:36:23+02:00",
+  "collected_at": "2026-11-13T21:36:25+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3/models",
@@ -19,6 +19,6 @@
   "metrics": {
     "pipeline": "pretrain"
   },
-  "slurm_restart_count": 5,
+  "slurm_restart_count": 6,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_s3_23586536.out"
 }
