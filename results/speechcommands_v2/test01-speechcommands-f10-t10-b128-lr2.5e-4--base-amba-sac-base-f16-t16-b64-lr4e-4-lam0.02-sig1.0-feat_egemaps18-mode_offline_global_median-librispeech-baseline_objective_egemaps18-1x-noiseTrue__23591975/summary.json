@@ -2,9 +2,9 @@
   "task": "speechcommands_v2",
   "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue",
   "job_id": "23591975",
-  "status": "running",
-  "date": "2026-11-12T13:40:00+02:00",
-  "collected_at": "2026-11-13T12:06:12+02:00",
+  "status": "done",
+  "date": "2026-11-13T12:07:58+02:00",
+  "collected_at": "2026-11-13T12:08:00+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue/models",
@@ -34,6 +34,7 @@
     },
     "complete": true
   },
+  "exit_code": 0,
   "slurm_restart_count": 2,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23591975.out"
 }

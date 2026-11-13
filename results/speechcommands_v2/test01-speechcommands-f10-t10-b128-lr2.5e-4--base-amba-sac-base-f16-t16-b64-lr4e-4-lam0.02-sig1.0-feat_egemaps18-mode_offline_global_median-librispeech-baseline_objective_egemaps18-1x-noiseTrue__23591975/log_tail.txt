@@ -1,6 +1,9 @@
+[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue__23591975: status done
+[sync_results] pushed 75bdffe
+Running in FINE-TUNING mode (upstream weights trainable)
 [collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue__23591975: status running
-[sync_results] pushed 21fe055
-I am process 292863, running on compute-0-102.powerslurm: starting (Thu Nov 12 13:30:00 2026)
+[sync_results] pushed cbf37e7
+I am process 2125207, running on compute-0-102.powerslurm: starting (Fri Nov 13 12:06:58 2026)
 seed: 0
 balanced sampler is not used
 ---------------the train dataloader---------------
@@ -38,7 +41,7 @@ Total trainable parameter number is : 97.213 million
 The mlp header uses 1 x larger lr
 Total mlp parameter number is : 0.028 million
 Total base parameter number is : 97.184 million
-now training with speechcommands, main metrics: acc, loss function: BCEWithLogitsLoss(), learning rate scheduler: <torch.optim.lr_scheduler.MultiStepLR object at 0x154d71857c50>
+now training with speechcommands, main metrics: acc, loss function: BCEWithLogitsLoss(), learning rate scheduler: <torch.optim.lr_scheduler.MultiStepLR object at 0x14c0a6df8450>
 The learning rate scheduler starts at 5 epoch with decay rate of 0.850 every 1 epoches
 resumed from /scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue/models/resume.pth: epoch 30 done, global step 19860, best acc 0.975453 at epoch 24
 current #steps=19860, #epochs=31
@@ -55,6 +58,3 @@ number of classes is 35
 ---------------evaluate on the test set---------------
 Accuracy: 0.975011
 AUC: 0.999620
-[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue__23591975: status done
-[sync_results] pushed 75bdffe
-Running in FINE-TUNING mode (upstream weights trainable)
