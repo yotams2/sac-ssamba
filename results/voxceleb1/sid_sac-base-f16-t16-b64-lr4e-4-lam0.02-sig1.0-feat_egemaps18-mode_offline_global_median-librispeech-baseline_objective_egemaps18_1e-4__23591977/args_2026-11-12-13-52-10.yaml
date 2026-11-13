@@ -11,11 +11,11 @@ expdir: /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr
 expname: null
 hf_hub_org: null
 hub: torch
-init_ckpt: null
+init_ckpt: /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4/states-11000.ckpt
 local_rank: null
 mode: train
 override: config.optimizer.lr=1e-4,,config.runner.total_steps=50000,,config.downstream_expert.datarc.file_path=/scratch200/yotams2/sac-ssamba/data/mono/voxceleb1,,config.downstream_expert.datarc.meta_data=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/downstream/voxceleb1/veri_test_class.txt
-past_exp: null
+past_exp: /scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4
 push_to_hf_hub: false
 seed: 1337
 upstream: ssamba_local
