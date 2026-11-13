@@ -1,6 +1,3 @@
-start validation
-[2026-11-12T10:21:07.060] error: *** JOB 23591975 ON compute-0-223 CANCELLED AT 2026-11-12T10:21:07 DUE TO PREEMPTION ***
-Running in FINE-TUNING mode (upstream weights trainable)
 [collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue__23591975: status running
 [sync_results] pushed 21fe055
 I am process 292863, running on compute-0-102.powerslurm: starting (Thu Nov 12 13:30:00 2026)
@@ -58,3 +55,6 @@ number of classes is 35
 ---------------evaluate on the test set---------------
 Accuracy: 0.975011
 AUC: 0.999620
+[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18-1x-noiseTrue__23591975: status done
+[sync_results] pushed 75bdffe
+Running in FINE-TUNING mode (upstream weights trainable)
