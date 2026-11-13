@@ -3,9 +3,9 @@
   "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "job_id": "23591976",
   "status": "running",
-  "date": "2026-11-12T09:59:23+02:00",
-  "collected_at": "2026-11-13T12:07:52+02:00",
-  "host": "compute-0-223.powerslurm",
+  "date": "2026-11-13T16:13:08+02:00",
+  "collected_at": "2026-11-13T18:39:09+02:00",
+  "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "model": "ssamba_local",
@@ -29,10 +29,10 @@
           "acc": 0.5668202638626099
         },
         "test_final": {
-          "step": 10000,
-          "acc": 0.547465443611145
+          "step": 17000,
+          "acc": 0.5880184173583984
         },
-        "last_step": 10500,
+        "last_step": 17000,
         "total_steps": 30000,
         "complete": false
       }
@@ -43,6 +43,6 @@
       "n_folds": 1
     }
   },
-  "slurm_restart_count": 2,
+  "slurm_restart_count": 3,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23591976.out"
 }
