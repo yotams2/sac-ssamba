@@ -61,5 +61,5 @@
   "proj_dim": 128,
   "local_sigma_mode": "offline_global_median",
   "seed": 1,
-  "resume": ""
+  "resume": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1/models/latest.pth"
 }
