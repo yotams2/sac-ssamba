@@ -3,21 +3,46 @@
   "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
   "job_id": "23634633",
   "status": "running",
-  "date": "2026-11-14T14:41:55+02:00",
-  "collected_at": "2026-11-14T14:41:55+02:00",
-  "host": "compute-0-223.powerslurm",
+  "date": "2026-11-14T16:13:09+02:00",
+  "collected_at": "2026-11-14T16:52:37+02:00",
+  "host": "compute-0-292.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
-  "model": null,
-  "pretrained": null,
-  "seed": null,
-  "lr": null,
-  "frozen": null,
+  "model": "ssamba_local",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
   "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
   "metrics": {
-    "pipeline": "pretrain"
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 2000,
+          "acc": 0.6730337142944336
+        },
+        "test_at_best_dev": {
+          "step": 2000,
+          "acc": 0.5870967507362366
+        },
+        "test_final": {
+          "step": 3000,
+          "acc": 0.5410138368606567
+        },
+        "last_step": 3000,
+        "total_steps": 30000,
+        "complete": false
+      }
+    },
+    "complete": false,
+    "test_at_best_dev": {
+      "acc": 0.5870967507362366,
+      "n_folds": 1
+    }
   },
+  "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23634633.out"
 }
