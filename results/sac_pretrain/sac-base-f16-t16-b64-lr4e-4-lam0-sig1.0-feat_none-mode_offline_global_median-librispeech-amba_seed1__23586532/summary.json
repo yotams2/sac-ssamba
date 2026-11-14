@@ -2,9 +2,9 @@
   "task": "sac_pretrain",
   "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1",
   "job_id": "23586532",
-  "status": "running",
-  "date": "2026-11-14T07:50:39+02:00",
-  "collected_at": "2026-11-14T07:50:39+02:00",
+  "status": "done",
+  "date": "2026-11-14T13:03:25+02:00",
+  "collected_at": "2026-11-14T13:59:46+02:00",
   "host": "compute-0-223.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1/models",
@@ -19,6 +19,8 @@
   "metrics": {
     "pipeline": "pretrain"
   },
+  "exit_code": 0,
   "slurm_restart_count": 7,
-  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_s1_23586532.out"
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_s1_23586532.out",
+  "parse_error": "no metrics found in /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1"
 }
