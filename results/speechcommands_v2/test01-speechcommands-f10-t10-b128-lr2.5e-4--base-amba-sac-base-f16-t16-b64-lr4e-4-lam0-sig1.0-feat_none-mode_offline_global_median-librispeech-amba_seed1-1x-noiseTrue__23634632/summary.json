@@ -1,0 +1,23 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1-1x-noiseTrue",
+  "job_id": "23634632",
+  "status": "running",
+  "date": "2026-11-14T14:11:25+02:00",
+  "collected_at": "2026-11-14T14:11:25+02:00",
+  "host": "compute-0-102.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1-1x-noiseTrue",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1-1x-noiseTrue",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": null,
+  "frozen": null,
+  "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
+  "git_dirty": true,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain"
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23634632.out"
+}
