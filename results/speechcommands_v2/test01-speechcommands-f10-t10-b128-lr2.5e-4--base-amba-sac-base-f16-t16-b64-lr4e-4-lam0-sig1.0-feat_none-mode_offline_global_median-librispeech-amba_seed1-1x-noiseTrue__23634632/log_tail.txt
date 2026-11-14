@@ -1,1 +1,60 @@
-Running in FINE-TUNING mode (upstream weights trainable)
+Epoch-28 lr: 5.058179368296441e-06
+Epoch-28 lr: 5.058179368296441e-06
+epoch 28 training time: 620.523
+---------------
+2026-11-14 19:07:18.059893
+current #epochs=29, #steps=18536
+Epoch: [29][64/662]	Per Sample Total Time 0.00692	Per Sample Data Time 0.00016	Per Sample DNN Time 0.00677	Train Loss 0.0460
+Epoch: [29][164/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00680	Train Loss 0.0462
+Epoch: [29][264/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00683	Train Loss 0.0462
+Epoch: [29][364/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0463
+Epoch: [29][464/662]	Per Sample Total Time 0.00690	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00685	Train Loss 0.0462
+Epoch: [29][564/662]	Per Sample Total Time 0.00690	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00686	Train Loss 0.0461
+start validation
+acc: 0.973550
+AUC: 0.999580
+Avg Precision: 0.057482
+Avg Recall: 0.999836
+d_prime: 4.722519
+train_loss: 0.046104
+valid_loss: 0.683767
+validation finished
+normal learning rate scheduler step
+Epoch-29 lr: 4.299452463051975e-06
+Epoch-29 lr: 4.299452463051975e-06
+epoch 29 training time: 624.009
+---------------
+2026-11-14 19:17:42.068766
+current #epochs=30, #steps=19198
+Epoch: [30][2/662]	Per Sample Total Time 0.00989	Per Sample Data Time 0.00315	Per Sample DNN Time 0.00674	Train Loss 0.0460
+Epoch: [30][102/662]	Per Sample Total Time 0.00691	Per Sample Data Time 0.00012	Per Sample DNN Time 0.00679	Train Loss 0.0460
+Epoch: [30][202/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00682	Train Loss 0.0463
+Epoch: [30][302/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00683	Train Loss 0.0462
+Epoch: [30][402/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0461
+Epoch: [30][502/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0462
+Epoch: [30][602/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00685	Train Loss 0.0461
+start validation
+acc: 0.973249
+AUC: 0.999595
+Avg Precision: 0.057484
+Avg Recall: 0.999836
+d_prime: 4.736328
+train_loss: 0.046026
+valid_loss: 0.683756
+validation finished
+normal learning rate scheduler step
+Epoch-30 lr: 3.6545345935941787e-06
+Epoch-30 lr: 3.6545345935941787e-06
+epoch 30 training time: 631.776
+---------------evaluate on the validation set---------------
+Accuracy: 0.974451
+AUC: 0.999569
+---------------the evaluation dataloader---------------
+now using following mask: 0 freq, 0 time
+now using mix-up with rate 0.000000
+now process speechcommands
+use dataset mean -6.846 and std 5.565 to normalize the input.
+number of classes is 35
+---------------evaluate on the test set---------------
+Accuracy: 0.974466
+AUC: 0.999687
