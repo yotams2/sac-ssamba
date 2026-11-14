@@ -1,60 +1,6 @@
-++ SAC_VENV=/scratch200/yotams2/venvs/sac
-++ export VIM_ROOT=/scratch200/yotams2/code/Vim
-++ VIM_ROOT=/scratch200/yotams2/code/Vim
-++ export HF_HOME=/scratch200/yotams2/hf
-++ HF_HOME=/scratch200/yotams2/hf
-++ export SAC_DATA_ROOT=/scratch200/yotams2/sac-ssamba/data
-++ SAC_DATA_ROOT=/scratch200/yotams2/sac-ssamba/data
-++ export SAC_EXP_ROOT=/scratch200/yotams2/sac-ssamba/exp
-++ SAC_EXP_ROOT=/scratch200/yotams2/sac-ssamba/exp
-++ export PIP_NO_CACHE_DIR=1
-++ PIP_NO_CACHE_DIR=1
-++ export PYTHON=/scratch200/yotams2/venvs/sac/bin/python
-++ PYTHON=/scratch200/yotams2/venvs/sac/bin/python
-++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../../..
-++ pwd
-+ S3PRL_ROOT=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl
-++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../..
-++ pwd
-+ export SAC_SSAMBA_SRC=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src
-+ SAC_SSAMBA_SRC=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src
-+ export TORCH_HOME=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../pretrained_models
-+ TORCH_HOME=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../pretrained_models
-+ model_input=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18
-+ lr=1e-4
-++ basename /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18
-+ [[ sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18 == *\b\i\n\a\u\r\a\l* ]]
-+ default_upstream=ssamba_local
-+ upstream_name=ssamba_local
-+ frozen=false
-+ IEMOCAP_ROOT=/scratch200/yotams2/sac-ssamba/data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release
-+ file_path_override=,,config.downstream_expert.datarc.root=/scratch200/yotams2/sac-ssamba/data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release,,config.downstream_expert.datarc.meta_data=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/downstream/emotion/meta_data
-+ [[ ssamba_local == *\b\i\n\a\u\r\a\l* ]]
-+ [[ ssamba_local == *\s\a\c* ]]
-+ '[' -d /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18 ']'
-+ upstream_args='-u ssamba_local -k /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18/models/best_audio_model.pth'
-++ basename /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18
-+ expname_prefix=sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18
-+ '[' false = true ']'
-+ '[' false = frozen ']'
-+ '[' false = 1 ']'
-+ trainable_flag=-f
-+ mode_name=unfreeze
-+ expname=emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4
-+ echo 'Running in FINE-TUNING mode (upstream weights trainable)'
-Running in FINE-TUNING mode (upstream weights trainable)
-+ expdir=/scratch200/yotams2/sac-ssamba/exp/iemocap
-+ expdir=/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4
-+ mkdir -p /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4
-+ export OMP_NUM_THREADS=1
-+ OMP_NUM_THREADS=1
-+ export SSAMBA_WINDOW_SECS=6.0
-+ SSAMBA_WINDOW_SECS=6.0
-+ '[' -z '' ']'
-+ source /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../../scripts/results_hook.sh
-++++ dirname /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../../scripts/results_hook.sh
-+++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../../scripts
-+++ pwd
-++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
-+ results_hook iemocap /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4
-+ '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
+dev acc: 0.6516854166984558
+test acc: 0.5585253238677979
+[Runner] - Save the checkpoint to:
+1. /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4/unfreeze_cross-valid-on-fold1/states-30000.ckpt
++ _rh_exit
++ local rc=0
