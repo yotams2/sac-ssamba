@@ -1,60 +1,60 @@
-valid_loss: 0.684042
+normal learning rate scheduler step
+Epoch-15 lr: 4.183581092240355e-05
+Epoch-15 lr: 4.183581092240355e-05
+epoch 15 training time: 621.151
+---------------
+2026-11-14 23:28:26.034897
+current #epochs=16, #steps=9930
+Epoch: [16][70/662]	Per Sample Total Time 0.00695	Per Sample Data Time 0.00018	Per Sample DNN Time 0.00677	Train Loss 0.0484
+Epoch: [16][170/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00009	Per Sample DNN Time 0.00680	Train Loss 0.0478
+Epoch: [16][270/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00681	Train Loss 0.0476
+Epoch: [16][370/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00682	Train Loss 0.0476
+Epoch: [16][470/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0476
+Epoch: [16][570/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0477
+start validation
+acc: 0.972548
+AUC: 0.999610
+Avg Precision: 0.057489
+Avg Recall: 0.999917
+d_prime: 4.751662
+train_loss: 0.047651
+valid_loss: 0.683842
 validation finished
 normal learning rate scheduler step
-Epoch-10 lr: 9.428737890624999e-05
-Epoch-10 lr: 9.428737890624999e-05
-epoch 10 training time: 689.072
+Epoch-16 lr: 3.556043928404302e-05
+Epoch-16 lr: 3.556043928404302e-05
+epoch 16 training time: 632.143
 ---------------
-2026-11-14 22:07:41.316675
-current #epochs=11, #steps=6620
-Epoch: [11][80/662]	Per Sample Total Time 0.00690	Per Sample Data Time 0.00015	Per Sample DNN Time 0.00675	Train Loss 0.0507
-Epoch: [11][180/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00679	Train Loss 0.0503
-Epoch: [11][280/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00680	Train Loss 0.0506
-Epoch: [11][380/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00681	Train Loss 0.0507
-Epoch: [11][480/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0509
-Epoch: [11][580/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00682	Train Loss 0.0508
+2026-11-14 23:38:58.177636
+current #epochs=17, #steps=10592
+Epoch: [17][8/662]	Per Sample Total Time 0.00793	Per Sample Data Time 0.00122	Per Sample DNN Time 0.00670	Train Loss 0.0469
+Epoch: [17][108/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00013	Per Sample DNN Time 0.00676	Train Loss 0.0475
+Epoch: [17][208/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00679	Train Loss 0.0478
+Epoch: [17][308/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00681	Train Loss 0.0476
+Epoch: [17][408/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0475
+Epoch: [17][508/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0475
+Epoch: [17][608/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00683	Train Loss 0.0474
 start validation
-acc: 0.970444
-AUC: 0.999443
-Avg Precision: 0.057471
-Avg Recall: 0.999836
-d_prime: 4.610219
-train_loss: 0.050886
-valid_loss: 0.684102
-validation finished
-normal learning rate scheduler step
-Epoch-11 lr: 8.014427207031248e-05
-Epoch-11 lr: 8.014427207031248e-05
-epoch 11 training time: 632.779
----------------
-2026-11-14 22:18:14.096048
-current #epochs=12, #steps=7282
-Epoch: [12][18/662]	Per Sample Total Time 0.00725	Per Sample Data Time 0.00053	Per Sample DNN Time 0.00672	Train Loss 0.0503
-Epoch: [12][118/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00011	Per Sample DNN Time 0.00677	Train Loss 0.0505
-Epoch: [12][218/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00680	Train Loss 0.0504
-Epoch: [12][318/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00681	Train Loss 0.0502
-Epoch: [12][418/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0502
-Epoch: [12][518/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00683	Train Loss 0.0500
-Epoch: [12][618/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00683	Train Loss 0.0500
-start validation
-acc: 0.972247
-AUC: 0.999520
+acc: 0.973149
+AUC: 0.999597
 Avg Precision: 0.057474
 Avg Recall: 0.999917
-d_prime: 4.669631
-train_loss: 0.049993
-valid_loss: 0.683947
+d_prime: 4.738495
+train_loss: 0.047398
+valid_loss: 0.683743
 validation finished
 normal learning rate scheduler step
-Epoch-12 lr: 6.81226312597656e-05
-Epoch-12 lr: 6.81226312597656e-05
-epoch 12 training time: 734.004
+Epoch-17 lr: 3.0226373391436563e-05
+Epoch-17 lr: 3.0226373391436563e-05
+epoch 17 training time: 632.837
 ---------------
-2026-11-14 22:30:28.099819
-current #epochs=13, #steps=7944
-Epoch: [13][56/662]	Per Sample Total Time 0.00941	Per Sample Data Time 0.00277	Per Sample DNN Time 0.00664	Train Loss 0.0486
-Epoch: [13][156/662]	Per Sample Total Time 0.00788	Per Sample Data Time 0.00118	Per Sample DNN Time 0.00670	Train Loss 0.0489
-Epoch: [13][256/662]	Per Sample Total Time 0.00757	Per Sample Data Time 0.00084	Per Sample DNN Time 0.00673	Train Loss 0.0491
-Epoch: [13][356/662]	Per Sample Total Time 0.00737	Per Sample Data Time 0.00061	Per Sample DNN Time 0.00675	Train Loss 0.0492
-[2026-11-14T22:37:11.010] error: *** JOB 23636475 ON compute-0-102 CANCELLED AT 2026-11-14T22:37:11 DUE TO PREEMPTION ***
+2026-11-14 23:49:31.014549
+current #epochs=18, #steps=11254
+Epoch: [18][46/662]	Per Sample Total Time 0.00693	Per Sample Data Time 0.00020	Per Sample DNN Time 0.00673	Train Loss 0.0474
+Epoch: [18][146/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00678	Train Loss 0.0472
+Epoch: [18][246/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00680	Train Loss 0.0470
+Epoch: [18][346/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00681	Train Loss 0.0468
+Epoch: [18][446/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00682	Train Loss 0.0470
+Epoch: [18][546/662]	Per Sample Total Time 0.00687	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00683	Train Loss 0.0470
+[2026-11-14T23:58:20.011] error: *** JOB 23636475 ON compute-0-102 CANCELLED AT 2026-11-14T23:58:20 DUE TO PREEMPTION ***
 Running in FINE-TUNING mode (upstream weights trainable)
