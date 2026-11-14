@@ -3,9 +3,9 @@
   "experiment": "sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "job_id": "23591977",
   "status": "running",
-  "date": "2026-11-14T06:00:41+02:00",
-  "collected_at": "2026-11-14T07:11:59+02:00",
-  "host": "compute-0-223.powerslurm",
+  "date": "2026-11-14T16:05:04+02:00",
+  "collected_at": "2026-11-14T20:34:55+02:00",
+  "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-baseline_objective_egemaps18_1e-4",
   "model": "ssamba_local",
@@ -19,21 +19,21 @@
   "metrics": {
     "pipeline": "s3prl",
     "best_dev": {
-      "step": 30000,
-      "acc": 0.6774333715438843
+      "step": 45000,
+      "acc": 0.6798956990242004
     },
     "test_at_best_dev": {
-      "step": 30000,
-      "acc": 0.666949450969696
+      "step": 45000,
+      "acc": 0.6759180426597595
     },
     "test_final": {
-      "step": 30000,
-      "acc": 0.666949450969696
+      "step": 45000,
+      "acc": 0.6759180426597595
     },
-    "last_step": 33000,
+    "last_step": 49500,
     "total_steps": 50000,
     "complete": false
   },
-  "slurm_restart_count": 5,
+  "slurm_restart_count": 6,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sid_23591977.out"
 }
