@@ -1,0 +1,23 @@
+{
+  "task": "iemocap",
+  "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
+  "job_id": "23634633",
+  "status": "running",
+  "date": "2026-11-14T14:41:55+02:00",
+  "collected_at": "2026-11-14T14:41:55+02:00",
+  "host": "compute-0-223.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": null,
+  "frozen": null,
+  "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
+  "git_dirty": true,
+  "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
+  "metrics": {
+    "pipeline": "pretrain"
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23634633.out"
+}
