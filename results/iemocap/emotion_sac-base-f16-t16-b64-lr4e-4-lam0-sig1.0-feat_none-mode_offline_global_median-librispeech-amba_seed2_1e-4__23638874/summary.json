@@ -2,9 +2,9 @@
   "task": "iemocap",
   "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2_1e-4",
   "job_id": "23638874",
-  "status": "running",
-  "date": "2026-11-15T03:56:04+02:00",
-  "collected_at": "2026-11-15T07:18:07+02:00",
+  "status": "done",
+  "date": "2026-11-15T18:46:03+02:00",
+  "collected_at": "2026-11-15T18:46:34+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2_1e-4",
@@ -29,20 +29,21 @@
           "acc": 0.5594469904899597
         },
         "test_final": {
-          "step": 7000,
-          "acc": 0.5631336569786072
+          "step": 30000,
+          "acc": 0.5695852637290955
         },
-        "last_step": 7000,
+        "last_step": 30000,
         "total_steps": 30000,
-        "complete": false
+        "complete": true
       }
     },
-    "complete": false,
+    "complete": true,
     "test_at_best_dev": {
       "acc": 0.5594469904899597,
       "n_folds": 1
     }
   },
+  "exit_code": 0,
   "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23638874.out"
 }
