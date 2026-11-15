@@ -2,22 +2,38 @@
   "task": "voxceleb1",
   "experiment": "sid_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
   "job_id": "23634634",
-  "status": "running",
-  "date": "2026-11-14T15:03:26+02:00",
-  "collected_at": "2026-11-14T15:03:26+02:00",
+  "status": "done",
+  "date": "2026-11-15T18:06:29+02:00",
+  "collected_at": "2026-11-15T18:06:30+02:00",
   "host": "compute-0-293.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/voxceleb1/sid_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1_1e-4",
-  "model": null,
-  "pretrained": null,
-  "seed": null,
-  "lr": null,
-  "frozen": null,
+  "model": "ssamba_local",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed1/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
   "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
   "metrics": {
-    "pipeline": "pretrain"
+    "pipeline": "s3prl",
+    "best_dev": {
+      "step": 40000,
+      "acc": 0.679606020450592
+    },
+    "test_at_best_dev": {
+      "step": 40000,
+      "acc": 0.6794328093528748
+    },
+    "test_final": {
+      "step": 50000,
+      "acc": 0.657738447189331
+    },
+    "last_step": 50000,
+    "total_steps": 50000,
+    "complete": true
   },
+  "exit_code": 0,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sid_23634634.out"
 }
