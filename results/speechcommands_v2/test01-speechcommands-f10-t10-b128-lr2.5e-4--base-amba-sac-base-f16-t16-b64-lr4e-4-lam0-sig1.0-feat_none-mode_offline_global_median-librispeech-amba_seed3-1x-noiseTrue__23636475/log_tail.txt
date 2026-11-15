@@ -1,60 +1,60 @@
-Avg Recall: 0.999917
-d_prime: 4.695079
-train_loss: 0.045595
-valid_loss: 0.683693
-validation finished
-normal learning rate scheduler step
-Epoch-26 lr: 7.0009403021404025e-06
-Epoch-26 lr: 7.0009403021404025e-06
-epoch 26 training time: 623.447
+resumed from /scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3-1x-noiseTrue/models/resume.pth: epoch 28 done, global step 18536, best acc 0.974752 at epoch 25
+current #steps=18536, #epochs=29
+start training...
 ---------------
-2026-11-15 02:19:01.445951
-current #epochs=27, #steps=17212
-Epoch: [27][88/662]	Per Sample Total Time 0.00694	Per Sample Data Time 0.00015	Per Sample DNN Time 0.00678	Train Loss 0.0446
-Epoch: [27][188/662]	Per Sample Total Time 0.00690	Per Sample Data Time 0.00009	Per Sample DNN Time 0.00681	Train Loss 0.0452
-Epoch: [27][288/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00683	Train Loss 0.0453
-Epoch: [27][388/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00683	Train Loss 0.0454
-Epoch: [27][488/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0455
-Epoch: [27][588/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0456
-start validation
-acc: 0.974552
-AUC: 0.999574
-Avg Precision: 0.057486
-Avg Recall: 0.999917
-d_prime: 4.716487
-train_loss: 0.045579
-valid_loss: 0.683703
-validation finished
-normal learning rate scheduler step
-Epoch-27 lr: 5.950799256819342e-06
-Epoch-27 lr: 5.950799256819342e-06
-epoch 27 training time: 623.445
----------------
-2026-11-15 02:29:24.891055
-current #epochs=28, #steps=17874
-Epoch: [28][26/662]	Per Sample Total Time 0.00709	Per Sample Data Time 0.00036	Per Sample DNN Time 0.00674	Train Loss 0.0456
-Epoch: [28][126/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00010	Per Sample DNN Time 0.00679	Train Loss 0.0455
-Epoch: [28][226/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00682	Train Loss 0.0452
-Epoch: [28][326/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00683	Train Loss 0.0452
-Epoch: [28][426/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0453
-Epoch: [28][526/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0455
-Epoch: [28][626/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00684	Train Loss 0.0454
-start validation
-acc: 0.973550
-AUC: 0.999573
-Avg Precision: 0.057484
-Avg Recall: 0.999917
-d_prime: 4.715605
-train_loss: 0.045451
-valid_loss: 0.683728
-validation finished
-normal learning rate scheduler step
-Epoch-28 lr: 5.058179368296441e-06
-Epoch-28 lr: 5.058179368296441e-06
-epoch 28 training time: 622.549
----------------
-2026-11-15 02:39:47.439969
+2026-11-15 03:00:26.121861
 current #epochs=29, #steps=18536
-Epoch: [29][64/662]	Per Sample Total Time 0.00691	Per Sample Data Time 0.00014	Per Sample DNN Time 0.00677	Train Loss 0.0452
-[2026-11-15T02:41:33.008] error: *** JOB 23636475 ON compute-0-102 CANCELLED AT 2026-11-15T02:41:33 DUE TO PREEMPTION ***
-Running in FINE-TUNING mode (upstream weights trainable)
+Epoch: [29][64/662]	Per Sample Total Time 0.00700	Per Sample Data Time 0.00025	Per Sample DNN Time 0.00675	Train Loss 0.0452
+Epoch: [29][164/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00012	Per Sample DNN Time 0.00678	Train Loss 0.0453
+Epoch: [29][264/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00679	Train Loss 0.0454
+Epoch: [29][364/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00681	Train Loss 0.0454
+Epoch: [29][464/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00682	Train Loss 0.0454
+Epoch: [29][564/662]	Per Sample Total Time 0.00688	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00683	Train Loss 0.0454
+start validation
+acc: 0.974451
+AUC: 0.999567
+Avg Precision: 0.057496
+Avg Recall: 0.999917
+d_prime: 4.710271
+train_loss: 0.045370
+valid_loss: 0.683684
+validation finished
+normal learning rate scheduler step
+Epoch-29 lr: 4.299452463051975e-06
+Epoch-29 lr: 4.299452463051975e-06
+epoch 29 training time: 625.866
+---------------
+2026-11-15 03:10:51.988289
+current #epochs=30, #steps=19198
+Epoch: [30][2/662]	Per Sample Total Time 0.00988	Per Sample Data Time 0.00315	Per Sample DNN Time 0.00673	Train Loss 0.0454
+Epoch: [30][102/662]	Per Sample Total Time 0.00690	Per Sample Data Time 0.00012	Per Sample DNN Time 0.00678	Train Loss 0.0454
+Epoch: [30][202/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00008	Per Sample DNN Time 0.00682	Train Loss 0.0456
+Epoch: [30][302/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00683	Train Loss 0.0456
+Epoch: [30][402/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0455
+Epoch: [30][502/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00684	Train Loss 0.0456
+Epoch: [30][602/662]	Per Sample Total Time 0.00689	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00684	Train Loss 0.0455
+start validation
+acc: 0.973850
+AUC: 0.999564
+Avg Precision: 0.057480
+Avg Recall: 0.999917
+d_prime: 4.707517
+train_loss: 0.045428
+valid_loss: 0.683694
+validation finished
+normal learning rate scheduler step
+Epoch-30 lr: 3.6545345935941787e-06
+Epoch-30 lr: 3.6545345935941787e-06
+epoch 30 training time: 621.908
+---------------evaluate on the validation set---------------
+Accuracy: 0.974752
+AUC: 0.999554
+---------------the evaluation dataloader---------------
+now using following mask: 0 freq, 0 time
+now using mix-up with rate 0.000000
+now process speechcommands
+use dataset mean -6.846 and std 5.565 to normalize the input.
+number of classes is 35
+---------------evaluate on the test set---------------
+Accuracy: 0.976102
+AUC: 0.999756
