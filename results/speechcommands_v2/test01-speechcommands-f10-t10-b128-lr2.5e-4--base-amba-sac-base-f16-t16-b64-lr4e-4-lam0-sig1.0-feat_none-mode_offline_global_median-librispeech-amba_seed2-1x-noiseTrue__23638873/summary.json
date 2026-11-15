@@ -3,21 +3,29 @@
   "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue",
   "job_id": "23638873",
   "status": "running",
-  "date": "2026-11-15T00:22:21+02:00",
-  "collected_at": "2026-11-15T00:22:21+02:00",
+  "date": "2026-11-15T01:59:28+02:00",
+  "collected_at": "2026-11-15T02:13:12+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue",
-  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue",
-  "model": null,
-  "pretrained": null,
-  "seed": null,
-  "lr": null,
-  "frozen": null,
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue/models",
+  "model": "labhamlet/gramt-binaural-frame",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2/models/best_audio_model.pth",
+  "seed": 0,
+  "lr": 0.00025,
+  "frozen": false,
   "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": null,
   "metrics": {
-    "pipeline": "pretrain"
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 9,
+      "acc": 0.9682396553451558,
+      "auc": 0.999475638747212
+    },
+    "epochs_done": 9,
+    "complete": false
   },
+  "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23638873.out"
 }
