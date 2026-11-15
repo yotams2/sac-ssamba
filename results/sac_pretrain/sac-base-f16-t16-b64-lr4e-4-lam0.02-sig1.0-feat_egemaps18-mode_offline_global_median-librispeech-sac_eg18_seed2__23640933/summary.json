@@ -1,0 +1,23 @@
+{
+  "task": "sac_pretrain",
+  "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-sac_eg18_seed2",
+  "job_id": "23640933",
+  "status": "running",
+  "date": "2026-11-15T09:02:57+02:00",
+  "collected_at": "2026-11-15T09:02:59+02:00",
+  "host": "compute-0-58.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-sac_eg18_seed2",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_offline_global_median-librispeech-sac_eg18_seed2/models",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": null,
+  "frozen": null,
+  "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
+  "git_dirty": true,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain"
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_eg18_s2_23640933.out"
+}
