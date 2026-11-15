@@ -3,21 +3,46 @@
   "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2_1e-4",
   "job_id": "23638874",
   "status": "running",
-  "date": "2026-11-15T00:24:21+02:00",
-  "collected_at": "2026-11-15T00:24:21+02:00",
+  "date": "2026-11-15T03:56:04+02:00",
+  "collected_at": "2026-11-15T07:18:07+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2_1e-4",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2_1e-4",
-  "model": null,
-  "pretrained": null,
-  "seed": null,
-  "lr": null,
-  "frozen": null,
+  "model": "ssamba_local",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
   "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
   "git_dirty": true,
   "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
   "metrics": {
-    "pipeline": "pretrain"
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 4000,
+          "acc": 0.6696628928184509
+        },
+        "test_at_best_dev": {
+          "step": 4000,
+          "acc": 0.5594469904899597
+        },
+        "test_final": {
+          "step": 7000,
+          "acc": 0.5631336569786072
+        },
+        "last_step": 7000,
+        "total_steps": 30000,
+        "complete": false
+      }
+    },
+    "complete": false,
+    "test_at_best_dev": {
+      "acc": 0.5594469904899597,
+      "n_folds": 1
+    }
   },
+  "slurm_restart_count": 1,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23638874.out"
 }
