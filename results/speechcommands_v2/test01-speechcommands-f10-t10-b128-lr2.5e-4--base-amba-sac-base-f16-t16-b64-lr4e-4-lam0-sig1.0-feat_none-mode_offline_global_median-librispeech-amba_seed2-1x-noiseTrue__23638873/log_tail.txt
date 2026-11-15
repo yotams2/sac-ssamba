@@ -1,60 +1,60 @@
-d_prime: 4.592207
-train_loss: 0.048408
-valid_loss: 0.683961
-validation finished
-normal learning rate scheduler step
-Epoch-16 lr: 3.556043928404302e-05
-Epoch-16 lr: 3.556043928404302e-05
-epoch 16 training time: 631.390
----------------
-2026-11-15 03:37:10.372400
-current #epochs=17, #steps=10592
-Epoch: [17][8/662]	Per Sample Total Time 0.00768	Per Sample Data Time 0.00098	Per Sample DNN Time 0.00670	Train Loss 0.0483
-Epoch: [17][108/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00011	Per Sample DNN Time 0.00675	Train Loss 0.0483
-Epoch: [17][208/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00007	Per Sample DNN Time 0.00678	Train Loss 0.0484
-Epoch: [17][308/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00680	Train Loss 0.0484
-Epoch: [17][408/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00681	Train Loss 0.0483
-Epoch: [17][508/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00681	Train Loss 0.0483
-Epoch: [17][608/662]	Per Sample Total Time 0.00686	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00682	Train Loss 0.0483
-start validation
-acc: 0.972147
-AUC: 0.999511
-Avg Precision: 0.057489
-Avg Recall: 0.999917
-d_prime: 4.662516
-train_loss: 0.048220
-valid_loss: 0.683879
-validation finished
-normal learning rate scheduler step
-Epoch-17 lr: 3.0226373391436563e-05
-Epoch-17 lr: 3.0226373391436563e-05
-epoch 17 training time: 631.180
----------------
-2026-11-15 03:47:41.552194
-current #epochs=18, #steps=11254
-Epoch: [18][46/662]	Per Sample Total Time 0.00691	Per Sample Data Time 0.00021	Per Sample DNN Time 0.00669	Train Loss 0.0485
-Epoch: [18][146/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00009	Per Sample DNN Time 0.00676	Train Loss 0.0482
-Epoch: [18][246/662]	Per Sample Total Time 0.00683	Per Sample Data Time 0.00006	Per Sample DNN Time 0.00677	Train Loss 0.0479
-Epoch: [18][346/662]	Per Sample Total Time 0.00682	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00677	Train Loss 0.0477
-Epoch: [18][446/662]	Per Sample Total Time 0.00683	Per Sample Data Time 0.00005	Per Sample DNN Time 0.00678	Train Loss 0.0478
-Epoch: [18][546/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00679	Train Loss 0.0479
-Epoch: [18][646/662]	Per Sample Total Time 0.00684	Per Sample Data Time 0.00004	Per Sample DNN Time 0.00680	Train Loss 0.0479
-start validation
-acc: 0.972347
-AUC: 0.999441
-Avg Precision: 0.057485
-Avg Recall: 0.999917
-d_prime: 4.608812
-train_loss: 0.047879
-valid_loss: 0.683847
-validation finished
-normal learning rate scheduler step
-Epoch-18 lr: 2.5692417382721078e-05
-Epoch-18 lr: 2.5692417382721078e-05
-epoch 18 training time: 629.273
----------------
-2026-11-15 03:58:10.825532
-current #epochs=19, #steps=11916
 Epoch: [19][84/662]	Per Sample Total Time 0.00685	Per Sample Data Time 0.00013	Per Sample DNN Time 0.00671	Train Loss 0.0475
 [2026-11-15T04:00:13.012] error: *** JOB 23638873 ON compute-0-102 CANCELLED AT 2026-11-15T04:00:13 DUE TO PREEMPTION ***
 Running in FINE-TUNING mode (upstream weights trainable)
+[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue__23638873: status running
+[sync_results] pushed 4a77f87
+I am process 1689046, running on compute-0-102.powerslurm: starting (Sun Nov 15 07:17:25 2026)
+seed: 0
+balanced sampler is not used
+---------------the train dataloader---------------
+now using following mask: 48 freq, 48 time
+now using mix-up with rate 0.600000
+now process speechcommands
+use dataset mean -6.846 and std 5.565 to normalize the input.
+now use noise augmentation
+number of classes is 35
+Dataset size: 84843
+Number of batches: 662
+---------------the evaluation dataloader---------------
+now using following mask: 0 freq, 0 time
+now using mix-up with rate 0.000000
+now process speechcommands
+use dataset mean -6.846 and std 5.565 to normalize the input.
+number of classes is 35
+Now train with speechcommands with 84843 training samples, evaluate with 9981 samples
+Vision Mamba Config: {'img_size': (128, 128), 'patch_size': 16, 'stride': 10, 'embed_dim': 768, 'depth': 24, 'channels': 1, 'num_classes': 1000, 'drop_rate': 0.0, 'drop_path_rate': 0.1, 'norm_epsilon': 1e-05, 'rms_norm': False, 'residual_in_fp32': False, 'fused_add_norm': False, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_bidirectional': True, 'final_pool_type': 'none', 
+now load a SSL pretrained models from /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2/models/best_audio_model.pth
+combined_vision_mamba_config {'img_size': (128, 128), 'patch_size': 16, 'stride': 10, 'embed_dim': 768, 'depth': 24, 'rms_norm': False, 'residual_in_fp32': False, 'fused_add_norm': False, 'final_pool_type': 'none', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': False, 'channels': 1, '
+Vision Mamba Config: {'img_size': (128, 128), 'patch_size': 16, 'stride': 10, 'embed_dim': 768, 'depth': 24, 'rms_norm': False, 'residual_in_fp32': False, 'fused_add_norm': False, 'final_pool_type': 'none', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': False, 'channels': 1, 'num_clas
+combined_vision_mamba_config {'img_size': (128, 128), 'patch_size': 16, 'stride': 10, 'embed_dim': 768, 'depth': 24, 'rms_norm': False, 'residual_in_fp32': False, 'fused_add_norm': False, 'final_pool_type': 'none', 'if_abs_pos_embed': True, 'if_rope': False, 'if_rope_residual': False, 'bimamba_type': 'v2', 'if_cls_token': True, 'if_devide_out': True, 'use_middle_cls_token': False, 'channels': 1, '
+pretraining patch split stride: frequency=16, time=16
+pretraining patch shape: frequency=16, time=16
+pretraining patch array dimension: frequency=8, time=64
+pretraining number of patches=512
+fine-tuning patch split stride: frequncey=10, time=10
+fine-tuning number of patches=144
+Creating experiment directory: /scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue
+Now starting fine-tuning for 30 epochs
+running on cuda
+Total parameter number is : 97.213 million
+Total trainable parameter number is : 97.213 million
+The mlp header uses 1 x larger lr
+Total mlp parameter number is : 0.028 million
+Total base parameter number is : 97.184 million
+now training with speechcommands, main metrics: acc, loss function: BCEWithLogitsLoss(), learning rate scheduler: <torch.optim.lr_scheduler.MultiStepLR object at 0x145712ff4590>
+The learning rate scheduler starts at 5 epoch with decay rate of 0.850 every 1 epoches
+Traceback (most recent call last):
+File "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/speechcommands_v2/../../run_amba.py", line 354, in <module>
+main()
+File "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/speechcommands_v2/../../run_amba.py", line 319, in main
+train(audio_model, train_loader, val_loader, args)
+File "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/binaural_dual_stream_sac/../traintest.py", line 125, in train
+ck = torch.load(resume_path, map_location='cpu')
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/scratch200/yotams2/venvs/sac/lib64/python3.11/site-packages/torch/serialization.py", line 1005, in load
+with _open_zipfile_reader(opened_file) as opened_zipfile:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/scratch200/yotams2/venvs/sac/lib64/python3.11/site-packages/torch/serialization.py", line 457, in __init__
+super().__init__(torch._C.PyTorchFileReader(name_or_buffer))
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: PytorchStreamReader failed reading zip archive: invalid header or archive is corrupted
