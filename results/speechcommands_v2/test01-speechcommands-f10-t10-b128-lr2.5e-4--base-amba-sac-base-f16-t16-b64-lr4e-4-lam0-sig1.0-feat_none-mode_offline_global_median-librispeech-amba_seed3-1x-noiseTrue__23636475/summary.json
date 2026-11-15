@@ -3,8 +3,8 @@
   "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3-1x-noiseTrue",
   "job_id": "23636475",
   "status": "running",
-  "date": "2026-11-14T23:49:19+02:00",
-  "collected_at": "2026-11-15T00:16:17+02:00",
+  "date": "2026-11-15T01:41:47+02:00",
+  "collected_at": "2026-11-15T02:07:50+02:00",
   "host": "compute-0-102.powerslurm",
   "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3-1x-noiseTrue",
   "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3-1x-noiseTrue/models",
@@ -19,13 +19,13 @@
   "metrics": {
     "pipeline": "run_amba",
     "best_dev": {
-      "epoch": 17,
-      "acc": 0.9731489830678288,
-      "auc": 0.99959684877907
+      "epoch": 25,
+      "acc": 0.9747520288548241,
+      "auc": 0.9995542064748045
     },
-    "epochs_done": 17,
+    "epochs_done": 25,
     "complete": false
   },
-  "slurm_restart_count": 3,
+  "slurm_restart_count": 4,
   "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23636475.out"
 }
