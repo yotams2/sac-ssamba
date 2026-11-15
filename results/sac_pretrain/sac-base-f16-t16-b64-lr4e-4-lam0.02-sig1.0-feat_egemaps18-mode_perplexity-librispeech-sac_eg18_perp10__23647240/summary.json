@@ -1,0 +1,23 @@
+{
+  "task": "sac_pretrain",
+  "experiment": "sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp10",
+  "job_id": "23647240",
+  "status": "running",
+  "date": "2026-11-15T19:42:48+02:00",
+  "collected_at": "2026-11-15T19:42:50+02:00",
+  "host": "compute-0-419.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp10",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp10/models",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": null,
+  "frozen": null,
+  "git_commit": "c73060e3097e846e770cf2651387c070e0aef047",
+  "git_dirty": true,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain"
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/sac_eg18_perp10_23647240.out"
+}
