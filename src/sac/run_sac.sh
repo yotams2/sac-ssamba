@@ -135,6 +135,7 @@ CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 ${PYTHON:-python} -u -W ignore run_pretr
     --sac-loss \
     $( [ "${USE_WANDB:-true}" = "true" ] && echo "--use_wandb" ) \
     --latest_every ${LATEST_EVERY:-0} \
+    --probe_every ${PROBE_EVERY:-2000} \
     --diagnostic_steps ${DIAGNOSTIC_STEPS:-500} \
     --dataset ${dataset} \
     --data-train ${tr_data} \

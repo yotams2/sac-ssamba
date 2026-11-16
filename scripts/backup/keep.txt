@@ -2,3 +2,4 @@
 # /scratch200/yotams2 ('*' also crosses '/'). Say why after a '#'.
 # Example: SAC-SAR-SSL/exp/TDOA/ssamba_pitchfix/*best_model.tar   # fine-tuned model behind a paper figure
 SAC-SAR-SSL/exp/ssamba_pretrain/*/encoder_epoch10.pth   # "ep 10" rows of the spatial TDOA/T60 table (2026-11-14)
+SAC-SAR-SSL/exp/ssamba_pretrain/*/eval_ep10.pth   # same rows: not yet checked which of the two ep-10 files the reads loaded

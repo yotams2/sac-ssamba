@@ -159,6 +159,41 @@ def epoch_sample_order(n_samples, batch_size, n_batches, shuffle_seed, epoch, st
 # ============================================================
 # Training & Validation
 # ============================================================
+def make_probe(args, device):
+    """Frozen-embedding SC2 / SID / IEMOCAP probes on the mono downstream audio (pretrain_probe.py)."""
+    from binaural_dual_stream_sac.pretrain_probe import PretrainProbe
+    return PretrainProbe(args.probe_data_root, tasks=tuple(args.probe_tasks.split(',')),
+                         batch_size=args.probe_batch_size, device=str(device), input_repr='logmel',
+                         fbank_mean=args.dataset_mean, fbank_std=args.dataset_std, audio='mono')
+
+
+def run_probe(probe, model, step, exp_dir):
+    """Probe the encoder at this step, once per step (a resumed run skips steps already in probe_metrics.jsonl).
+    Runs inside fork_rng: the probe's linear heads draw from torch's RNG, and a seeded run must follow the same
+    trajectory with or without probes."""
+    from binaural_dual_stream_sac.pretrain_probe import format_metrics
+    path = os.path.join(exp_dir, 'probe_metrics.jsonl')
+    if os.path.exists(path):
+        with open(path) as f:
+            if any(json.loads(l).get('step') == step for l in f if l.strip()):
+                return
+    core = model.module if isinstance(model, nn.DataParallel) else model
+    devices = [torch.cuda.current_device()] if torch.cuda.is_available() else []
+    try:
+        with torch.random.fork_rng(devices=devices):
+            res = probe.evaluate_sac(core)
+    except Exception as e:  # a probe bug or OOM must not end a multi-day pretraining
+        core.train()
+        torch.cuda.empty_cache()
+        print(f'---- Step {step} probe FAILED ({type(e).__name__}: {e}); probes off for the rest of this run', flush=True)
+        return False
+    torch.cuda.empty_cache()
+    print(f'---- Step {step} probe: {format_metrics(res)}', flush=True)
+    with open(path, 'a') as f:
+        f.write(json.dumps({'step': step, **res}) + '\n')
+    return True
+
+
 def train_sac(model, train_loader, test_loader, args, device):
     """
     Main training loop for SSAMBA + SAC pretraining.
@@ -313,6 +348,15 @@ def train_sac(model, train_loader, test_loader, args, device):
     start_batch = global_step % steps_per_epoch
     print(f"=> Training position: step {global_step}/{total_steps} = epoch {epoch}, batch "
           f"{start_batch}/{steps_per_epoch}; shuffle_seed {shuffle_seed}", flush=True)
+
+    probe = None
+    if args.probe_every > 0:
+        try:
+            probe = make_probe(args, device)
+        except Exception as e:  # missing downstream data etc.: train without probes
+            print(f'=> WARNING: probes disabled, could not build them ({type(e).__name__}: {e})', flush=True)
+    if probe is not None and run_probe(probe, model, global_step, args.exp_dir) is False:
+        probe = None  # step 0 = the initialisation, as a reference
 
     while epoch <= args.n_epochs:
         model.train()
@@ -545,6 +589,10 @@ def train_sac(model, train_loader, test_loader, args, device):
 
             global_step += 1
 
+            if probe is not None and global_step % args.probe_every == 0:
+                if run_probe(probe, model, global_step, args.exp_dir) is False:
+                    probe = None
+
             # Periodic evaluation & model saving
             if global_step % args.epoch_iter == 0:
                 print(f'---- Step {global_step} evaluation ----')
@@ -589,6 +637,9 @@ def train_sac(model, train_loader, test_loader, args, device):
 
         epoch += 1
         start_batch = 0
+
+    if probe is not None:
+        run_probe(probe, model, global_step, args.exp_dir)  # no-op if the last step was a probe step
 
     # Final evaluation & model saving at completion of all epochs
     print(f'---- Final Pretraining Evaluation (step {global_step}/{total_steps}) ----')
@@ -654,7 +705,7 @@ def validate_sac(model, val_loader, args, device, feature_stats=None):
 # ============================================================
 # Argument Parser
 # ============================================================
-def get_args():
+def make_parser():
     parser = argparse.ArgumentParser(
         description='SSAMBA + SAC Loss Pretraining',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -682,6 +733,12 @@ def get_args():
     parser.add_argument('--n-print-steps', type=int, default=100, help='Print frequency')
     parser.add_argument('--epoch_iter', type=int, default=4000, help='Steps between evaluations')
     parser.add_argument('--use_wandb', action='store_true', help='Enable WandB logging')
+    parser.add_argument('--probe_every', type=int, default=0,
+                        help='Frozen SC2/SID/IEMOCAP probes (pretrain_probe.py, mono audio) every N steps, at step 0 and '
+                             'at the end; results in <exp_dir>/probe_metrics.jsonl. 0 = off')
+    parser.add_argument('--probe_data_root', type=str, default=None, help='Downstream data root (default $SAC_DATA_ROOT)')
+    parser.add_argument('--probe_tasks', type=str, default='sc2,sid,iemocap')
+    parser.add_argument('--probe_batch_size', type=int, default=16)
     parser.add_argument('--latest_every', type=int, default=0, help='Save the full training state to models/latest.pth every N steps, 0 = off')
 
     # Task
@@ -755,20 +812,89 @@ def get_args():
     parser.add_argument('--resume', type=str, default='',
                         help='Path to a checkpoint (.pth) to resume training from.')
 
-    return parser.parse_args()
+    return parser
+
+
+# string options that main() turns into bools (args.pkl stores the bools)
+BOOL_ARGS = ['rms_norm', 'residual_in_fp32', 'fused_add_norm', 'if_rope', 'if_rope_residual', 'if_bidirectional',
+             'if_abs_pos_embed', 'if_bimamba', 'if_cls_token', 'if_devide_out', 'use_double_cls_token',
+             'use_middle_cls_token', 'use_cross_attention', 'use_checkpointing']
+
+
+def get_args():
+    return make_parser().parse_args()
+
+
+def fill_missing_args(run_args):
+    """Add options that are newer than a saved args.pkl, with their defaults (bools converted as in main())."""
+    for a in make_parser()._actions:
+        if a.dest != 'help' and not hasattr(run_args, a.dest):
+            v = a.default
+            setattr(run_args, a.dest, v == 'true' if a.dest in BOOL_ARGS else v)
+    return run_args
 
 
 # ============================================================
 # Main
 # ============================================================
+def build_model(args):
+    """SSAMBASACModel from the run arguments (also used by pretrain_probe.py with a run's args.pkl)."""
+    # Vision Mamba config
+    vision_mamba_config = {
+        'img_size': (args.num_mel_bins, args.target_length),
+        'patch_size': args.patch_size,
+        'stride': args.stride,
+        'embed_dim': args.embed_dim,
+        'depth': args.depth,
+        'channels': args.channels,
+        'num_classes': args.num_classes,
+        'drop_rate': args.drop_rate,
+        'drop_path_rate': args.drop_path_rate,
+        'norm_epsilon': args.norm_epsilon,
+        'rms_norm': args.rms_norm,
+        'residual_in_fp32': args.residual_in_fp32,
+        'fused_add_norm': args.fused_add_norm,
+        'if_rope': args.if_rope,
+        'if_rope_residual': args.if_rope_residual,
+        'bimamba_type': args.bimamba_type,
+        'if_bidirectional': args.if_bidirectional,
+        'final_pool_type': args.final_pool_type,
+        'if_abs_pos_embed': args.if_abs_pos_embed,
+        'if_bimamba': args.if_bimamba,
+        'if_cls_token': args.if_cls_token,
+        'if_devide_out': args.if_devide_out,
+        'use_double_cls_token': args.use_double_cls_token,
+        'use_middle_cls_token': args.use_middle_cls_token,
+    }
+
+    return SSAMBASACModel(
+        fshape=args.fshape, tshape=args.tshape,
+        input_fdim=args.num_mel_bins, input_tdim=args.target_length,
+        model_size=args.model_size,
+        embed_dim=args.embed_dim,
+        depth=args.depth,
+        proj_dim=args.proj_dim,
+        sac_temperature=args.sac_temperature,
+        sac_sigma=args.sac_sigma,
+        sac_perplexity=args.sac_perplexity,
+        sac_lambda=args.sac_lambda,
+        recon_lambda=args.recon_lambda,
+        classif_lambda=args.classif_lambda,
+        sac_features=args.sac_features,
+        mask_patch=args.mask_patch,
+        vision_mamba_config=vision_mamba_config,
+        local_sigma_mode=args.local_sigma_mode,
+        use_cross_attention=args.use_cross_attention,
+        num_queries_per_group=args.num_queries_per_group,
+        use_checkpointing=args.use_checkpointing,
+    )
+
+
 def main():
     args = get_args()
 
     # Convert string bools
-    for attr in ['rms_norm', 'residual_in_fp32', 'fused_add_norm', 'if_rope',
-                 'if_rope_residual', 'if_bidirectional', 'if_abs_pos_embed',
-                 'if_bimamba', 'if_cls_token', 'if_devide_out',
-                 'use_double_cls_token', 'use_middle_cls_token', 'use_cross_attention', 'use_checkpointing']:
+    for attr in BOOL_ARGS:
         setattr(args, attr, getattr(args, attr) == 'true')
 
     if args.seed is not None:
@@ -832,56 +958,7 @@ def main():
 
     print(f'Training samples: {len(train_dataset)}, Validation samples: {len(val_dataset)}')
 
-    # Vision Mamba config
-    vision_mamba_config = {
-        'img_size': (args.num_mel_bins, args.target_length),
-        'patch_size': args.patch_size,
-        'stride': args.stride,
-        'embed_dim': args.embed_dim,
-        'depth': args.depth,
-        'channels': args.channels,
-        'num_classes': args.num_classes,
-        'drop_rate': args.drop_rate,
-        'drop_path_rate': args.drop_path_rate,
-        'norm_epsilon': args.norm_epsilon,
-        'rms_norm': args.rms_norm,
-        'residual_in_fp32': args.residual_in_fp32,
-        'fused_add_norm': args.fused_add_norm,
-        'if_rope': args.if_rope,
-        'if_rope_residual': args.if_rope_residual,
-        'bimamba_type': args.bimamba_type,
-        'if_bidirectional': args.if_bidirectional,
-        'final_pool_type': args.final_pool_type,
-        'if_abs_pos_embed': args.if_abs_pos_embed,
-        'if_bimamba': args.if_bimamba,
-        'if_cls_token': args.if_cls_token,
-        'if_devide_out': args.if_devide_out,
-        'use_double_cls_token': args.use_double_cls_token,
-        'use_middle_cls_token': args.use_middle_cls_token,
-    }
-
-    # Build model
-    model = SSAMBASACModel(
-        fshape=args.fshape, tshape=args.tshape,
-        input_fdim=args.num_mel_bins, input_tdim=args.target_length,
-        model_size=args.model_size,
-        embed_dim=args.embed_dim,
-        depth=args.depth,
-        proj_dim=args.proj_dim,
-        sac_temperature=args.sac_temperature,
-        sac_sigma=args.sac_sigma,
-        sac_perplexity=args.sac_perplexity,
-        sac_lambda=args.sac_lambda,
-        recon_lambda=args.recon_lambda,
-        classif_lambda=args.classif_lambda,
-        sac_features=args.sac_features,
-        mask_patch=args.mask_patch,
-        vision_mamba_config=vision_mamba_config,
-        local_sigma_mode=args.local_sigma_mode,
-        use_cross_attention=args.use_cross_attention,
-        num_queries_per_group=args.num_queries_per_group,
-        use_checkpointing=args.use_checkpointing,
-    )
+    model = build_model(args)
 
     print(f'\nModel built: SSAMBASACModel')
     print(f'  Encoder embed_dim: {model.encoder.original_embedding_dim}')

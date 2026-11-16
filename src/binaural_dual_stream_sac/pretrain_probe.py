@@ -89,11 +89,13 @@ def _sc2_subset(json_path, mid_to_idx, per_class, rng):
     return items
 
 
-def _sid_subsets(train_json, test_json, n_speakers, n_ref, n_query, rng):
+def _sid_subsets(train_json, test_json, n_speakers, n_ref, n_query, rng, wav_of=None):
+    """wav_of(entry) -> wav path; default the entry's own (binaural) wav. Mono uses the original file
+    (orig_rel_path), so mono and binaural probes see the same utterances."""
     def group(path):
         g = defaultdict(list)
         for d in _read_json(path):
-            g[int(d['label'])].append(d['wav'])
+            g[int(d['label'])].append(wav_of(d) if wav_of else d['wav'])
         return g
     tr, te = group(train_json), group(test_json)
     eligible = sorted(s for s in tr if len(tr[s]) >= n_ref and len(te.get(s, [])) >= n_query)
@@ -109,19 +111,23 @@ def _sid_subsets(train_json, test_json, n_speakers, n_ref, n_query, rng):
     return ref, query, len(speakers)
 
 
-def _iemocap_subsets(manifest_dir, meta_dir, fold, ref_per_class, rng):
+def _iemocap_subsets(manifest_dir, meta_dir, fold, ref_per_class, rng, mono_root=None):
     """s3prl emotion split (meta_data/Session<fold>): train -> reference, test -> query (all of it).
-    Wavs come from the binaural manifests, matched on orig_rel_path as in s3prl emotion/dataset.py."""
+    Binaural: wavs come from the binaural manifests, matched on orig_rel_path as in s3prl emotion/dataset.py.
+    Mono (mono_root = IEMOCAP_full_release dir): the original wav at <mono_root>/<path>, as the s3prl mono runs."""
     rel2wav = {}
-    for split in ('pretrain', 'preval', 'pretest'):
-        for d in _read_json(os.path.join(manifest_dir, f'iemocap_spatial_{split}.json')):
-            if d['orig_rel_path'] in rel2wav:
-                raise ValueError(f"{d['orig_rel_path']} is simulated twice in {manifest_dir}: old (v1) binaural IEMOCAP?")
-            rel2wav[d['orig_rel_path']] = d['wav']
+    if mono_root is None:
+        for split in ('pretrain', 'preval', 'pretest'):
+            for d in _read_json(os.path.join(manifest_dir, f'iemocap_spatial_{split}.json')):
+                if d['orig_rel_path'] in rel2wav:
+                    raise ValueError(f"{d['orig_rel_path']} is simulated twice in {manifest_dir}: old (v1) binaural IEMOCAP?")
+                rel2wav[d['orig_rel_path']] = d['wav']
 
     def load_meta(name):
         with open(os.path.join(meta_dir, f'Session{fold}', f'{name}_meta_data.json')) as f:
             meta = json.load(f)
+        if mono_root is not None:
+            rel2wav.update({m['path']: os.path.join(mono_root, m['path']) for m in meta['meta_data']})
         missing = [m['path'] for m in meta['meta_data'] if m['path'] not in rel2wav]
         if missing:
             raise ValueError(f'{len(missing)} IEMOCAP {name} utterances have no simulation in {manifest_dir}, e.g. {missing[0]}')
@@ -140,13 +146,13 @@ def _iemocap_subsets(manifest_dir, meta_dir, fold, ref_per_class, rng):
     return ref, test, len(class_dict)
 
 
-def _load_wav(path, max_samples):
+def _load_wav(path, max_samples, channels=2):
     wav, sr = torchaudio.load(remap_wav_path(path))
     if sr != SAMPLE_RATE:
         raise ValueError(f'{path}: sample rate {sr}, expected {SAMPLE_RATE}')
-    if wav.shape[0] == 1:
-        wav = wav.repeat(2, 1)
-    return wav[:2, :max_samples].to(torch.float16)  # fp16 halves the RAM; quantisation noise is ~-66 dB
+    if wav.shape[0] < channels:
+        wav = wav.repeat(channels, 1)
+    return wav[:channels, :max_samples].to(torch.float16)  # fp16 halves the RAM; quantisation noise is ~-66 dB
 
 
 # ----------------------------------------------------------------------------- metrics
@@ -216,32 +222,49 @@ class PretrainProbe:
                  sc2_per_class=30, sid_speakers=200, sid_ref=8, sid_query=4,
                  iemocap_manifest_dir=None, iemocap_meta_dir=DEFAULT_IEMOCAP_META, iemocap_fold=1, emo_ref_per_class=250,
                  batch_size=32, seed=0, device='cuda', num_threads=8,
-                 input_repr='stft', fbank_mean=None, fbank_std=None):
+                 input_repr='stft', fbank_mean=None, fbank_std=None, audio='binaural'):
+        """audio='mono': the mono downstream sources (SC2 mono json lists, original VoxCeleb1 / IEMOCAP wavs, one
+        channel) for the mono SSAMBA models; needs input_repr='logmel'. SID and IEMOCAP pick the same utterances
+        as the binaural probe (same seed and lists); SC2 draws from the mono train / eval lists."""
         data_root = data_root or os.environ.get('SAC_DATA_ROOT', DEFAULT_DATA_ROOT)
+        if audio not in ('binaural', 'mono'):
+            raise ValueError(f'audio must be binaural or mono, not {audio}')
+        if audio == 'mono' and input_repr != 'logmel':
+            raise ValueError("audio='mono' needs input_repr='logmel' (mono SSAMBA takes log-mel)")
         self.device = device
         self.batch_size = batch_size
+        self.channels = 1 if audio == 'mono' else 2
         self.input_repr, self.fbank_mean, self.fbank_std = input_repr, fbank_mean, fbank_std
         self.sets = {}
         t0 = time.time()
         rng = random.Random(seed)
+        mono = os.path.join(data_root, 'mono')
         jobs = {}
         if 'sc2' in tasks:
             with open(label_csv) as f:
                 mid_to_idx = {row['mid']: int(row['index']) for row in csv.DictReader(f)}
-            jobs['sc2'] = (
-                _sc2_subset(os.path.join(data_root, 'speechcommands_spatial_pretrain.json'), mid_to_idx, sc2_per_class, rng),
-                _sc2_subset(os.path.join(data_root, 'speechcommands_spatial_pretest.json'), mid_to_idx, sc2_per_class, rng),
-                len(mid_to_idx),
-            )
+            if audio == 'mono':
+                sc2_ref = os.path.join(mono, 'speechcommands_datafiles', 'speechcommand_train_data.json')
+                sc2_query = os.path.join(mono, 'speechcommands_datafiles', 'speechcommand_eval_data.json')
+            else:
+                sc2_ref = os.path.join(data_root, 'speechcommands_spatial_pretrain.json')
+                sc2_query = os.path.join(data_root, 'speechcommands_spatial_pretest.json')
+            jobs['sc2'] = (_sc2_subset(sc2_ref, mid_to_idx, sc2_per_class, rng),
+                           _sc2_subset(sc2_query, mid_to_idx, sc2_per_class, rng),
+                           len(mid_to_idx))
         if 'sid' in tasks:
+            wav_of = (lambda d: os.path.join(mono, 'voxceleb1', 'wav', d['orig_rel_path'])) if audio == 'mono' else None
             jobs['sid'] = _sid_subsets(os.path.join(data_root, 'voxceleb1_spatial_pretrain.json'),
                                        os.path.join(data_root, 'voxceleb1_spatial_pretest.json'),
-                                       sid_speakers, sid_ref, sid_query, rng)
+                                       sid_speakers, sid_ref, sid_query, rng, wav_of=wav_of)
         if 'iemocap' in tasks:  # built last, so adding it leaves the sc2 / sid subsets unchanged
             if iemocap_manifest_dir is None:
                 v2 = os.path.join(data_root, 'IEMOCAP', 'simu_v2', 'manifests')
                 iemocap_manifest_dir = v2 if os.path.isdir(v2) else data_root
-            jobs['iemocap'] = _iemocap_subsets(iemocap_manifest_dir, iemocap_meta_dir, iemocap_fold, emo_ref_per_class, rng)
+            mono_root = (os.path.join(mono, 'data', 'IEMOCAP_audio_only', 'IEMOCAP_full_release')
+                         if audio == 'mono' else None)
+            jobs['iemocap'] = _iemocap_subsets(iemocap_manifest_dir, iemocap_meta_dir, iemocap_fold, emo_ref_per_class,
+                                               rng, mono_root=mono_root)
         unknown = set(tasks) - set(jobs)
         if unknown:
             raise ValueError(f'unknown probe tasks: {sorted(unknown)} (choose from sc2, sid, iemocap)')
@@ -250,7 +273,7 @@ class PretrainProbe:
             for task, (ref, query, n_class) in jobs.items():
                 splits = {}
                 for name, items in (('ref', ref), ('query', query)):
-                    wavs = list(pool.map(lambda it: _load_wav(it[0], CHUNK_SAMPLES), items))
+                    wavs = list(pool.map(lambda it: _load_wav(it[0], CHUNK_SAMPLES, self.channels), items))
                     splits[name] = (wavs, torch.tensor([it[1] for it in items], device=device))
                 self.sets[task] = {'n_class': n_class, **splits}
                 print(f'[probe] {task}: {len(ref)} reference / {len(query)} query clips, {n_class} classes', flush=True)
@@ -364,6 +387,41 @@ def format_metrics(res):
 
 # ----------------------------------------------------------------------------- standalone
 
+def _mono_exp_dir(ckpt):
+    """<exp>/models/<ckpt> -> <exp> (the dir holding the run's args.pkl)."""
+    d = os.path.dirname(os.path.abspath(ckpt))
+    return os.path.dirname(d) if os.path.basename(d) == 'models' else d
+
+
+def load_mono_model(spec, device, template_ckpt=None):
+    """Mono SSAMBASACModel for a checkpoint (audio_model.N / final / best: a state_dict; latest.pth: full training
+    state), built from the run's own args.pkl so the architecture matches. 'random' builds the model of
+    template_ckpt's run without loading weights. -> (model, step or None)."""
+    import pickle
+    from sac.run_pretrain_sac import build_model, fill_missing_args
+    src = template_ckpt if spec == 'random' else spec
+    if src is None:
+        raise ValueError("'random' with --audio mono needs a checkpoint among --models (its run's args.pkl)")
+    with open(os.path.join(_mono_exp_dir(src), 'args.pkl'), 'rb') as f:
+        run_args = fill_missing_args(pickle.load(f))
+    run_args.use_checkpointing = False
+    torch.manual_seed(0)
+    model = build_model(run_args)
+    step = None
+    if spec != 'random':
+        ckpt = torch.load(spec, map_location='cpu')
+        if 'state_dict' in ckpt:
+            step = ckpt.get('global_step')
+            ckpt = ckpt['state_dict']
+        ckpt = {k[len('module.'):] if k.startswith('module.') else k: v for k, v in ckpt.items()}
+        enc_keys = [k for k in model.state_dict() if k.startswith('encoder.')]
+        missing = [k for k in enc_keys if k not in ckpt]
+        if missing:
+            raise ValueError(f'{spec}: {len(missing)} encoder weights missing, e.g. {missing[0]}')
+        model.load_state_dict(ckpt, strict=False)
+    return model.to(device), step
+
+
 def _expand_models(specs):
     """Checkpoint paths / globs / 'random' / 'gramt[:model_id]' -> ordered list of specs."""
     def ckpt_key(p):
@@ -402,15 +460,29 @@ def main():
     p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel'], help='input of the SAC checkpoints; logmel needs --fbank_mean/--fbank_std')
     p.add_argument('--fbank_mean', type=float, default=None)
     p.add_argument('--fbank_std', type=float, default=None)
+    p.add_argument('--audio', default='binaural', choices=['binaural', 'mono'],
+                   help="mono: mono SSAMBA checkpoints (run_pretrain_sac.py) on the mono downstream audio; "
+                        "implies --input_repr logmel, fbank stats from each run's args.pkl")
     args = p.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    mono_template = None
+    if args.audio == 'mono':
+        import pickle
+        specs = _expand_models(args.models)
+        mono_template = next((s for s in specs if s != 'random' and not s.startswith('gramt')), None)
+        if mono_template is None:
+            p.error('--audio mono needs at least one checkpoint (for the architecture and fbank stats)')
+        with open(os.path.join(_mono_exp_dir(mono_template), 'args.pkl'), 'rb') as f:
+            ra = pickle.load(f)
+        args.input_repr, args.fbank_mean, args.fbank_std = 'logmel', ra.dataset_mean, ra.dataset_std
 
     probe = PretrainProbe(args.data_root, tasks=tuple(args.tasks.split(',')), sc2_per_class=args.sc2_per_class,
                           sid_speakers=args.sid_speakers, sid_ref=args.sid_ref, sid_query=args.sid_query,
                           iemocap_manifest_dir=args.iemocap_manifest_dir, iemocap_meta_dir=args.iemocap_meta_dir,
                           iemocap_fold=args.iemocap_fold, emo_ref_per_class=args.emo_ref_per_class,
                           batch_size=args.batch_size, device=device,
-                          input_repr=args.input_repr, fbank_mean=args.fbank_mean, fbank_std=args.fbank_std)
+                          input_repr=args.input_repr, fbank_mean=args.fbank_mean, fbank_std=args.fbank_std,
+                          audio=args.audio)
     print(f'[probe] chance: {format_metrics(probe.chance())}', flush=True)
 
     rows = []
@@ -421,6 +493,14 @@ def main():
             model_id = spec.split(':', 1)[1] if ':' in spec else DEFAULT_MODEL_ID
             enc = GRAMTEncoder(model_id=model_id).to(device)
             row.update(probe.evaluate_gramt(enc))
+        elif args.audio == 'mono':
+            enc, step = load_mono_model(spec, device, mono_template)
+            m = re.search(r'audio_model\.(\d+)\.pth$', spec)
+            if step is not None:
+                row['step'] = step
+            elif m:
+                row['step'] = (int(m.group(1)) - 1) * args.epoch_iter
+            row.update(probe.evaluate_sac(enc))
         else:
             from binaural_dual_stream_sac.binaural_sac_model import BinauralSSAMBASACModel
             from binaural_dual_stream_sac.downstream_experts import load_binaural_checkpoint
