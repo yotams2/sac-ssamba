@@ -13,7 +13,10 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
   `run_pretrain_sac.py` fsyncs `latest.pth` and moves an unreadable one aside (uncommitted, both). Resubmitted: spatial
   23652530/31/32 (labels pre_nosac_final / pre_sac_final / ctrl_ipd16_n256, DRR C50 ABS; DRR finetune done: 1.81 / 1.58 / 2.17),
   perplexity k=10 23652538 + gate 23652539 (from step 0), `amba` s3 IEMOCAP 23652540 (from 18k). `amba` s3 SID final
-  from the dead run: best dev 68.5 @35k, test 67.7. Open: size of `sac-ssamba/data` (du timed out).
+  from the dead run: best dev 68.5 @35k, test 67.7. Then (your call): deleted `LibriSpeech/train-clean-100.tar.gz` and `IEMOCAP/simu` (v1, unused). prune.py now also
+  deletes dev-best / SC2 best / SAR-SSL best+ensemble of finished runs, and spatial pretraining snapshots once
+  `encoder_final.pth` (now backed up) is on moshe. Dry run 171 files / 67 GB (`~/exp-records/prune_dry_2026-11-16.out`); first
+  real run with backup 23641358 (10:28). Check its log + prune_log.tsv. Open: size of `sac-ssamba/data`.
 
 - **Mono SAC, egemaps18 features: pretraining 23502629 finished 2026-11-12 01:55** (all 20710 steps; final val loss
   4.2523; `audio_model.final.pth` + `best_audio_model.pth` saved). Slurm says FAILED and the results record says
