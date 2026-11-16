@@ -7,15 +7,19 @@ Only weight files (.pth .pt .tar .ckpt) are ever deleted, never records, never a
 file matching keep.txt, never a file modified in the last MIN_AGE_H hours. A run counts as finished only by its own
 end-of-run marker:
 
-  S1 pretraining (path has 'pretrain'), marker models/audio_model.final.pth, which must also be on moshe with the same
-     size: delete per-eval snapshots audio_model.<n>.pth and the resume state latest.pth / resume.pth.
-     Kept: audio_model.final.pth, best_audio_model.pth.
+  S1 pretraining (path has 'pretrain'), marker audio_model.final.pth (SSAMBA, in models/) or encoder_final.pth (spatial
+     SSAMBA), which must also be on moshe with the same size: delete per-eval snapshots audio_model.<n>.pth,
+     encoder_epoch<n>.pth, eval_ep<n>.pth, best_encoder.pth and the resume state latest.pth / resume.pth.
+     Kept: the final, and best_audio_model.pth (downstream scripts load it).
+  Downstream weights are not backed up (backup.py: cheap to regenerate from the backed-up encoder and the recipe), and
+  every number is already in the results records, so a finished downstream run keeps no weights at all:
   S2 s3prl downstream (IEMOCAP, SID), marker states-<total_steps>.ckpt (total_steps from the newest config_*.yaml):
-     delete states-*.ckpt (resume states). Kept: dev-best.ckpt.
-  S3 SC2 fine-tuning (run_amba.py), marker eval_result.csv (written after the last epoch): delete
-     models/best_optim_state.pth and models/resume.pth. Kept: models/best_audio_model.pth.
+     delete states-*.ckpt and dev-best.ckpt (the test is scored during training).
+  S3 SC2 fine-tuning (run_amba.py), marker eval_result.csv (written after the last epoch): delete everything in
+     models/ (best_audio_model.pth, best_optim_state.pth, resume.pth).
   S4 SAR-SSL downstream <task>/<label>/<mode>-...-R<n>/, marker <task>/<label>/.train_done_<mode>_R<n> plus
-     downstream_test_res_<mode>.json: delete model<epoch>.tar and latest_model.tar. Kept: best_model.tar, ensemble_model.tar.
+     downstream_test_res_<mode>.json: delete model<epoch>.tar, latest_model.tar, best_model.tar, ensemble_model.tar.
+  Pin anything worth keeping (a model behind a figure) in keep.txt: keep.txt wins over every rule.
   S5 smoke/test runs (a path segment starting with '_' or 'exp_smoke'): weights older than SMOKE_AGE_D days.
      The gate only needs _smoke/mono_ds/.passed, which is not a weight file.
 
@@ -38,7 +42,8 @@ from backup import SCRATCH, MOSHE, RECORDS, HERE, ROOTS, WEIGHT_EXT, read_globs,
 MIN_AGE_H = 24
 SMOKE_AGE_D = 7
 RESUME = {'latest.pth', 'resume.pth'}
-SNAPSHOT = re.compile(r'^audio_model\.\d+\.pth$')
+SNAPSHOT = re.compile(r'^(audio_model\.\d+\.pth|encoder_epoch\d+\.pth|eval_ep\d+\.pth|best_encoder\.pth)$')
+FINALS = ('audio_model.final.pth', 'encoder_final.pth')
 LOG = os.path.join(RECORDS, 'prune_log.tsv')
 
 
@@ -78,21 +83,22 @@ def candidates(keep_globs):
             if is_smoke(reld + '/x'):
                 pick = [(f, 'S5 smoke/test weights') for f in weights
                         if old(os.path.join(d, f), SMOKE_AGE_D * 24)]
-            elif 'pretrain' in reld and 'audio_model.final.pth' in fs:
-                fin = os.path.join(d, 'audio_model.final.pth')
-                if old(fin) and same_on_moshe(fin, f'{reld}/audio_model.final.pth'):
+            elif 'pretrain' in reld and any(x in fs for x in FINALS):
+                fname = next(x for x in FINALS if x in fs)
+                fin = os.path.join(d, fname)
+                if old(fin) and same_on_moshe(fin, f'{reld}/{fname}'):
                     pick = [(f, 'S1 pretrain snapshot/resume, final backed up') for f in weights
                             if SNAPSHOT.match(f) or f in RESUME]
             elif any(f.startswith('states-') for f in weights):
                 t = total_steps(d)
                 if t and f'states-{t}.ckpt' in fs and old(os.path.join(d, f'states-{t}.ckpt')):
-                    pick = [(f, f's3prl resume states, finished at {t}') for f in weights
-                            if re.match(r'^states-\d+\.ckpt$', f)]
+                    pick = [(f, f's3prl resume states + dev-best, finished at {t}') for f in weights
+                            if re.match(r'^states-\d+\.ckpt$', f) or f == 'dev-best.ckpt']
                     pick = [(f, 'S2 ' + w) for f, w in pick]
-            elif os.path.basename(d) == 'models' and os.path.isfile(os.path.join(d, '..', 'eval_result.csv')):
+            elif ('pretrain' not in reld and os.path.basename(d) == 'models'
+                  and os.path.isfile(os.path.join(d, '..', 'eval_result.csv'))):
                 if old(os.path.join(d, '..', 'eval_result.csv')):
-                    pick = [(f, 'S3 SC2 optimizer/resume, run finished') for f in weights
-                            if f in ('best_optim_state.pth', 'resume.pth')]
+                    pick = [(f, 'S3 SC2 weights, run finished') for f in weights]
             else:
                 m = re.match(r'^([a-zA-Z]+)-.*[-_]R(\d+)$', os.path.basename(d))
                 if m:
@@ -102,8 +108,9 @@ def candidates(keep_globs):
                     done = f'.train_done_{mode}_r{m.group(2)}' in marks
                     res = marks.get(f'downstream_test_res_{mode}.json')
                     if done and res and old(os.path.join(up, res), 1):
-                        pick = [(f, 'S4 SAR-SSL epoch snapshots/latest, trained+tested') for f in weights
-                                if re.match(r'^model\d+\.tar$', f) or f == 'latest_model.tar']
+                        pick = [(f, 'S4 SAR-SSL downstream weights, trained+tested') for f in weights
+                                if re.match(r'^model\d+\.tar$', f)
+                                or f in ('latest_model.tar', 'best_model.tar', 'ensemble_model.tar')]
             for f, why in pick:
                 rel = f'{reld}/{f}'
                 if any(fnmatch.fnmatch(rel, g) for g in keep_globs):
@@ -120,9 +127,10 @@ def moshe_candidates():
             continue
         for d, dirs, files in os.walk(root):
             reld = os.path.normpath(os.path.join(alias, os.path.relpath(d, root)))
-            if 'pretrain' not in reld or 'audio_model.final.pth' not in files:
+            fname = next((x for x in FINALS if x in files), None)
+            if 'pretrain' not in reld or fname is None:
                 continue
-            if not same_on_moshe(os.path.join(d, 'audio_model.final.pth'), f'{reld}/audio_model.final.pth'):
+            if not same_on_moshe(os.path.join(d, fname), f'{reld}/{fname}'):
                 continue
             for f in sorted(RESUME):
                 mp = os.path.join(MOSHE, reld, f)

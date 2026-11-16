@@ -57,9 +57,10 @@ HOME_MAX = 2 * 2**20        # largest record copied to home (after compression f
 HOME_EXT = {'.json', '.jsonl', '.txt', '.log', '.out', '.err', '.csv', '.tsv', '.yaml', '.yml', '.md', '.pkl'}
 COMPRESS_EXT = {'.log', '.out', '.err'}
 RESUME_NAMES = {'latest.pth', 'resume.pth', 'latest_model.tar'}
-# canonical weights, in order of preference (SSAMBA final, SSAMBA best, SAR-SSL best). Only audio_model.final.pth
-# marks a finished run; SAR-SSL writes no such marker, so its resume state is always kept (one small file per run).
-FINAL_NAMES = ['audio_model.final.pth', 'best_audio_model.pth', 'best_model.tar']
+# canonical weights, in order of preference (SSAMBA final, spatial SSAMBA final, SSAMBA best, SAR-SSL best). Only
+# FINISHED_NAMES mark a finished run; SAR-SSL writes no such marker, so its resume state is always kept.
+FINAL_NAMES = ['audio_model.final.pth', 'encoder_final.pth', 'best_audio_model.pth', 'best_model.tar']
+FINISHED_NAMES = {'audio_model.final.pth', 'encoder_final.pth'}
 # Data: only the top-level manifests of sac-ssamba/data (features computed on this cluster, hours of CPU each,
 # ~200 MB in all). The audio itself came from /moshe-data (data/, sac-ssamba/) and is restored from there.
 DATA_MANIFESTS = (f'{SCRATCH}/sac-ssamba/data', 'sac-ssamba/data')
@@ -89,7 +90,7 @@ def classify(rel, name, size, siblings, pretrain):
         if name == canonical:
             return 'weights', True, 'pretrain canonical weights'
         if name in RESUME_NAMES:
-            if FINAL_NAMES[0] not in siblings:  # best_audio_model.pth alone doesn't mean the run is over
+            if not FINISHED_NAMES & set(siblings):  # best_audio_model.pth alone doesn't mean the run is over
                 return 'weights', True, 'pretrain resume state, run not finished'
             return 'weights', False, 'resume state of a finished run'
         return 'weights', False, 'snapshot/optimizer/other'

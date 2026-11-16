@@ -1,3 +1,4 @@
 # Files to back up whatever backup.py's default policy says. One fnmatch glob per line, relative to
 # /scratch200/yotams2 ('*' also crosses '/'). Say why after a '#'.
 # Example: SAC-SAR-SSL/exp/TDOA/ssamba_pitchfix/*best_model.tar   # fine-tuned model behind a paper figure
+SAC-SAR-SSL/exp/ssamba_pretrain/*/encoder_epoch10.pth   # "ep 10" rows of the spatial TDOA/T60 table (2026-11-14)
