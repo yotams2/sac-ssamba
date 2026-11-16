@@ -70,7 +70,8 @@ recon_lambda=${RECON_LAMBDA:-1.0}      # Weight for reconstruction loss (MPG): 1
 classif_lambda=${CLASSIF_LAMBDA:-0.0}    # Weight for classification loss (MPC): set to 0.0 for EXP8 dual loss
 sac_lambda=${SAC_LAMBDA:-0.02}       # Weight for SAC contrastive loss: 0.02 (matching EXP2 dual loss baseline)
 sac_temperature=${SAC_TEMPERATURE:-0.8502}  # Temperature τ for cosine similarity (winning value from Optuna v5_1 Trial #49)
-sac_sigma=1.0        # Gaussian kernel bandwidth σ (ignored by optuna_optimal)
+sac_sigma=${SAC_SIGMA:-1.0}  # Gaussian kernel bandwidth σ; offline_global_median: multiplier on the median rule (ignored by optuna_optimal)
+sac_perplexity=${SAC_PERPLEXITY:-10}  # local_sigma_mode=perplexity: effective neighbours per anchor (SNE calibration)
 
 # === PREDEFINED FEATURE LISTS ===
 # Uncomment the list that matches your downstream task.
@@ -102,7 +103,7 @@ sac_features="${SAC_FEATURES:-f0_mean,f0_var,voiced_len,formant_stats,mfcc,hnr,l
 feature_alias="${FEATURE_ALIAS:-egemaps18}"
 
 proj_dim=128         # Projection head output dimension
-local_sigma_mode=${LOCAL_SIGMA_MODE:-optuna_optimal} # dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal, optuna_optimal
+local_sigma_mode=${LOCAL_SIGMA_MODE:-optuna_optimal} # perplexity, dynamic_batch_median, offline_global_median, chi2_median, sqrt_dim, static_entropy_optimal, optuna_optimal
 use_cross_attention="true" # Set to "false" to use the legacy SAC logic (no cross-attention)
 num_queries_per_group=1   # Number of queries per acoustic feature group
 
@@ -162,6 +163,7 @@ CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 ${PYTHON:-python} -u -W ignore run_pretr
     --sac-lambda ${sac_lambda} \
     --sac-temperature ${sac_temperature} \
     --sac-sigma ${sac_sigma} \
+    --sac-perplexity ${sac_perplexity} \
     --sac_features ${sac_features} \
     --local_sigma_mode ${local_sigma_mode} \
     --use_cross_attention ${use_cross_attention} \
@@ -191,4 +193,5 @@ CUDA_CACHE_DISABLE=1 PYTHONUNBUFFERED=1 ${PYTHON:-python} -u -W ignore run_pretr
     --if_devide_out ${if_devide_out} \
     --use_double_cls_token ${use_double_cls_token} \
     --use_middle_cls_token ${use_middle_cls_token} \
+    $( [ -n "${SEED:-}" ] && echo "--seed ${SEED}" ) \
     --resume "${resume_checkpoint}"

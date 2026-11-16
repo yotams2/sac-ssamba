@@ -1,1 +1,3 @@
 # Files never to back up (superseded runs etc.). Same format as keep.txt; keep.txt wins.
+sac-ssamba/exp/binaural_sac_pretrain/binaural-sac-bs32-lr1e-4-mode_offline_global_median-lossfix_blockmask_baseline/models/latest.pth   # abandoned, superseded by lossfix_blockmask_pitchfix_baseline; deleted 2026-11-11
+sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_universal-mode_offline_global_median-librispeech-baseline_objective_pitchfix_ampval/models/latest.pth   # 2-epoch AMP check, done; deleted 2026-11-11

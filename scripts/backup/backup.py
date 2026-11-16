@@ -26,7 +26,8 @@ Overrides, one glob per line relative to /scratch200/yotams2 (fnmatch, '*' cross
   skip.txt  never back up matching files (e.g. a superseded run).
 keep wins over skip.
 
-Nothing is ever deleted, on scratch or on moshe. Files already on moshe with the same size and mtime are not copied.
+backup.py deletes nothing. Files already on moshe with the same size and mtime are not copied. After a clean backup,
+backup.sbatch runs prune.py, which deletes regenerable weights of finished runs (see its docstring).
 """
 import argparse
 import fnmatch

@@ -27,7 +27,7 @@ if [ ! -f "${EXP}/models/audio_model.final.pth" ]; then
     if [ "${LEFT}" -gt 0 ] && [ -n "${PRE_EXPORTS}" ] && [ -f "${LATEST}" ] \
         && [ "$(stat -c %Y "${LATEST}")" != "$(cat "${STAMP}" 2>/dev/null)" ]; then
         stat -c %Y "${LATEST}" > "${STAMP}"
-        PRE=$(sbatch --parsable --exclude='compute-0-[18,53,58,300,376,419,420]' --export=ALL,${PRE_EXPORTS} scripts/mono_sac.sbatch)
+        PRE=$(sbatch --parsable --exclude='compute-0-[18,53,376]' --export=ALL,${PRE_EXPORTS} scripts/mono_sac.sbatch)
         GATE=$(sbatch --parsable --dependency=afterany:${PRE} scripts/mono_downstream_gate.sbatch "${EXP}" $((LEFT - 1)) "${PRE_EXPORTS}")
         echo "RESUBMITTED: pretraining not finished; pretraining ${PRE}, gate ${GATE} ($((LEFT - 1)) resubmits left)"
         exit 0

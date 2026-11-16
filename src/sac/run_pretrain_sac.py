@@ -122,6 +122,17 @@ def save_latest(path, core_model, optimizer, scheduler, feature_stats, global_st
     """Rolling full training state, so a preempted job continues instead of restarting. Atomic: a kill
     while writing leaves the previous file."""
     tmp = path + '.tmp'
+    with open(tmp, 'wb') as f:
+        _save_state(f, core_model, optimizer, scheduler, feature_stats, global_step, epoch, best_val_loss,
+                    shuffle_seed)
+        f.flush()
+        # Without fsync, NFS reports a full quota only at close, after the rename: 23647240 left a truncated latest.pth.
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def _save_state(f, core_model, optimizer, scheduler, feature_stats, global_step, epoch, best_val_loss,
+                shuffle_seed):
     torch.save({
         'state_dict': core_model.state_dict(),
         'optimizer': optimizer.state_dict(),
@@ -131,8 +142,7 @@ def save_latest(path, core_model, optimizer, scheduler, feature_stats, global_st
         'epoch': epoch,
         'best_val_loss': best_val_loss,
         'shuffle_seed': shuffle_seed,
-    }, tmp)
-    os.replace(tmp, path)
+    }, f)
 
 
 def epoch_sample_order(n_samples, batch_size, n_batches, shuffle_seed, epoch, start_batch):
@@ -163,7 +173,7 @@ def train_sac(model, train_loader, test_loader, args, device):
     print(f"  SAC enabled: {args.sac_loss}")
     print(f"  SAC lambda: {args.sac_lambda}")
     print(f"  SAC temperature: {args.sac_temperature}")
-    print(f"  SAC sigma: {args.sac_sigma}")
+    print(f"  SAC sigma: {args.sac_sigma} (mode {args.local_sigma_mode}, perplexity {args.sac_perplexity})")
 
     if not isinstance(model, nn.DataParallel):
         model = nn.DataParallel(model)
@@ -242,10 +252,19 @@ def train_sac(model, train_loader, test_loader, args, device):
     total_steps = args.n_epochs * steps_per_epoch
     shuffle_seed = int(torch.randint(0, 2 ** 31 - 1, (1,)).item())
 
-    # Resume logic
+    # Resume logic. An unreadable resume file (truncated write) is moved aside and training starts from step 0;
+    # seeded runs then repeat the same trajectory.
+    checkpoint = None
     if hasattr(args, 'resume') and args.resume and os.path.isfile(args.resume):
-        print(f"=> Loading checkpoint '{args.resume}'")
-        checkpoint = torch.load(args.resume, map_location='cpu')
+        try:
+            checkpoint = torch.load(args.resume, map_location='cpu')
+        except Exception as e:
+            bad = args.resume + f'.bad_{int(time.time())}'
+            os.replace(args.resume, bad)
+            print(f"=> WARNING: could not read '{args.resume}' ({e}); moved to {bad}, starting from scratch",
+                  flush=True)
+    if checkpoint is not None:
+        print(f"=> Loaded checkpoint '{args.resume}'")
         
         # Handle state_dict unpacking
         model_state = checkpoint.get('state_dict', checkpoint)
@@ -722,13 +741,17 @@ def get_args():
                         help='Temperature τ for cosine similarity scaling in SAC loss')
     parser.add_argument('--sac-sigma', type=float, default=1.0,
                         help='Bandwidth σ for Gaussian kernel weights in SAC loss')
+    parser.add_argument('--sac-perplexity', type=float, default=10.0,
+                        help='local_sigma_mode=perplexity: effective number of neighbours per anchor in the SAC targets')
     parser.add_argument('--sac_features', type=str, default='f0_mean,hnr,centroid,flux,zcr_mean',
                         help='Comma separated list of acoustic features to extract (e.g. formants,mfcc,f0_var,rhythm)')
     parser.add_argument('--proj-dim', type=int, default=128,
                         help='Output dimension of the projection head g(·)')
     parser.add_argument('--local_sigma_mode', type=str, default='optuna_optimal',
-                        choices=['dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim', 'static_entropy_optimal', 'optuna_optimal'],
+                        choices=['perplexity', 'dynamic_batch_median', 'offline_global_median', 'chi2_median', 'sqrt_dim', 'static_entropy_optimal', 'optuna_optimal'],
                         help='How to calculate the local sigma for the Gaussian kernel')
+    parser.add_argument('--seed', type=int, default=None,
+                        help='Seeds python, numpy and torch (and so the shuffle seed). None = unseeded, as in all runs before 2026-11-11')
     parser.add_argument('--resume', type=str, default='',
                         help='Path to a checkpoint (.pth) to resume training from.')
 
@@ -747,6 +770,14 @@ def main():
                  'if_bimamba', 'if_cls_token', 'if_devide_out',
                  'use_double_cls_token', 'use_middle_cls_token', 'use_cross_attention', 'use_checkpointing']:
         setattr(args, attr, getattr(args, attr) == 'true')
+
+    if args.seed is not None:
+        import random
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        print(f'Seed: {args.seed}')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
@@ -839,6 +870,7 @@ def main():
         proj_dim=args.proj_dim,
         sac_temperature=args.sac_temperature,
         sac_sigma=args.sac_sigma,
+        sac_perplexity=args.sac_perplexity,
         sac_lambda=args.sac_lambda,
         recon_lambda=args.recon_lambda,
         classif_lambda=args.classif_lambda,

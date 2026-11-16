@@ -14,6 +14,7 @@ Also retains the native SSAMBA masked patch reconstruction (generative) objectiv
 
 import sys
 import os
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -29,6 +30,34 @@ sys.path.insert(0, '/storage/yotam/ssamba/Vim/mamba-1p1p1')
 
 from models.both_models import AMBAModel
 from sac.sigma_configs import OPTIMAL_SIGMAS, OPTUNA_OPTIMAL_SIGMAS
+
+
+@torch.no_grad()
+def perplexity_targets(cue_dist, perplexity, n_iter=50):
+    """SNE perplexity calibration (Hinton & Roweis 2002; van der Maaten & Hinton 2008), per anchor within the batch.
+
+    For each anchor i, finds the precision beta_i of the Gaussian kernel exp(-beta_i d_ij^2) over the other B-1 clips
+    such that the row-normalized targets P_i have entropy ln(perplexity), i.e. `perplexity` effective neighbours,
+    whatever the group's dimension or the local density. Bisection on log beta. Returns P [B, B], rows summing to 1,
+    zero diagonal. The targets carry no gradient (the cues are fixed inputs).
+    """
+    B = cue_dist.shape[0]
+    off = ~torch.eye(B, dtype=torch.bool, device=cue_dist.device)
+    target = math.log(min(float(perplexity), B - 1.0))
+    d2 = cue_dist.float() ** 2
+    scale = d2[off].median().clamp_min(1e-12)  # makes the search range independent of the feature units
+    d2 = (d2 / scale).masked_fill(~off, 0.0)
+    lo = torch.full((B, 1), -12.0, device=d2.device)  # log beta bounds: from ~uniform to ~nearest neighbour only
+    hi = torch.full((B, 1), 16.0, device=d2.device)
+    for _ in range(n_iter):
+        mid = (lo + hi) / 2
+        logp = torch.log_softmax((-mid.exp() * d2).masked_fill(~off, float('-inf')), dim=1)
+        H = -(logp.exp() * logp.masked_fill(~off, 0.0)).sum(1, keepdim=True)
+        too_flat = H > target  # entropy too high -> sharpen (raise beta)
+        lo = torch.where(too_flat, mid, lo)
+        hi = torch.where(too_flat, hi, mid)
+    logits = (-((lo + hi) / 2).exp() * d2).masked_fill(~off, float('-inf'))
+    return torch.softmax(logits, dim=1).to(cue_dist.dtype)
 
 
 class SSAMBASACModel(nn.Module):
@@ -76,8 +105,10 @@ class SSAMBASACModel(nn.Module):
         use_cross_attention=True,
         num_queries_per_group=4,
         use_checkpointing=False,
+        sac_perplexity=10.0,
     ):
         super(SSAMBASACModel, self).__init__()
+        self.sac_perplexity = sac_perplexity
 
         self.sac_temperature = sac_temperature
         self.sac_sigma = sac_sigma
@@ -300,7 +331,9 @@ class SSAMBASACModel(nn.Module):
             cue_dist = torch.cdist(c_group, c_group, p=2)
             
             import math
-            if self.local_sigma_mode == 'optuna_optimal':
+            if self.local_sigma_mode == 'perplexity':
+                local_sigma = None  # per-anchor bandwidths, set below by perplexity_targets
+            elif self.local_sigma_mode == 'optuna_optimal':
                 sigmas_table = OPTUNA_OPTIMAL_SIGMAS.get(B, OPTUNA_OPTIMAL_SIGMAS[64])
                 local_sigma = sigmas_table.get(group_name, self.sac_sigma * math.sqrt(len(indices)))
             elif self.local_sigma_mode == 'static_entropy_optimal':
@@ -322,8 +355,10 @@ class SSAMBASACModel(nn.Module):
                 if self.feature_stats is not None and 'group_medians' in self.feature_stats:
                     median_dist = self.feature_stats['group_medians'].get(group_name, None)
                     if median_dist is not None:
-                        # Overlook sac_sigma and use raw median scaled by ln(2)
-                        local_sigma = median_dist / math.sqrt(math.log(2.0))
+                        # Median scaled by ln(2) (kernel = 0.5 at the median distance), times sac_sigma as a
+                        # sharpness factor: 1.0 = the original rule. The original rule gives ~55 of 63 effective
+                        # neighbours at batch 64 (near-uniform targets; src/sac/sac_floor_check.py, 2026-11-15).
+                        local_sigma = self.sac_sigma * median_dist / math.sqrt(math.log(2.0))
                     else:
                         local_sigma = self.sac_sigma * math.sqrt(len(indices))
                 else:
@@ -339,7 +374,10 @@ class SSAMBASACModel(nn.Module):
             else: # 'sqrt_dim'
                 local_sigma = self.sac_sigma * math.sqrt(len(indices))
             
-            w = torch.exp(-(cue_dist / local_sigma) ** 2)
+            if local_sigma is None:
+                w = perplexity_targets(cue_dist, self.sac_perplexity)
+            else:
+                w = torch.exp(-(cue_dist / local_sigma) ** 2)
             z_norm = F.normalize(z_group, dim=-1)
             sim = torch.matmul(z_norm, z_norm.T) / self.sac_temperature
             

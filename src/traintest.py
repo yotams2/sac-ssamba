@@ -121,8 +121,15 @@ def train(audio_model, train_loader, test_loader, args):
     # states (they fix the next shuffle, the augmentation in the data workers and drop_path), so a killed and resumed
     # run repeats the continuous run's trajectory; only the unfinished epoch is lost.
     resume_path = "%s/models/resume.pth" % exp_dir
+    ck = None
     if getattr(args, 'auto_resume', False) and os.path.exists(resume_path):
-        ck = torch.load(resume_path, map_location='cpu')
+        try:
+            ck = torch.load(resume_path, map_location='cpu')
+        except Exception as e:  # unreadable resume state: keep it for inspection and start over (runs are seeded)
+            os.replace(resume_path, resume_path + '.corrupt')
+            print('WARNING: %s unreadable (%s); moved to .corrupt, training from epoch 1' % (resume_path, e),
+                  flush=True)
+    if ck is not None:
         audio_model.load_state_dict(ck['model'])
         optimizer.load_state_dict(ck['optimizer'])
         scheduler.load_state_dict(ck['scheduler'])
@@ -158,7 +165,10 @@ def train(audio_model, train_loader, test_loader, args):
               'rng': {'torch': torch.get_rng_state(),
                       'cuda': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
                       'numpy': np.random.get_state(), 'python': random.getstate()}}
-        torch.save(ck, resume_path + '.tmp')
+        with open(resume_path + '.tmp', 'wb') as f:
+            torch.save(ck, f)
+            f.flush()
+            os.fsync(f.fileno())  # without this a preemption shortly after the rename left a truncated file (23638873)
         os.replace(resume_path + '.tmp', resume_path)  # atomic: a kill mid-write leaves the previous epoch's file
 
     print("current #steps=%s, #epochs=%s" % (global_step, epoch))
