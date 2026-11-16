@@ -104,3 +104,4 @@ with the RQ1/RQ2 tables.
 ## Decision log (this sprint)
 - 11-16: sprint set from the supervisor meeting. RQ order: GRAM-T / single encoder / complementarity, then the joint objective.
 - 11-16: k=10 held (your OK). RQ1 started: `--upstream gramt` (SAC-SAR-SSL `code/gramt_spatial.py`, `scripts/gramt_spatial_eval.sbatch`), no scratchLOW for GRAM-T. Smoke 23655896, then label `gramt_bf` TDOA/T60/DRR/C50/ABS 23655897-901 (afterok).
+- 11-17: RQ2 started: ipd16 front end in the probe (4.112-s windows, fp32), jobs 23663228 (smoke) -> 23663229.

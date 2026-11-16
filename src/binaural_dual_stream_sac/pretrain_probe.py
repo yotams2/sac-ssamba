@@ -68,6 +68,10 @@ DEFAULT_LABEL_CSV = os.path.join(SRC, 'finetune/speechcommands_v2/data/speechcom
 # sibling repo sac-s3prl, next to sac-ssamba
 DEFAULT_IEMOCAP_META = os.path.join(os.path.dirname(os.path.dirname(SRC)), 'sac-s3prl/s3prl/downstream/emotion/meta_data')
 DEFAULT_TASKS = ('sc2', 'sid', 'iemocap')
+# ipd16 spatial SSAMBA (SAC-SAR-SSL code/ssamba_spatial_pretrain.py): its input code is imported from that repo
+SARSSL_CODE = os.environ.get('SAC_SAR_SSL_CODE', os.path.join(os.path.dirname(os.path.dirname(SRC)), 'SAC-SAR-SSL', 'code'))
+IPD16_WIN = 65792                       # 4.112 s = the pretraining clip (256 STFT frames at hop 256)
+IPD16_MIN_TAIL = SAMPLE_RATE // 2       # a last window shorter than 0.5 s is dropped when a full window exists
 
 
 # ----------------------------------------------------------------------------- subsets
@@ -329,6 +333,43 @@ class PretrainProbe:
             mask[i, :n] = 1.0
         return (h * mask[..., None]).sum(1) / mask.sum(1, keepdim=True)
 
+    @torch.no_grad()
+    def _ipd16_batch(self, ds, wavs, task):
+        """ds: SAC-SAR-SSL SSAMBASpatialDownstream, input 'ipd' with the pretraining channel statistics.
+        Each clip is cut into 4.112-s windows (the pretraining clip length). Each window gets exactly the pretraining
+        input (stft_reim: Hann 512 / hop 256, / mean |L|, bins 1..256; stft_frontend: log|L|, ILD, cos/sin IPD,
+        standardised, zero-padded to 256 frames), and only patches over real frames are kept. Pooling as the other
+        probes: SC2 = mean over all real patches; SID / ER = per-frequency-row mean over time, rows concatenated
+        [16 * D]. fp32: the encoder was pretrained without autocast."""
+        import math
+        from ssamba_spatial_pretrain import stft_reim
+        nfp, ntp = ds.n_freq // ds.fshape, ds.n_frames // ds.tshape
+        out = []
+        for w in wavs:
+            w = w.to(self.device).float()  # [2, N]
+            n = w.shape[-1]
+            starts = list(range(0, n, IPD16_WIN))
+            if len(starts) > 1 and n - starts[-1] < IPD16_MIN_TAIL:
+                starts = starts[:-1]
+            acc, count = 0.0, 0
+            for s in starts:
+                _, reim = stft_reim(self._ipd16_stft, w[:, s:s + IPD16_WIN].T.unsqueeze(0))  # (1, nsample, 2) in
+                X, n_real = ds.stft_frontend(reim)
+                h = ds.encoder._encode_with_mamba(X)[:, 1:].float()  # CLS dropped, frequency-major patches
+                ntr = min(ntp, math.ceil(n_real / ds.tshape))
+                acc = acc + h.reshape(1, nfp, ntp, -1)[:, :, :ntr].sum(2)  # (1, 16, D)
+                count += ntr
+            hm = acc / count
+            out.append(hm.mean(1) if task == 'sc2' else hm.reshape(1, -1))
+        return torch.cat(out)
+
+    def evaluate_ipd16(self, ds):
+        import common.utils_module as at_module
+        if not hasattr(self, '_ipd16_stft'):
+            self._ipd16_stft = at_module.STFT(win_len=512, win_shift_ratio=0.5, nfft=512).to(self.device)
+        ds.eval()
+        return self.evaluate(lambda task: lambda w: self._ipd16_batch(ds, w, task))
+
     def _embed(self, batch_fn, wavs):
         out = [batch_fn(wavs[i:i + self.batch_size]) for i in range(0, len(wavs), self.batch_size)]
         return torch.cat(out)
@@ -422,6 +463,30 @@ def load_mono_model(spec, device, template_ckpt=None):
     return model.to(device), step
 
 
+def load_ipd16_model(spec, device, template_ckpt=None):
+    """ipd16 spatial SSAMBA (SAC-SAR-SSL encoder_final.pth / encoder_epoch*.pth / best_encoder.pth: {'state_dict',
+    'meta'}) through SAC-SAR-SSL's own downstream wrapper, so input and weights load exactly as in its downstream runs.
+    'random' builds the same model untrained, with template_ckpt's channel statistics."""
+    if SARSSL_CODE not in sys.path:
+        sys.path.append(SARSSL_CODE)
+    import ssamba_spatial
+    from ssamba_spatial_pretrain import NT
+    torch.manual_seed(0)
+    if spec == 'random':
+        if template_ckpt is None:
+            raise ValueError("'random' with --input_repr ipd16 needs an ipd16 checkpoint among --models (its stats)")
+        ds = ssamba_spatial.SSAMBASpatialDownstream(ckpt_path='random', frozen=True, fill='none', input_mode='ipd',
+                                                    n_stft_frames=NT, n_frames_override=NT)
+        meta = ssamba_spatial.load_meta(template_ckpt)
+        for name in ('in_mean', 'in_std'):  # plain None attributes without a checkpoint: make them buffers
+            delattr(ds, name)
+            ds.register_buffer(name, torch.tensor(meta[name]).view(1, 4, 1, 1))
+    else:
+        ds = ssamba_spatial.SSAMBASpatialDownstream(ckpt_path=spec, frozen=True, fill='none', input_mode='ipd',
+                                                    n_stft_frames=NT)
+    return ds.to(device)
+
+
 def _expand_models(specs):
     """Checkpoint paths / globs / 'random' / 'gramt[:model_id]' -> ordered list of specs."""
     def ckpt_key(p):
@@ -457,7 +522,9 @@ def main():
     p.add_argument('--iemocap_fold', type=int, default=1)
     p.add_argument('--emo_ref_per_class', type=int, default=250)
     p.add_argument('--batch_size', type=int, default=32)
-    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel'], help='input of the SAC checkpoints; logmel needs --fbank_mean/--fbank_std')
+    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel', 'ipd16'],
+                   help='input of the SAC checkpoints; logmel needs --fbank_mean/--fbank_std; ipd16 = spatial SSAMBA '
+                        '(SAC-SAR-SSL encoder_*.pth, binaural audio only)')
     p.add_argument('--fbank_mean', type=float, default=None)
     p.add_argument('--fbank_std', type=float, default=None)
     p.add_argument('--audio', default='binaural', choices=['binaural', 'mono'],
@@ -465,7 +532,11 @@ def main():
                         "implies --input_repr logmel, fbank stats from each run's args.pkl")
     args = p.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    mono_template = None
+    mono_template = ipd16_template = None
+    if args.input_repr == 'ipd16':
+        if args.audio != 'binaural':
+            p.error('--input_repr ipd16 needs --audio binaural')
+        ipd16_template = next((s for s in _expand_models(args.models) if s != 'random' and not s.startswith('gramt')), None)
     if args.audio == 'mono':
         import pickle
         specs = _expand_models(args.models)
@@ -493,6 +564,9 @@ def main():
             model_id = spec.split(':', 1)[1] if ':' in spec else DEFAULT_MODEL_ID
             enc = GRAMTEncoder(model_id=model_id).to(device)
             row.update(probe.evaluate_gramt(enc))
+        elif args.input_repr == 'ipd16':
+            enc = load_ipd16_model(spec, device, ipd16_template)
+            row.update(probe.evaluate_ipd16(enc))
         elif args.audio == 'mono':
             enc, step = load_mono_model(spec, device, mono_template)
             m = re.search(r'audio_model\.(\d+)\.pth$', spec)
