@@ -1,31 +1,3 @@
-++ SAC_VENV=/scratch200/yotams2/venvs/sac
-++ export VIM_ROOT=/scratch200/yotams2/code/Vim
-++ VIM_ROOT=/scratch200/yotams2/code/Vim
-++ export HF_HOME=/scratch200/yotams2/hf
-++ HF_HOME=/scratch200/yotams2/hf
-++ export SAC_DATA_ROOT=/scratch200/yotams2/sac-ssamba/data
-++ SAC_DATA_ROOT=/scratch200/yotams2/sac-ssamba/data
-++ export SAC_EXP_ROOT=/scratch200/yotams2/sac-ssamba/exp
-++ SAC_EXP_ROOT=/scratch200/yotams2/sac-ssamba/exp
-++ export PIP_NO_CACHE_DIR=1
-++ PIP_NO_CACHE_DIR=1
-++ export PYTHON=/scratch200/yotams2/venvs/sac/bin/python
-++ PYTHON=/scratch200/yotams2/venvs/sac/bin/python
-++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../../..
-++ pwd
-+ S3PRL_ROOT=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl
-++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../..
-++ pwd
-+ export SAC_SSAMBA_SRC=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src
-+ SAC_SSAMBA_SRC=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src
-+ export TORCH_HOME=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../pretrained_models
-+ TORCH_HOME=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/src/finetune/iemocap/../../pretrained_models
-+ model_input=/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3
-+ lr=1e-4
-++ basename /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3
-+ [[ sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3 == *\b\i\n\a\u\r\a\l* ]]
-+ default_upstream=ssamba_local
-+ upstream_name=ssamba_local
 + frozen=false
 + IEMOCAP_ROOT=/scratch200/yotams2/sac-ssamba/data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release
 + file_path_override=,,config.downstream_expert.datarc.root=/scratch200/yotams2/sac-ssamba/data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release,,config.downstream_expert.datarc.meta_data=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/downstream/emotion/meta_data
@@ -58,3 +30,31 @@ Running in FINE-TUNING mode (upstream weights trainable)
 ++ _RH_DIR=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/scripts
 + results_hook iemocap /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3_1e-4
 + '[' -e /a/home/cc/students/enginer/yotams2/sac-ssamba-results/.git ']'
+[collect_result] /a/home/cc/students/enginer/yotams2/sac-ssamba-results/results/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3_1e-4__23636476: status running
+[sync_results] pushed da93f07
++ return 0
++ for test_fold in fold1
++ echo 'running cross-validation on fold1'
+running cross-validation on fold1
++ mkdir -p /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3_1e-4/unfreeze_cross-valid-on-fold1
++ cd /a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl
++ PYTHONPATH=/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl:/scratch200/yotams2/code/Vim:/scratch200/yotams2/code/Vim/vim:/scratch200/yotams2/code/Vim/mamba-1p1p1
++ /scratch200/yotams2/venvs/sac/bin/python run_downstream.py --expdir /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3_1e-4/unfreeze_cross-valid-on-fold1 -m train -u ssamba_local -k /scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_globa
+/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/upstream/byol_s/byol_a/common.py:20: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
+torchaudio.set_audio_backend("sox_io")
+ESPnet is not installed, cannot use espnet_hubert upstream
+/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/run_downstream.py:157: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
+torchaudio.set_audio_backend('sox_io')
+[Override] - config.optimizer.lr = 0.0001
+[Override] - config.downstream_expert.datarc.test_fold = fold1
+[Override] - config.downstream_expert.datarc.root = /scratch200/yotams2/sac-ssamba/data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release
+[Override] - config.downstream_expert.datarc.meta_data = /a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/downstream/emotion/meta_data
+[Runner] - Resume from /scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed3_1e-4/unfreeze_cross-valid-on-fold1/states-18000.ckpt
+Traceback (most recent call last):
+File "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/run_downstream.py", line 219, in <module>
+main()
+File "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/run_downstream.py", line 196, in main
+with open(os.path.join(args.expdir, f'config_{get_time_tag()}.yaml'), 'w') as file:
+OSError: [Errno 122] Disk quota exceeded
++ _rh_exit
++ local rc=1
