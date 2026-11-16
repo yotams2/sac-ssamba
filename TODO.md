@@ -8,6 +8,11 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
 
 ## Running / waiting
 
+- [ ] **Mono probe (11-16):** first run 23654005 (`scripts/mono_probe.sbatch`, out `exp/_probes/mono_probe_2026-11-16.jsonl`) on k=5
+  audio_model.2 / latest, eg18 median final + seed2/3 latest, `amba` s1 final, random. In-loop probe (PROBE_EVERY=2000) is
+  live for pretrainings that start from now (k=10 23652538, held SAC seeds); untested in-loop until one starts: check the first
+  `---- Step 0 probe` line in its log. Snapshots of finished runs are pruned, so the in-loop log is the only training curve.
+
 - [x] **Scratch quota full (11-16 ~01:00), handled 09:40 (your OK).** Deleted 69 SAR-SSL `model<n>.tar` (24 GB, 374/400 after).
   SAR-SSL `run_downstream.py` now prunes per-epoch weights outside the ensemble window and all of them after ensembling;
   `run_pretrain_sac.py` fsyncs `latest.pth` and moves an unreadable one aside (uncommitted, both). Resubmitted: spatial
@@ -50,7 +55,7 @@ repeated. The one-screen summary is `~/STATUS.md`. Rule: replace stale text here
   line `compute-0-[18,53,376]` (uncommitted). Queued gates 23504394, 23586533/35/37 keep the old list: if one resubmits a
   pretraining, `scontrol update JobId=<new> ExcNodeList=compute-0-[18,53,376]`.
 
-- [ ] **Supervisor meeting report** (2026-11-11): Notion draft (private) https://app.notion.com/p/41578b64ef458168a724cf6b59af1f7f, covering the binaural spectral gap, spatial TDOA, and pretraining probes. Update it with the lr sweep (23586231-33) before the meeting.
+- [ ] **Supervisor meeting report**: Notion (private) https://app.notion.com/p/41578b64ef458168a724cf6b59af1f7f. Updated 11-16: §2 spatial (lr sweep, input probe, ipd16 pretraining, TDOA/T60/DRR table, input figure with patch rectangles + TDOA chart; scripts `~/SAC-SAR-SSL/code/figures/ssamba_{input,tdoa}_fig.py`, uncommitted) and mono status. Add DRR/C50/ABS + SAR-SSL refs when 23652530-32 finish.
 
 ## Decisions in force
 
