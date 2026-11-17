@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=feat_analysis
-#SBATCH --account=public-blaufer_v2
+#SBATCH --account=public-users_v2
 #SBATCH --partition=power-general-shared-pool
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=16G

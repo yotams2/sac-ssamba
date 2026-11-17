@@ -46,7 +46,7 @@ Consequences:
   checks (`python -m py_compile`, `bash -n`). Everything else goes through `sbatch`.
 - **Submit from the repo root**: scripts write to `logs/%x_%j.out` (relative to the submit dir; `logs/` is gitignored
   except `.gitkeep`).
-- Slurm account `public-blaufer_v2`. GPU jobs: `--partition=gpu-general-pool` only (queue can be days long).
+- Slurm account `public-users_v2` (since 2026-11-17 `gpu-general-pool` rejects `public-blaufer_v2`: jobs pend on PartitionConfig). GPU jobs: `--partition=gpu-general-pool` only (queue can be days long).
   CPU jobs: `power-general-shared-pool` (rejects GPU requests).
 - Always keep `#SBATCH --exclude=compute-0-18` on GPU jobs: it's a Blackwell (sm_120) node with no kernels in this torch.
 - `gpu-general-pool` is **preemptible** (`PreemptMode=REQUEUE`): jobs get killed and requeued. Make runs resumable

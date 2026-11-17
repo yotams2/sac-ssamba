@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=regen_binaural
-#SBATCH --account=public-blaufer_v2
+#SBATCH --account=public-users_v2
 #SBATCH --partition=power-general-shared-pool
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=16G

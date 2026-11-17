@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=mono_ds_gate
-#SBATCH --account=public-blaufer_v2
+#SBATCH --account=public-users_v2
 #SBATCH --partition=power-general-shared-pool
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=1G

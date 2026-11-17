@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=mono_probe
-#SBATCH --account=public-blaufer_v2
+#SBATCH --account=public-users_v2
 #SBATCH --partition=gpu-general-pool
 #SBATCH --exclude=compute-0-18     # RTX PRO 6000 Blackwell (sm_120): torch 2.2.2+cu121 has no kernels for it
 #SBATCH --gres=gpu:1

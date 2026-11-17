@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=test_pretrain_resume
 #SBATCH --partition=power-general-shared-pool
-#SBATCH --account=public-blaufer_v2
+#SBATCH --account=public-users_v2
 #SBATCH --time=00:20:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=8G
