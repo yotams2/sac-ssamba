@@ -1,0 +1,47 @@
+{
+  "task": "iemocap",
+  "experiment": "emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5_1e-4",
+  "job_id": "23673595",
+  "status": "running",
+  "date": "2026-11-17T18:20:25+02:00",
+  "collected_at": "2026-11-17T23:11:22+02:00",
+  "host": "compute-0-223.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5_1e-4",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/iemocap/emotion_sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5_1e-4",
+  "model": "ssamba_local",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5/models/best_audio_model.pth",
+  "seed": 1337,
+  "lr": 0.0001,
+  "frozen": false,
+  "git_commit": "b8dd5e44516b5cee81e567fc618636d0e42f2989",
+  "git_dirty": false,
+  "s3prl_commit": "ea490c9129733fb296e5bda3199236f23b6e270c",
+  "metrics": {
+    "folds": {
+      "unfreeze_cross-valid-on-fold1": {
+        "pipeline": "s3prl",
+        "best_dev": {
+          "step": 3000,
+          "acc": 0.6842696666717529
+        },
+        "test_at_best_dev": {
+          "step": 3000,
+          "acc": 0.5870967507362366
+        },
+        "test_final": {
+          "step": 12000,
+          "acc": 0.5520737171173096
+        },
+        "last_step": 12500,
+        "total_steps": 30000,
+        "complete": false
+      }
+    },
+    "complete": false,
+    "test_at_best_dev": {
+      "acc": 0.5870967507362366,
+      "n_folds": 1
+    }
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_er_23673595.out"
+}
