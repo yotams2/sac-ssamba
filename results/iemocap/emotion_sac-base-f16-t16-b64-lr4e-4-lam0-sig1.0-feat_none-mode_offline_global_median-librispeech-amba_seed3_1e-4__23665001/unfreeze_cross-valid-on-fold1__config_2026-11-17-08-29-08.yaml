@@ -4,7 +4,7 @@ downstream_expert:
     meta_data: /a/home/cc/tree/taucc/students/enginer/yotams2/sac-s3prl/s3prl/downstream/emotion/meta_data
     num_workers: 6
     pre_load: true
-    root: /scratch200/yotams2/sac-ssamba/data/mono/IEMOCAP_full_release
+    root: /scratch200/yotams2/sac-ssamba/data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release
     test_fold: fold1
     train_batch_size: 4
     valid_ratio: 0.2
