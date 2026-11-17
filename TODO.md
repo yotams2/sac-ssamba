@@ -6,12 +6,15 @@ Current state only. History goes in [docs/log/](docs/log/) (`2026-11.md`; full p
 ## Sprint work (see SPRINT.md for the why)
 - [x] RQ1 GRAM-T on SAR-SSL tasks: done 11-17 (results below). n/a on TDOA by design (magnitude-only input).
 - [x] RQ2 ipd16 frozen probes on binaural SC2/SID/IEMOCAP: done 11-17 (23663229, results below). Caveat: probe audio is the sac-ssamba binaural sets, not SAR-SSL's free-field arrays.
-- [ ] **Joint pilots A/B** (spec: Notion Agent Handoff 11-17; code `SAC-SAR-SSL/code/joint_pretrain.py`, `scripts/joint_pretrain.sbatch`). Smoke 23665154 -> Pilot A spec 23665155 / spat 23665156 (afterok). A-spec epoch-2 gate: MPC acc vs chance 1.8%, MPG falling; else fallback 6/16 columns for all pilots. Pilot B after that. Eval to build: spectral probe input for the new log-mel (shared STFT, 4.1-s windows), fusion-on eval.
+- [ ] **Joint pilots A/B** (spec: Notion Agent Handoff 11-17; code `SAC-SAR-SSL/code/joint_pretrain.py`, `scripts/joint_pretrain.sbatch`). Smoke 23665154 failed (mamba_ssm import, fixed); rerun smoke 23673591 -> Pilot A spec 23673592 / spat 23673593 (afterok). A-spec epoch-2 gate: MPC acc vs chance 1.8%, MPG falling; else fallback 6/16 columns for all pilots. Pilot B after that. Eval to build: spectral probe input for the new log-mel (shared STFT, 4.1-s windows), fusion-on eval.
 - [ ] **RQ3b after Pilot A, on A's encoders: reconstruction from frozen embeddings only** (your call 11-17; frozen-concat downstream dropped). Spectral encoder = **binaural 2-ch log-mel `spectral_only_logmel`** (23348511, `exp/binaural_sac_pretrain/...-spectral_only_logmel/models/audio_model.final.pth`; your call 11-17, it sees both ears and the reverberant binaural domain; caveat: its SAC term ran on the old broken manifests at lambda 0.02, so treat it as ~no-SAC). Optional control row: mono `amba` s1 on L. Spatial = frozen ipd16 SAC on SAR-SSL simulated binaural clips; small cross-attention decoder reconstructs log-mel L/R + IPD on one grid; per-component error from spectral / spatial / both.
 - [ ] RQ4 after RQ2/3: SAIL-style two-tokenizer SSAMBA + shared masked reconstruction, 10-ep pilot on WSJ0 simulated set.
 - [ ] SAR-SSL reference numbers for DRR/C50/ABS (results branch).
 
 ## Running / waiting
+- **Account change (seen 11-17):** `gpu-general-pool` accepts only `public-users_v2`. Scripts with `--account=public-blaufer_v2` pend forever (PartitionConfig): fix each before reuse; `scontrol update job <id> Account=public-users_v2` for queued/held ones (k=10 23652538, seeds 23640933/35 on release).
+- **Home quota:** downstream logs ~20 MB each in `logs/`; move finished ones to `/scratch200/yotams2/logs/sac-ssamba_home_logs/` regularly (quota hit 11-17 18:25).
+- **k=5 downstream:** SC2 97.60 (23666191); IEMOCAP 23673595 / SID 23673596 resubmitted after the quota crash.
 - **`amba` seeds downstream** (thesis must-have): s2 SID 23638875 pending (resumes from 29k ckpt), s2 SC2 rerun 23640910 running since 11-17 06:38. s3 IEMOCAP **23665001** (resubmitted 11-17 08:30, resumes from 18k; 23652540 failed on the old wrong `IEMOCAP_ROOT` default in `run_er.sh:40`, now fixed to `data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release`).
 - **Mono probe fp16 bug** (diag 23663212): fp16 autocast makes trained-model embeddings 90-100% NaN -> exactly chance; fp32 is fine and above random for k=5 ep2/ep4, eg18, `amba` s1. Fixed 11-17: `_sac_batch` runs fp32 (covers the in-loop probe). Rerun 23665002 done: k=5 ep5 linear SC2/SID/EER/UA 33.7/36.4/3.0/58.0 vs eg18 final 38.2/30.5/3.3/58.4, `amba` s1 34.5/30.1/3.3/58.4, random 6.7/24.1/13.3/49.4 (`exp/_probes/mono_probe_2026-11-17.jsonl`).
 - **Mono SAC perplexity** k=5 23647242 running (epoch 5/10 saved 11-17; 2-day limit hit ~22:00 11-17, then requeue) + gate 23647243. k=10 23652538 + gate 23652539 **held 11-16 for the sprint** (`scontrol release` to resume).
@@ -35,8 +38,9 @@ Mono, test at best dev, single seed (SC2 / IEMOCAP fold1 / SID):
 | SAC old features | 97.58 | 60.18 | 71.40 |
 | SAC egemaps18 | 97.50 | 56.7 | 67.5 |
 | `amba` s1 | 97.45 | 58.71 | 67.9 |
-| `amba` s2 | pending | 55.9 | running |
-| `amba` s3 | 97.61 | pending | 67.7 |
+| `amba` s2 | 97.50 | 55.9 | pending |
+| `amba` s3 | 97.61 | 58.8 | 67.7 |
+| SAC k=5 perplexity | 97.60 | running | running |
 | `amba` RunAI (old baseline) | 97.34 | 57.24 | 60.50 |
 | GRAM-T binaural-frame frozen | 89.59 | - | 76.88 |
 
