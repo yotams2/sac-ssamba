@@ -299,7 +299,9 @@ class PretrainProbe:
             xs.append(wav2stft(w))  # SC2 dataset: STFT of the clip, frames zero-padded to 1024
         x = torch.stack(xs)
         B = x.shape[0]
-        with torch.cuda.amp.autocast(enabled=self.device != 'cpu'):
+        # fp32: the encoder was pretrained without autocast, and under fp16 every trained encoder's embeddings come out
+        # NaN (diag 23663212, 2026-11-17; random init stays finite), so the probes scored exactly chance.
+        with torch.cuda.amp.autocast(enabled=False):
             h = encoder._encode_with_mamba(x)[:, 1:, :]
         h = h.float().reshape(B, -1, T_PATCHES, h.shape[-1])  # token order: frequency-major (16 rows for STFT, 8 for log-mel)
         if task == 'sc2':

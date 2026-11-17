@@ -37,7 +37,7 @@ upstream_name=${3:-$default_upstream}
 frozen=${4:-${FROZEN:-false}}
 
 # Ensure datarc.root points to the actual IEMOCAP directory containing Session1-Session5
-IEMOCAP_ROOT=${IEMOCAP_ROOT:-${SAC_DATA_ROOT}/mono/IEMOCAP_full_release}
+IEMOCAP_ROOT=${IEMOCAP_ROOT:-${SAC_DATA_ROOT}/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release}
 file_path_override=",,config.downstream_expert.datarc.root=${IEMOCAP_ROOT},,config.downstream_expert.datarc.meta_data=${S3PRL_ROOT}/s3prl/downstream/emotion/meta_data"
 
 # Binaural models are evaluated on the binaural simulation of IEMOCAP (same utterances/folds/labels)

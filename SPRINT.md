@@ -104,4 +104,7 @@ with the RQ1/RQ2 tables.
 ## Decision log (this sprint)
 - 11-16: sprint set from the supervisor meeting. RQ order: GRAM-T / single encoder / complementarity, then the joint objective.
 - 11-16: k=10 held (your OK). RQ1 started: `--upstream gramt` (SAC-SAR-SSL `code/gramt_spatial.py`, `scripts/gramt_spatial_eval.sbatch`), no scratchLOW for GRAM-T. Smoke 23655896, then label `gramt_bf` TDOA/T60/DRR/C50/ABS 23655897-901 (afterok).
+- 11-17: RQ1 and RQ2 read (TODO.md). RQ2: ipd16 far below log-mel/GRAM-T on speech probes -> two token streams.
+- 11-17 (your call): **RQ3 drops the frozen-concat downstream** (step 1); the frozen binaural spectral SSAMBA was already far below GRAM-T, so concat can't move spectral accuracy meaningfully. RQ3 = reconstruction from frozen embeddings only.
+- 11-17 (your call): RQ3 spectral encoder = the binaural 2-ch log-mel `spectral_only_logmel` run (23348511), not mono `amba` s1 on L. L-only would handicap R / level reconstruction from the spectral side and bias the read toward "complementary". `amba` s1 stays an optional control row.
 - 11-17: RQ2 started: ipd16 front end in the probe (4.112-s windows, fp32), jobs 23663228 (smoke) -> 23663229.
