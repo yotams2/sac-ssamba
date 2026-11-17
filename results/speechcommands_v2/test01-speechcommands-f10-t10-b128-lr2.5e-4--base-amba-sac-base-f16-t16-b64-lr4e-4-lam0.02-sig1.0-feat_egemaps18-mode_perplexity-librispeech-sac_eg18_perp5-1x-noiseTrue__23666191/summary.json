@@ -1,0 +1,23 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5-1x-noiseTrue",
+  "job_id": "23666191",
+  "status": "running",
+  "date": "2026-11-17T11:46:54+02:00",
+  "collected_at": "2026-11-17T11:46:54+02:00",
+  "host": "compute-0-223.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5-1x-noiseTrue",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0.02-sig1.0-feat_egemaps18-mode_perplexity-librispeech-sac_eg18_perp5-1x-noiseTrue",
+  "model": null,
+  "pretrained": null,
+  "seed": null,
+  "lr": null,
+  "frozen": null,
+  "git_commit": "b79106df4b6de053165380281429c17bde6cdca9",
+  "git_dirty": false,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "pretrain"
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23666191.out"
+}
