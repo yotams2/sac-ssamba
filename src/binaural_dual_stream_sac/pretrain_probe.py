@@ -230,14 +230,17 @@ class PretrainProbe:
         """audio='mono': the mono downstream sources (SC2 mono json lists, original VoxCeleb1 / IEMOCAP wavs, one
         channel) for the mono SSAMBA models; needs input_repr='logmel'. SID and IEMOCAP pick the same utterances
         as the binaural probe (same seed and lists); SC2 draws from the mono train / eval lists."""
+        # audio='binaural_mid' / 'binaural_left': the binaural downstream sets (same subsets as 'binaural'), collapsed
+        # to one channel ((L+R)/2 or L) for the mono SSAMBA models: mono model, binaural (reverberant) audio.
         data_root = data_root or os.environ.get('SAC_DATA_ROOT', DEFAULT_DATA_ROOT)
-        if audio not in ('binaural', 'mono'):
-            raise ValueError(f'audio must be binaural or mono, not {audio}')
-        if audio == 'mono' and input_repr != 'logmel':
-            raise ValueError("audio='mono' needs input_repr='logmel' (mono SSAMBA takes log-mel)")
+        if audio not in ('binaural', 'mono', 'binaural_mid', 'binaural_left'):
+            raise ValueError(f'audio must be binaural, mono, binaural_mid or binaural_left, not {audio}')
+        if audio != 'binaural' and input_repr != 'logmel':
+            raise ValueError(f"audio='{audio}' needs input_repr='logmel' (mono SSAMBA takes log-mel)")
         self.device = device
         self.batch_size = batch_size
         self.channels = 1 if audio == 'mono' else 2
+        downmix = {'binaural_mid': 'mid', 'binaural_left': 'left'}.get(audio)
         self.input_repr, self.fbank_mean, self.fbank_std = input_repr, fbank_mean, fbank_std
         self.sets = {}
         t0 = time.time()
@@ -278,6 +281,10 @@ class PretrainProbe:
                 splits = {}
                 for name, items in (('ref', ref), ('query', query)):
                     wavs = list(pool.map(lambda it: _load_wav(it[0], CHUNK_SAMPLES, self.channels), items))
+                    if downmix == 'mid':
+                        wavs = [w.float().mean(0, keepdim=True).to(torch.float16) for w in wavs]
+                    elif downmix == 'left':
+                        wavs = [w[:1] for w in wavs]
                     splits[name] = (wavs, torch.tensor([it[1] for it in items], device=device))
                 self.sets[task] = {'n_class': n_class, **splits}
                 print(f'[probe] {task}: {len(ref)} reference / {len(query)} query clips, {n_class} classes', flush=True)
@@ -529,9 +536,10 @@ def main():
                         '(SAC-SAR-SSL encoder_*.pth, binaural audio only)')
     p.add_argument('--fbank_mean', type=float, default=None)
     p.add_argument('--fbank_std', type=float, default=None)
-    p.add_argument('--audio', default='binaural', choices=['binaural', 'mono'],
+    p.add_argument('--audio', default='binaural', choices=['binaural', 'mono', 'binaural_mid', 'binaural_left'],
                    help="mono: mono SSAMBA checkpoints (run_pretrain_sac.py) on the mono downstream audio; "
-                        "implies --input_repr logmel, fbank stats from each run's args.pkl")
+                        "binaural_mid / binaural_left: the same mono checkpoints on the binaural downstream sets, "
+                        "collapsed to (L+R)/2 or L. All three imply --input_repr logmel, fbank stats from each run's args.pkl")
     args = p.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     mono_template = ipd16_template = None
@@ -539,12 +547,13 @@ def main():
         if args.audio != 'binaural':
             p.error('--input_repr ipd16 needs --audio binaural')
         ipd16_template = next((s for s in _expand_models(args.models) if s != 'random' and not s.startswith('gramt')), None)
-    if args.audio == 'mono':
+    mono_model = args.audio in ('mono', 'binaural_mid', 'binaural_left')
+    if mono_model:
         import pickle
         specs = _expand_models(args.models)
         mono_template = next((s for s in specs if s != 'random' and not s.startswith('gramt')), None)
         if mono_template is None:
-            p.error('--audio mono needs at least one checkpoint (for the architecture and fbank stats)')
+            p.error(f'--audio {args.audio} needs at least one checkpoint (for the architecture and fbank stats)')
         with open(os.path.join(_mono_exp_dir(mono_template), 'args.pkl'), 'rb') as f:
             ra = pickle.load(f)
         args.input_repr, args.fbank_mean, args.fbank_std = 'logmel', ra.dataset_mean, ra.dataset_std
@@ -569,7 +578,7 @@ def main():
         elif args.input_repr == 'ipd16':
             enc = load_ipd16_model(spec, device, ipd16_template)
             row.update(probe.evaluate_ipd16(enc))
-        elif args.audio == 'mono':
+        elif mono_model:
             enc, step = load_mono_model(spec, device, mono_template)
             m = re.search(r'audio_model\.(\d+)\.pth$', spec)
             if step is not None:

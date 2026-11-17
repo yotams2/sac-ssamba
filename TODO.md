@@ -12,6 +12,7 @@ Current state only. History goes in [docs/log/](docs/log/) (`2026-11.md`; full p
 - [ ] SAR-SSL reference numbers for DRR/C50/ABS (results branch).
 
 ## Running / waiting
+- **Mono-on-binaural probe 23673898** (`scripts/mono_on_binaural_probe.sbatch`; new probe modes `--audio binaural_mid|binaural_left`): is the mono->binaural drop the test audio or the model/data? Read and add to the results.
 - **Slurm account:** `public-users_v2` everywhere since 11-17 (gpu-general-pool rejects `public-blaufer_v2`; jobs pend on PartitionConfig).
 - **Home quota:** downstream logs ~20 MB each in `logs/`; move finished ones to `/scratch200/yotams2/logs/sac-ssamba_home_logs/` regularly (quota hit 11-17 18:25).
 - **k=5 downstream:** SC2 97.60 (23666191); IEMOCAP 23673595 / SID 23673596 resubmitted after the quota crash.
