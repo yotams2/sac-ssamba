@@ -12,7 +12,7 @@ Current state only. History goes in [docs/log/](docs/log/) (`2026-11.md`; full p
 - [ ] SAR-SSL reference numbers for DRR/C50/ABS (results branch).
 
 ## Running / waiting
-- **Account change (seen 11-17):** `gpu-general-pool` accepts only `public-users_v2`. Scripts with `--account=public-blaufer_v2` pend forever (PartitionConfig): fix each before reuse; `scontrol update job <id> Account=public-users_v2` for queued/held ones (k=10 23652538, seeds 23640933/35 on release).
+- **Slurm account:** `public-users_v2` everywhere since 11-17 (gpu-general-pool rejects `public-blaufer_v2`; jobs pend on PartitionConfig).
 - **Home quota:** downstream logs ~20 MB each in `logs/`; move finished ones to `/scratch200/yotams2/logs/sac-ssamba_home_logs/` regularly (quota hit 11-17 18:25).
 - **k=5 downstream:** SC2 97.60 (23666191); IEMOCAP 23673595 / SID 23673596 resubmitted after the quota crash.
 - **`amba` seeds downstream** (thesis must-have): s2 SID 23638875 pending (resumes from 29k ckpt), s2 SC2 rerun 23640910 running since 11-17 06:38. s3 IEMOCAP **23665001** (resubmitted 11-17 08:30, resumes from 18k; 23652540 failed on the old wrong `IEMOCAP_ROOT` default in `run_er.sh:40`, now fixed to `data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release`).
