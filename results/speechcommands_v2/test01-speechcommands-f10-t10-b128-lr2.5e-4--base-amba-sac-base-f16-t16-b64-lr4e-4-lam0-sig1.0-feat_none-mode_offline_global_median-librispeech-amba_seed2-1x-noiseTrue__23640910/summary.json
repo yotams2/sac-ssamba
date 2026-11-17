@@ -1,0 +1,30 @@
+{
+  "task": "speechcommands_v2",
+  "experiment": "test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue",
+  "job_id": "23640910",
+  "status": "running",
+  "date": "2026-11-15T07:17:26+02:00",
+  "collected_at": "2026-11-17T06:38:09+02:00",
+  "host": "compute-0-223.powerslurm",
+  "exp_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue",
+  "ckpt_dir": "/scratch200/yotams2/sac-ssamba/exp/speechcommands_v2/test01-speechcommands-f10-t10-b128-lr2.5e-4--base-amba-sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2-1x-noiseTrue/models",
+  "model": "labhamlet/gramt-binaural-frame",
+  "pretrained": "/scratch200/yotams2/sac-ssamba/exp/sac_pretrain/sac-base-f16-t16-b64-lr4e-4-lam0-sig1.0-feat_none-mode_offline_global_median-librispeech-amba_seed2/models/best_audio_model.pth",
+  "seed": 0,
+  "lr": 0.00025,
+  "frozen": false,
+  "git_commit": "9f6e87b2a4266185385f2dc5a0f3d727093cb752",
+  "git_dirty": false,
+  "s3prl_commit": null,
+  "metrics": {
+    "pipeline": "run_amba",
+    "best_dev": {
+      "epoch": 18,
+      "acc": 0.9723474601743313,
+      "auc": 0.9994408186831539
+    },
+    "epochs_done": 18,
+    "complete": false
+  },
+  "log": "/a/home/cc/tree/taucc/students/enginer/yotams2/sac-ssamba/logs/amba_sc_23640910.out"
+}
