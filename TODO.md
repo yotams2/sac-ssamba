@@ -6,20 +6,19 @@ Current state only. History goes in [docs/log/](docs/log/) (`2026-11.md`; full p
 ## Sprint work (see SPRINT.md for the why)
 - [x] RQ1 GRAM-T on SAR-SSL tasks: done 11-17 (results below). n/a on TDOA by design (magnitude-only input).
 - [x] RQ2 ipd16 frozen probes on binaural SC2/SID/IEMOCAP: done 11-17 (23663229, results below). Caveat: probe audio is the sac-ssamba binaural sets, not SAR-SSL's free-field arrays.
-- [ ] **Joint pilots A/B** (spec: Notion Agent Handoff 11-17; code `SAC-SAR-SSL/code/joint_pretrain.py`, `scripts/joint_pretrain.sbatch`). Smoke 23665154 failed (mamba_ssm import, fixed); rerun smoke 23673591 -> Pilot A spec 23673592 / spat 23673593 (afterok). A-spec epoch-2 gate: MPC acc vs chance 1.8%, MPG falling; else fallback 6/16 columns for all pilots. Pilot B after that. Eval to build: spectral probe input for the new log-mel (shared STFT, 4.1-s windows), fusion-on eval.
+- [ ] **Joint pilots A/B** (spec: Notion Agent Handoff 11-17; code `SAC-SAR-SSL/code/joint_pretrain.py`, `scripts/joint_pretrain.sbatch`). **Pilot A done 11-18** (spec 23673592, 3.1 h; spat 23673593, 7.5 h; 10 ep each in one piece). Gate passed: val MPC acc spec 56%->59.5% (ep1->2) ->63.8% ep10, spat 45.7%->51.6%->60.4% (chance 1.8%). Val MPG spec 0.335->0.300; **spat MPG nearly flat 0.817->0.789**. Encoders `exp/joint_pretrain/pilotA_{spec,spat}/*_encoder_{best,final}.pth`. **Pilot B `pilotB_fusion` running: 23683380 (+ chain 23683381), submitted 11-18 22:50.** **Pilot A/B rerun queued 11-19 after the `Stream.pair` fix (old runs void, deleted): A-spec 23685608, A-spat 23685609, B 23685610; eval gates 23685611-13 (`scripts/pretrain_gate.sbatch` -> `scripts/evals/pilot*.sh`). To build: B fusion-on eval, A-concat, RQ3b.** **To build: A-concat eval (both families) = the go/no-go baseline; RQ3b.** Pretraining data = 50k clips for both ipd16 and pilots (Notion's ~112k is the full set). Eval to build: spectral probe input for the new log-mel (shared STFT, 4.1-s windows), fusion-on eval.
 - [ ] **RQ3b after Pilot A, on A's encoders: reconstruction from frozen embeddings only** (your call 11-17; frozen-concat downstream dropped). Spectral encoder = **binaural 2-ch log-mel `spectral_only_logmel`** (23348511, `exp/binaural_sac_pretrain/...-spectral_only_logmel/models/audio_model.final.pth`; your call 11-17, it sees both ears and the reverberant binaural domain; caveat: its SAC term ran on the old broken manifests at lambda 0.02, so treat it as ~no-SAC). Optional control row: mono `amba` s1 on L. Spatial = frozen ipd16 SAC on SAR-SSL simulated binaural clips; small cross-attention decoder reconstructs log-mel L/R + IPD on one grid; per-component error from spectral / spatial / both.
 - [ ] RQ4 after RQ2/3: SAIL-style two-tokenizer SSAMBA + shared masked reconstruction, 10-ep pilot on WSJ0 simulated set.
 - [ ] SAR-SSL reference numbers for DRR/C50/ABS (results branch).
 
 ## Running / waiting
-- **Mono-on-binaural probe 23673898** (`scripts/mono_on_binaural_probe.sbatch`; new probe modes `--audio binaural_mid|binaural_left`): is the mono->binaural drop the test audio or the model/data? Read and add to the results.
+- Nothing running except held jobs and backup 23677120.
 - **Slurm account:** `public-users_v2` everywhere since 11-17 (gpu-general-pool rejects `public-blaufer_v2`; jobs pend on PartitionConfig).
 - **Home quota:** downstream logs ~20 MB each in `logs/`; move finished ones to `/scratch200/yotams2/logs/sac-ssamba_home_logs/` regularly (quota hit 11-17 18:25).
-- **k=5 downstream:** SC2 97.60 (23666191); IEMOCAP 23673595 / SID 23673596 resubmitted after the quota crash.
-- **`amba` seeds downstream** (thesis must-have): s2 SID 23638875 pending (resumes from 29k ckpt), s2 SC2 rerun 23640910 running since 11-17 06:38. s3 IEMOCAP **23665001** (resubmitted 11-17 08:30, resumes from 18k; 23652540 failed on the old wrong `IEMOCAP_ROOT` default in `run_er.sh:40`, now fixed to `data/mono/data/IEMOCAP_audio_only/IEMOCAP_full_release`).
+- **k=5 downstream done 11-18:** SC2 97.60, IEMOCAP 58.7 (23673595), SID 67.6 (23673596). Within 1.5 pts of `amba` mean on all 3 = no gain.
+- **`amba` seeds downstream complete** (11-18, s2 SID 23638875 = 65.3). Mean of 3: SC2 97.52 / IEMOCAP 57.8 / SID 67.0.
 - **Mono probe fp16 bug** (diag 23663212): fp16 autocast makes trained-model embeddings 90-100% NaN -> exactly chance; fp32 is fine and above random for k=5 ep2/ep4, eg18, `amba` s1. Fixed 11-17: `_sac_batch` runs fp32 (covers the in-loop probe). Rerun 23665002 done: k=5 ep5 linear SC2/SID/EER/UA 33.7/36.4/3.0/58.0 vs eg18 final 38.2/30.5/3.3/58.4, `amba` s1 34.5/30.1/3.3/58.4, random 6.7/24.1/13.3/49.4 (`exp/_probes/mono_probe_2026-11-17.jsonl`).
 - **Mono SAC perplexity** k=5 23647242 running (epoch 5/10 saved 11-17; 2-day limit hit ~22:00 11-17, then requeue) + gate 23647243. k=10 23652538 + gate 23652539 **held 11-16 for the sprint** (`scontrol release` to resume).
-- **Mono SAC seeds 2/3** (median rule) 23640933/35 held, gates 23640934/36: cancel at the k=5 read if perplexity wins.
 - Backup + prune daily (23653353).
 
 ## Results
@@ -39,13 +38,15 @@ Mono, test at best dev, single seed (SC2 / IEMOCAP fold1 / SID):
 | SAC old features | 97.58 | 60.18 | 71.40 |
 | SAC egemaps18 | 97.50 | 56.7 | 67.5 |
 | `amba` s1 | 97.45 | 58.71 | 67.9 |
-| `amba` s2 | 97.50 | 55.9 | pending |
+| `amba` s2 | 97.50 | 55.9 | 65.3 |
 | `amba` s3 | 97.61 | 58.8 | 67.7 |
-| SAC k=5 perplexity | 97.60 | running | running |
+| SAC k=5 perplexity | 97.60 | 58.7 | 67.6 |
 | `amba` RunAI (old baseline) | 97.34 | 57.24 | 60.50 |
 | GRAM-T binaural-frame frozen | 89.59 | - | 76.88 |
 
 RQ2 frozen probes on binaural speech sets (linear acc SC2 / SID / IEMOCAP UA; SID EER): ipd16 SAC 19.4 / 13.0 / 51.3 (31.8), ipd16 no SAC 19.1 / 15.8 / 49.5 (31.6), random 3.1 / 9.1 / 46.8 (32.3), GRAM-T 71.2 / 62.4 / 62.9 (13.9). Chance 2.9 / 0.5 / 25.
+
+Mono `amba` on binaural audio (23673898, linear SC2 / SID / IEMOCAP UA, s1-3 mean): mono sets 33.6 / 28.7 / 57.6; binaural (L+R)/2 25.2 / 38.6 / 55.3; binaural L (s1) 24.4 / 38.9 / 52.4; binaural 2-ch log-mel model 19.7 / 32.4 / 53.2; random on (L+R)/2 4.8 / 35.0 / 48.1. SID sets differ (binaural random 35% vs mono ~24%), so compare SID only within a set. SC2 drops ~8 pts from the audio alone; mono `amba` beats the binaural model on its own binaural audio.
 
 ## Decisions in force
 - **Sprint focus 11-16 → 11-30** (supervisor meeting): see SPRINT.md. No new mono SAC runs or spatial seeds this sprint.

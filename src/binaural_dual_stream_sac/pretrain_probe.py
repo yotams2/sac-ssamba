@@ -379,6 +379,44 @@ class PretrainProbe:
         ds.eval()
         return self.evaluate(lambda task: lambda w: self._ipd16_batch(ds, w, task))
 
+    @torch.no_grad()
+    def _joint_spec_batch(self, js, wavs, task):
+        """js: spectral encoder from SAC-SAR-SSL joint_pretrain.py (Pilot A/B spec_encoder_*.pth). Same windows and
+        pooling as _ipd16_batch. Input exactly as in pretraining: shared SAR-SSL STFT (Hann 512 / hop 256, / mean |L|),
+        mid channel (L+R)/2, 128-mel htk power -> log, standardised with the checkpoint stats; frames past the clip end
+        are zero after standardising (as ipd16). 8 frequency rows x 16 columns; SID / ER concatenate the 8 rows [8 * D]."""
+        import math
+        from joint_pretrain import shared_stft
+        enc = js['enc']
+        nfp, ntp = 8, 16
+        out = []
+        for w in wavs:
+            w = w.to(self.device).float()  # [2, N]
+            n = w.shape[-1]
+            starts = list(range(0, n, IPD16_WIN))
+            if len(starts) > 1 and n - starts[-1] < IPD16_MIN_TAIL:
+                starts = starts[:-1]
+            acc, count = 0.0, 0
+            for st in starts:
+                stft_n = shared_stft(self._ipd16_stft, w[:, st:st + IPD16_WIN].T.unsqueeze(0))  # (1, 2, 257, nt)
+                n_real = min(stft_n.shape[-1], js['nt'])
+                X = (js['inputs'].spec(stft_n) - js['mean']) / js['std']  # (1, 1, 128, 256)
+                X[..., n_real:] = 0.0
+                h = enc._encode_with_mamba(X)[:, 1:].float()  # CLS dropped, frequency-major patches
+                ntr = min(ntp, math.ceil(n_real / 16))
+                acc = acc + h.reshape(1, nfp, ntp, -1)[:, :, :ntr].sum(2)  # (1, 8, D)
+                count += ntr
+            hm = acc / count
+            out.append(hm.mean(1) if task == 'sc2' else hm.reshape(1, -1))
+        return torch.cat(out)
+
+    def evaluate_joint_spec(self, js):
+        import common.utils_module as at_module
+        if not hasattr(self, '_ipd16_stft'):
+            self._ipd16_stft = at_module.STFT(win_len=512, win_shift_ratio=0.5, nfft=512).to(self.device)
+        js['enc'].eval()
+        return self.evaluate(lambda task: lambda w: self._joint_spec_batch(js, w, task))
+
     def _embed(self, batch_fn, wavs):
         out = [batch_fn(wavs[i:i + self.batch_size]) for i in range(0, len(wavs), self.batch_size)]
         return torch.cat(out)
@@ -496,6 +534,27 @@ def load_ipd16_model(spec, device, template_ckpt=None):
     return ds.to(device)
 
 
+def load_joint_spec_model(spec, device, template_ckpt=None):
+    """Spectral encoder of SAC-SAR-SSL joint_pretrain.py ({'state_dict': AMBAModel weights, 'meta': log-mel settings
+    + stats}), built and fed by that file's own code. 'random' = same model untrained, template_ckpt's stats."""
+    if SARSSL_CODE not in sys.path:
+        sys.path.append(SARSSL_CODE)
+    import joint_pretrain as jp
+    torch.manual_seed(0)
+    enc = jp.build_spectral_encoder(use_checkpointing=False)
+    if spec == 'random':
+        if template_ckpt is None:
+            raise ValueError("'random' with --input_repr joint_spec needs a spec_encoder checkpoint among --models")
+        meta = torch.load(template_ckpt, map_location='cpu', weights_only=False)['meta']
+    else:
+        ck = torch.load(spec, map_location='cpu', weights_only=False)
+        meta = ck['meta']
+        assert meta['input'] == 'logmel_mid_sarssl_stft', meta['input']
+        enc.load_state_dict(ck['state_dict'], strict=True)
+    return {'enc': enc.to(device), 'inputs': jp.Inputs(None).to(device), 'nt': jp.NT,
+            'mean': float(meta['in_mean']), 'std': float(meta['in_std'])}
+
+
 def _expand_models(specs):
     """Checkpoint paths / globs / 'random' / 'gramt[:model_id]' -> ordered list of specs."""
     def ckpt_key(p):
@@ -531,7 +590,7 @@ def main():
     p.add_argument('--iemocap_fold', type=int, default=1)
     p.add_argument('--emo_ref_per_class', type=int, default=250)
     p.add_argument('--batch_size', type=int, default=32)
-    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel', 'ipd16'],
+    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel', 'ipd16', 'joint_spec'],
                    help='input of the SAC checkpoints; logmel needs --fbank_mean/--fbank_std; ipd16 = spatial SSAMBA '
                         '(SAC-SAR-SSL encoder_*.pth, binaural audio only)')
     p.add_argument('--fbank_mean', type=float, default=None)
@@ -546,6 +605,10 @@ def main():
     if args.input_repr == 'ipd16':
         if args.audio != 'binaural':
             p.error('--input_repr ipd16 needs --audio binaural')
+        ipd16_template = next((s for s in _expand_models(args.models) if s != 'random' and not s.startswith('gramt')), None)
+    if args.input_repr == 'joint_spec':
+        if args.audio != 'binaural':
+            p.error('--input_repr joint_spec needs --audio binaural')
         ipd16_template = next((s for s in _expand_models(args.models) if s != 'random' and not s.startswith('gramt')), None)
     mono_model = args.audio in ('mono', 'binaural_mid', 'binaural_left')
     if mono_model:
@@ -578,6 +641,9 @@ def main():
         elif args.input_repr == 'ipd16':
             enc = load_ipd16_model(spec, device, ipd16_template)
             row.update(probe.evaluate_ipd16(enc))
+        elif args.input_repr == 'joint_spec':
+            enc = load_joint_spec_model(spec, device, ipd16_template)
+            row.update(probe.evaluate_joint_spec(enc))
         elif mono_model:
             enc, step = load_mono_model(spec, device, mono_template)
             m = re.search(r'audio_model\.(\d+)\.pth$', spec)
