@@ -417,6 +417,40 @@ class PretrainProbe:
         js['enc'].eval()
         return self.evaluate(lambda task: lambda w: self._joint_spec_batch(js, w, task))
 
+    @torch.no_grad()
+    def _joint_batch(self, jd, wavs, task):
+        """jd: SAC-SAR-SSL joint_spatial.JointSpatialDownstream (A-concat or B fusion-on): both streams from the same
+        shared STFT window, exactly as its SAR-SSL downstream path. Windows as _ipd16_batch. SC2 = per stream mean over
+        real patches, concatenated [2 * D]; SID / ER = per-frequency-row means of both streams, concatenated [(8 + 16) * D]."""
+        from joint_pretrain import shared_stft, FRE_RANGE
+        out = []
+        for w in wavs:
+            w = w.to(self.device).float()  # [2, N]
+            n = w.shape[-1]
+            starts = list(range(0, n, IPD16_WIN))
+            if len(starts) > 1 and n - starts[-1] < IPD16_MIN_TAIL:
+                starts = starts[:-1]
+            acc, count = None, 0
+            for st in starts:
+                stft_n = shared_stft(self._ipd16_stft, w[:, st:st + IPD16_WIN].T.unsqueeze(0))  # (1, 2, 257, nt)
+                p = jd.patches(torch.view_as_real(stft_n)[:, :, FRE_RANGE])  # as STFTLearner hands it over
+                s = {k: v.sum(2) for k, v in p.items()}  # (1, rows, D)
+                acc = s if acc is None else {k: acc[k] + s[k] for k in s}
+                count += p['spec'].shape[2]
+            hm = {k: v / count for k, v in acc.items()}
+            if task == 'sc2':
+                out.append(torch.cat([hm['spec'].mean(1), hm['spat'].mean(1)], dim=-1))
+            else:
+                out.append(torch.cat([hm['spec'].reshape(1, -1), hm['spat'].reshape(1, -1)], dim=-1))
+        return torch.cat(out)
+
+    def evaluate_joint(self, jd):
+        import common.utils_module as at_module
+        if not hasattr(self, '_ipd16_stft'):
+            self._ipd16_stft = at_module.STFT(win_len=512, win_shift_ratio=0.5, nfft=512).to(self.device)
+        jd.eval()
+        return self.evaluate(lambda task: lambda w: self._joint_batch(jd, w, task))
+
     def _embed(self, batch_fn, wavs):
         out = [batch_fn(wavs[i:i + self.batch_size]) for i in range(0, len(wavs), self.batch_size)]
         return torch.cat(out)
@@ -562,7 +596,7 @@ def _expand_models(specs):
         return (0, int(m.group(1)), p) if m else (1, 0, p)
     out = []
     for s in specs:
-        if s == 'random' or s.startswith('gramt'):
+        if s == 'random' or s.startswith('gramt') or ',' in s:
             out.append(s)
         else:
             paths = sorted(glob.glob(s), key=ckpt_key)
@@ -590,7 +624,7 @@ def main():
     p.add_argument('--iemocap_fold', type=int, default=1)
     p.add_argument('--emo_ref_per_class', type=int, default=250)
     p.add_argument('--batch_size', type=int, default=32)
-    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel', 'ipd16', 'joint_spec'],
+    p.add_argument('--input_repr', default='stft', choices=['stft', 'logmel', 'ipd16', 'joint_spec', 'joint_concat', 'joint_fusion'],
                    help='input of the SAC checkpoints; logmel needs --fbank_mean/--fbank_std; ipd16 = spatial SSAMBA '
                         '(SAC-SAR-SSL encoder_*.pth, binaural audio only)')
     p.add_argument('--fbank_mean', type=float, default=None)
@@ -606,6 +640,8 @@ def main():
         if args.audio != 'binaural':
             p.error('--input_repr ipd16 needs --audio binaural')
         ipd16_template = next((s for s in _expand_models(args.models) if s != 'random' and not s.startswith('gramt')), None)
+    if args.input_repr in ('joint_concat', 'joint_fusion') and args.audio != 'binaural':
+        p.error(f'--input_repr {args.input_repr} needs --audio binaural')
     if args.input_repr == 'joint_spec':
         if args.audio != 'binaural':
             p.error('--input_repr joint_spec needs --audio binaural')
@@ -641,6 +677,14 @@ def main():
         elif args.input_repr == 'ipd16':
             enc = load_ipd16_model(spec, device, ipd16_template)
             row.update(probe.evaluate_ipd16(enc))
+        elif args.input_repr in ('joint_concat', 'joint_fusion'):
+            # spec: joint_concat '<spec_encoder.pth>,<spat_encoder.pth>' (not globbed); joint_fusion <joint_*.pth>
+            if SARSSL_CODE not in sys.path:
+                sys.path.append(SARSSL_CODE)
+            import joint_spatial
+            torch.manual_seed(0)
+            enc = joint_spatial.JointSpatialDownstream(spec, args.input_repr.split('_')[1]).to(device)
+            row.update(probe.evaluate_joint(enc))
         elif args.input_repr == 'joint_spec':
             enc = load_joint_spec_model(spec, device, ipd16_template)
             row.update(probe.evaluate_joint_spec(enc))

@@ -36,6 +36,8 @@ Each RQ ends in a number that changes what we build next. The order is the run o
   see RQ4. If it is far below, we need two token streams.
 
 ### RQ3. Are the two existing encoders complementary, and is a shared target learnable from both? *(bullets 3 and 5)*
+> **Update 2026-11-19:** RQ3 runs on Pilot A's encoders (RQ4), not the old ones (agreed 11-17: shared grid and data). Part 1 = A-concat, frozen, queued. Part 2 (RQ3b reconstruction) waits for the A/B results.
+
 - **Why:** this is a cheap feasibility test for a joint objective, with no new pretraining. It reuses the frozen
   encoders: log-mel SSAMBA (`amba` s1, mono LibriSpeech) and ipd16 SSAMBA (SAC, WSJ0).
 - **Do, on SAR-SSL simulated binaural clips** (both encoders can take them; log-mel encoder on the L channel):
@@ -55,6 +57,8 @@ Each RQ ends in a number that changes what we build next. The order is the run o
 - **Cost:** ~2 days of code. Decoder runs are short single-GPU jobs.
 
 ### RQ4. Which joint pretraining objective? *(bullets 3, 4, 6 and 7)*
+> **Update 2026-11-19:** Pilots A (encoders trained apart) and B (trained together, time-column fusion), spec in Notion Agent Handoff 11-17. Compared frozen on TDOA/T60/DRR + SC2/SID: A, A-concat, B fusion-off, B fusion-on.
+
 Run only after RQ2/RQ3. Start with one small pretraining (WSJ0 simulated set, 10 epochs, the ipd16 recipe) and read it
 with the RQ1/RQ2 tables.
 - **Architecture, informed by SAIL (arXiv 2609.34347).** SAIL feeds log-mel L/R and cos/sin IPD into separate
