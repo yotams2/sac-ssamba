@@ -11,6 +11,10 @@ end-of-run marker:
      SSAMBA), which must also be on moshe with the same size: delete per-eval snapshots audio_model.<n>.pth,
      encoder_epoch<n>.pth, eval_ep<n>.pth, best_encoder.pth and the resume state latest.pth / resume.pth.
      Kept: the final, and best_audio_model.pth (downstream scripts load it).
+  S1b joint / swap pretraining (SAC-SAR-SSL joint_pretrain/<run>, added 2026-11-23: S1's markers never matched these
+     runs, so their ~2 GB resume states stayed forever), marker .done plus joint_final.pth, which must be on moshe with
+     the same size: delete the resume state latest.pth only. Kept: the encoders (final, best, epoch<n> snapshots: the
+     evals read them) and joint_final.pth.
   Downstream weights are not backed up (backup.py: cheap to regenerate from the backed-up encoder and the recipe), and
   every number is already in the results records, so a finished downstream run keeps no weights at all:
   S2 s3prl downstream (IEMOCAP, SID), marker states-<total_steps>.ckpt (total_steps from the newest config_*.yaml):
@@ -26,6 +30,11 @@ end-of-run marker:
   M1 moshe: the copy of a pretraining run's resume state (latest.pth / resume.pth), once the run's
      audio_model.final.pth is on moshe with the same size as on scratch. Nothing else on moshe is touched.
 
+  T1 per-job temp dirs /scratch200/<user>/tmp/<job id> (TMPDIR of every job that sources SAC-SAR-SSL
+     scripts/job_tmp.sh, added 2026-11-24): removed whole once the job is no longer in squeue (any state) and the dir
+     is older than TMP_AGE_H. Normally the job's own exit trap removes it; this catches SIGKILLs. Skipped if squeue
+     fails. Runs even when moshe is not mounted.
+
 Every deletion is appended to ~/exp-records/prune_log.tsv.
 """
 import argparse
@@ -40,6 +49,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from backup import SCRATCH, MOSHE, RECORDS, HERE, ROOTS, WEIGHT_EXT, read_globs, is_smoke  # noqa: E402
 
 MIN_AGE_H = 24
+TMP_AGE_H = 1
+TMP_ROOT = f'/scratch200/{os.environ.get("USER", "yotams2")}/tmp'
 SMOKE_AGE_D = 7
 RESUME = {'latest.pth', 'resume.pth'}
 SNAPSHOT = re.compile(r'^(audio_model\.\d+\.pth|encoder_epoch\d+\.pth|eval_ep\d+\.pth|best_encoder\.pth)$')
@@ -89,6 +100,10 @@ def candidates(keep_globs):
                 if old(fin) and same_on_moshe(fin, f'{reld}/{fname}'):
                     pick = [(f, 'S1 pretrain snapshot/resume, final backed up') for f in weights
                             if SNAPSHOT.match(f) or f in RESUME]
+            elif '.done' in fs and 'joint_final.pth' in fs:
+                fin = os.path.join(d, 'joint_final.pth')
+                if old(fin) and same_on_moshe(fin, f'{reld}/joint_final.pth'):
+                    pick = [(f, 'S1b joint pretrain resume state, joint_final backed up') for f in weights if f in RESUME]
             elif any(f.startswith('states-') for f in weights):
                 t = total_steps(d)
                 if t and f'states-{t}.ckpt' in fs and old(os.path.join(d, f'states-{t}.ckpt')):
@@ -139,10 +154,48 @@ def moshe_candidates():
     return out
 
 
+def du(p):
+    n = 0
+    for r, _, fs in os.walk(p):
+        for f in fs:
+            try:
+                n += os.lstat(os.path.join(r, f)).st_size
+            except OSError:
+                pass
+    return n
+
+
+def tmp_cleanup(dry):
+    """T1: per-job temp dirs whose job is gone."""
+    import shutil
+    import subprocess
+    if not os.path.isdir(TMP_ROOT):
+        return
+    try:
+        live = set(subprocess.run(['squeue', '-u', os.environ.get('USER', 'yotams2'), '-h', '-o', '%A'], check=True,
+                                  capture_output=True, text=True, timeout=120).stdout.split())
+    except Exception as e:  # noqa: BLE001
+        print(f'[prune T1] squeue failed ({e}); per-job tmp dirs left alone', flush=True)
+        return
+    for d in sorted(os.listdir(TMP_ROOT)):
+        p = os.path.join(TMP_ROOT, d)
+        jid = d.split('_')[0]
+        if not os.path.isdir(p) or jid in live or not old(p, TMP_AGE_H):
+            continue
+        sz = du(p)
+        print(f'{"would delete" if dry else "delete"}  {sz / 2**30:6.2f} GB  {"T1 per-job tmp, job gone":50}  {p}', flush=True)
+        if not dry:
+            shutil.rmtree(p, ignore_errors=True)
+            with open(LOG, 'a') as log:
+                log.write(f'{time.strftime("%Y-%m-%d %H:%M")}\t{os.environ.get("SLURM_JOB_ID", "local")}\t'
+                          f'{sz / 2**20:.1f}\tT1 per-job tmp, job gone\t{p}\n')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args()
+    tmp_cleanup(args.dry_run)  # T1 first: it does not need moshe
     moshe_ok = os.path.isdir(os.path.dirname(MOSHE))
     if not moshe_ok and not args.dry_run:
         sys.exit(f'{os.path.dirname(MOSHE)} not mounted: S1 and M1 need it, nothing deleted')

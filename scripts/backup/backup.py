@@ -153,16 +153,33 @@ def copy_moshe(rows, dry):
     print(f'[moshe] {len(todo)} files, {nbytes / 2**30:.2f} GB to copy', flush=True)
     if dry or not todo:
         return todo
+    bad = []
     for r in todo:
         dst = os.path.join(MOSHE, r['rel'])
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         tmp = dst + '.part'
         t0 = time.time()
-        shutil.copyfile(r['src'], tmp)
-        shutil.copystat(r['src'], tmp)
-        os.replace(tmp, dst)
+        try:
+            shutil.copyfile(r['src'], tmp)
+            shutil.copystat(r['src'], tmp)
+            os.replace(tmp, dst)
+        except OSError as e:  # e.g. a running job rewrote its resume checkpoint mid-copy (stale file handle, 11-23)
+            print(f'  SKIP {r["rel"]}: {e}', flush=True)
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            bad.append(r['rel'])
+            continue
         if r['size'] > 100 * 2**20:
             print(f'  {r["rel"]}  {r["size"] / 2**30:.2f} GB  {time.time() - t0:.0f} s', flush=True)
+    # A resume checkpoint changing under us is expected for running jobs: retried next backup. Anything else fails the
+    # backup (exit 1) after the other files are copied, so prune.py does not run.
+    hard = [b for b in bad if os.path.basename(b) not in RESUME_NAMES]
+    if bad:
+        print(f'[moshe] skipped {len(bad)} files ({len(hard)} not resume checkpoints)', flush=True)
+    if hard:
+        raise SystemExit(f'[moshe] {len(hard)} copies failed: ' + ', '.join(hard))
     return todo
 
 
