@@ -58,6 +58,7 @@ Each RQ ends in a number that changes what we build next. The order is the run o
 
 ### RQ4. Which joint pretraining objective? *(bullets 3, 4, 6 and 7)*
 > **Update 2026-11-19:** Pilots A (encoders trained apart) and B (trained together, time-column fusion), spec in Notion Agent Handoff 11-17. Compared frozen on TDOA/T60/DRR + SC2/SID: A, A-concat, B fusion-off, B fusion-on.
+> **Update 2026-11-20:** B fusion-on beat A-concat only slightly (T60 0.061 vs 0.066, DRR 1.95 vs 2.07). Not scaling B. Next: a shared objective that makes each encoder dedicated (Pilot C: swap reconstruction across simulated scene/utterance pairs). First step: leakage probes (each Pilot A encoder on the other family).
 
 Run only after RQ2/RQ3. Start with one small pretraining (WSJ0 simulated set, 10 epochs, the ipd16 recipe) and read it
 with the RQ1/RQ2 tables.
