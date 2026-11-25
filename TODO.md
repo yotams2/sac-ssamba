@@ -19,7 +19,7 @@ Current state only. History goes in [docs/log/](docs/log/) (`2026-11.md`; full p
 - [ ] **V1b-HC matched control (Yotam 11-25):** launched 11:24: l1 23774973 (gate 23774974), l01 23774975 (gate 23774976). HC cues exp/v1b_sigma_tau_HC (scene mean of 4 renderings); spat sigma 0.6136 (old 0.613), tau 0.7 (A′); spec = A′. Next: compare with V1b A′ at matched lambda.
 - [x] **A′-uniform ablation done 11-25:** DRR / C50 2.4x / 2.3x worse than A′ (near random init), TDOA 1.13x -> late-energy view matters; compare.json in exp/rir_encoder/a1u_uniform.
 - [ ] **Future RIR-teacher training (planned 11-25, not applied to current runs):** pad every RIR to 13,868 samples with ~-60 dB re peak noise (no length -> T60 leak) + 'T60 from length alone' row in the probe report (RUNS.md decision 11-25).
-- [ ] **V1b-U-noanc: prepared, not launched.** Prep done (spat PCA k 384, sigma 0.5722). Needs Yotam: lambda (A′ evidence favours 0.1) and a go given A′-uniform's weak DRR / C50. `LAMBDA=0.1|1 bash scripts/launch_v1bU.sh`.
+- [ ] **V1b-A′-noanc (Yotam 11-25, launched 14:3x):** V1b A′ l0.1 + --own-scale 0; piece 23778097, gate 23778098. Then compare with V1b A′ l0.1 and swap-only. (V1b-U-noanc dropped: A′-uniform loses DRR / C50.)
 - [ ] **V2 (CKA 0.1 / 1):** scripts/launch_v2.sh written + dry run OK (11-24); Yotam launches 25 Nov (not me). **V3:** Yotam launches 25 Nov. Loader built 11-24 (v3_data.py; `--v3` in _swap_pretrain_v1.py; h1 = first half, WPE(h1) * paired-v2 training RIR + EQ 3-5 peaks ±6 dB + tilt ±3 dB/oct; spatial = h2; target = h1). Sanity PASSED 11-24 (exp/v3/sanity.json). Launch: --v3 --tar simu_unpaired8_pretrain.tar --val-scenes 2500.
 - `swap_pretrain.py` must stay backward compatible while C2 / seed 2 run (12-h pieces re-read it).
 
