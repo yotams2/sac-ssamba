@@ -58,7 +58,8 @@ FINALS = ('audio_model.final.pth', 'encoder_final.pth')
 LOG = os.path.join(RECORDS, 'prune_log.tsv')
 
 
-def old(p, hours=MIN_AGE_H):
+def old(p, hours=None):  # hours=None: MIN_AGE_H at call time (--min-age-h)
+    hours = MIN_AGE_H if hours is None else hours
     return time.time() - os.stat(p).st_mtime > hours * 3600
 
 
@@ -192,9 +193,13 @@ def tmp_cleanup(dry):
 
 
 def main():
+    global MIN_AGE_H
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--min-age-h', type=float, default=24.0,
+                    help='skip files modified in the last N hours (default 24; lower only for a manual run)')
     args = ap.parse_args()
+    MIN_AGE_H = args.min_age_h
     tmp_cleanup(args.dry_run)  # T1 first: it does not need moshe
     moshe_ok = os.path.isdir(os.path.dirname(MOSHE))
     if not moshe_ok and not args.dry_run:
