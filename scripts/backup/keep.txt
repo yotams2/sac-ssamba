@@ -3,3 +3,7 @@
 # Example: SAC-SAR-SSL/exp/TDOA/ssamba_pitchfix/*best_model.tar   # fine-tuned model behind a paper figure
 SAC-SAR-SSL/exp/ssamba_pretrain/*/encoder_epoch10.pth   # "ep 10" rows of the spatial TDOA/T60 table (2026-11-14)
 SAC-SAR-SSL/exp/ssamba_pretrain/*/eval_ep10.pth   # same rows: not yet checked which of the two ep-10 files the reads loaded
+SAC-SAR-SSL/exp/joint_pretrain/pilot*/*_encoder_final.pth   # joint / swap pilots: backup.py does not know this run type, finals were scratch-only (11-23)
+SAC-SAR-SSL/exp/joint_pretrain/pilot*/*_encoder_best.pth    # C epoch 9 (pre-spike) row of the go/no-go table = best (11-23)
+SAC-SAR-SSL/exp/joint_pretrain/pilot*/joint_final.pth       # encoders + decoder: check 4a and swap diagnostics read it (11-23)
+SAC-SAR-SSL/exp/joint_pretrain/pilotC30_v2r/*_encoder_epoch*.pth   # C 30 ep epoch 10 / 20: learning-curve evidence (Yotam 11-25: keep)
